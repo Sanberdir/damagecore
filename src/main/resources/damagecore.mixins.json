@@ -5,6 +5,10 @@
   "compatibilityLevel": "JAVA_8",
   "refmap": "damagecore.refmap.json",
   "mixins": [
+    "SwordItemMixin",
+    "DiggerItemMixin",
+    "TridentItemMixin",
+    "ItemMixin"
   ],
   "client": [
   ],
