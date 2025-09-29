@@ -1,5 +1,6 @@
 {
   "damagecore.damage.bludgeoning": "Дробящий урон: %s",
   "damagecore.damage.piercing": "Колющий урон: %s",
-  "damagecore.damage.slashing": "Режущий урон: %s"
+  "damagecore.damage.slashing": "Режущий урон: %s",
+  "damagecore.damage.fire": "Огненный урон: %s"
 }

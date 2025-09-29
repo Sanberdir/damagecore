@@ -7,27 +7,33 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.TridentItem;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import ru.imaginaerum.damagecore.DamageCore;
+import ru.imaginaerum.damagecore.library_damage.DamageCoreUtil;
 import ru.imaginaerum.damagecore.library_damage.DamageType;
 import ru.imaginaerum.damagecore.library_damage.IDamageCoreWeapon;
+import ru.imaginaerum.damagecore.library_damage.WeaponDamageData;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 
 @Mixin(TridentItem.class)
 public abstract class TridentItemMixin implements IDamageCoreWeapon {
 
-    private static final UUID BASE_ATTACK_DAMAGE_UUID =
-            UUID.fromString("FA233E1C-4180-4865-B01B-BCCE9785ACA3");
-
     @Unique
     private final Map<DamageType, Double> damagecore$damageMap = new HashMap<>();
+
+    @Unique
+    private Map<DamageType, Double> damagecore$customDamage = null;
+
+    @Unique
+    private boolean damagecore$hasCustom = false;
 
     @Inject(
             method = "getDefaultAttributeModifiers",
@@ -40,20 +46,40 @@ public abstract class TridentItemMixin implements IDamageCoreWeapon {
     ) {
         if (slot != EquipmentSlot.MAINHAND) return;
 
-        // Базовый vanilla-урон трезубца
-        double baseDamage = TridentItem.BASE_DAMAGE;
+        TridentItem trident = (TridentItem) (Object) this;
+        Item item = (Item) trident;
 
-        // Весь урон — колющий
-        damagecore$damageMap.clear();
-        damagecore$damageMap.put(DamageType.PIERCING, baseDamage);
+        System.out.println("=== Processing trident: " + item);
 
+        // Проверяем кастомные данные
+        WeaponDamageData customData = DamageCore.WEAPON_DAMAGE_MANAGER.getDamageData(item);
+
+        if (customData != null && !customData.isEmpty()) {
+            // Используем кастомные данные из JSON
+            System.out.println("Using CUSTOM damage data for trident: " + customData.getDamageMap());
+            damagecore$customDamage = new HashMap<>(customData.getDamageMap());
+            damagecore$hasCustom = true;
+        } else {
+            // Стандартное распределение - весь урон колющий
+            System.out.println("Using DEFAULT damage distribution for trident");
+            damagecore$hasCustom = false;
+            double baseDamage = TridentItem.BASE_DAMAGE;
+
+            damagecore$damageMap.clear();
+            damagecore$damageMap.put(DamageType.PIERCING, baseDamage);
+        }
+
+        // создаём новые модификаторы
         Multimap<Attribute, AttributeModifier> modifiers = HashMultimap.create();
+        double totalDamage = damagecore$getTotalDamage();
+        System.out.println("Total trident damage: " + totalDamage);
+
         modifiers.put(
                 Attributes.ATTACK_DAMAGE,
                 new AttributeModifier(
-                        BASE_ATTACK_DAMAGE_UUID,
-                        "DamageCore trident piercing",
-                        damagecore$getTotalDamage(),
+                        DamageCoreUtil.BASE_ATTACK_DAMAGE_UUID,
+                        "DamageCore trident damage",
+                        totalDamage,
                         AttributeModifier.Operation.ADDITION
                 )
         );
@@ -63,12 +89,24 @@ public abstract class TridentItemMixin implements IDamageCoreWeapon {
 
     @Override
     public Map<DamageType, Double> damagecore$getDamageMap() {
-        return damagecore$damageMap;
+        return damagecore$hasCustom ? damagecore$customDamage : damagecore$damageMap;
+    }
+
+    @Override
+    public void damagecore$setCustomDamage(Map<DamageType, Double> customDamage) {
+        this.damagecore$customDamage = customDamage;
+        this.damagecore$hasCustom = true;
+    }
+
+    @Override
+    public boolean damagecore$hasCustomDamage() {
+        return damagecore$hasCustom;
     }
 
     @Unique
     public double damagecore$getTotalDamage() {
-        return damagecore$damageMap.values().stream()
+        Map<DamageType, Double> map = damagecore$getDamageMap();
+        return map.values().stream()
                 .mapToDouble(Double::doubleValue)
                 .sum();
     }

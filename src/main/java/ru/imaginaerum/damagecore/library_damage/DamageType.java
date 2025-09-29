@@ -3,6 +3,7 @@ package ru.imaginaerum.damagecore.library_damage;
 public enum DamageType {
     PIERCING("piercing"),
     SLASHING("slashing"),
+    FIRE("fire"),
     BLUDGEONING("bludgeoning");
 
     private final String damageName;

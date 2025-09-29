@@ -4,7 +4,6 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.SwordItem;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
 import org.spongepowered.asm.mixin.Mixin;
@@ -34,6 +33,7 @@ public abstract class ItemMixin {
                     case PIERCING -> color = ChatFormatting.DARK_GREEN;
                     case SLASHING -> color = ChatFormatting.DARK_GREEN;
                     case BLUDGEONING -> color = ChatFormatting.DARK_GREEN;
+                    case FIRE -> color = ChatFormatting.DARK_RED;
                     default -> color = ChatFormatting.WHITE;
                 }
                 tooltip.add(

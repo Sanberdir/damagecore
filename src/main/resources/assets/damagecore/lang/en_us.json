@@ -1,5 +1,6 @@
 {
   "damagecore.damage.bludgeoning": "Bludgeoning damage: %s",
   "damagecore.damage.piercing": "Piercing damage: %s",
-  "damagecore.damage.slashing": "Slashing damage: %s"
+  "damagecore.damage.slashing": "Slashing damage: %s",
+  "damagecore.damage.fire": "Fire damage: %s"
 }

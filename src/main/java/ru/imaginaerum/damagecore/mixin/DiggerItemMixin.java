@@ -13,21 +13,26 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import ru.imaginaerum.damagecore.DamageCore;
+import ru.imaginaerum.damagecore.library_damage.DamageCoreUtil;
 import ru.imaginaerum.damagecore.library_damage.DamageType;
 import ru.imaginaerum.damagecore.library_damage.IDamageCoreWeapon;
+import ru.imaginaerum.damagecore.library_damage.WeaponDamageData;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 
 @Mixin(DiggerItem.class)
 public abstract class DiggerItemMixin implements IDamageCoreWeapon {
 
-    private static final UUID BASE_ATTACK_DAMAGE_UUID =
-            UUID.fromString("FA233E1C-4180-4865-B01B-BCCE9785ACA3");
-
     @Unique
     private final Map<DamageType, Double> damagecore$damageMap = new HashMap<>();
+
+    @Unique
+    private Map<DamageType, Double> damagecore$customDamage = null;
+
+    @Unique
+    private boolean damagecore$hasCustom = false;
 
     @Inject(
             method = "getDefaultAttributeModifiers",
@@ -41,46 +46,66 @@ public abstract class DiggerItemMixin implements IDamageCoreWeapon {
         if (slot != EquipmentSlot.MAINHAND) return;
 
         DiggerItem tool = (DiggerItem) (Object) this;
-        double baseDamage = tool.getAttackDamage();
+        Item item = (Item) tool;
 
-        // распределение по умолчанию
-        double bludgeoding = baseDamage * 0.6;
-        double slashing = baseDamage * 0.2;
-        double piercing = baseDamage * 0.2;
+        System.out.println("=== Processing tool: " + item);
 
-        // специальные правила для конкретных инструментов
-        if (tool instanceof AxeItem) {
-            slashing = baseDamage * 0.75;
-            bludgeoding = baseDamage * 0.25;
-            piercing = 0;
-        } else if (tool instanceof PickaxeItem) {
-            bludgeoding = baseDamage * 0.8;
-            piercing = baseDamage * 0.2;
-            slashing = 0;
-        } else if (tool instanceof ShovelItem) {
-            bludgeoding = baseDamage * 0.5;
-            piercing = baseDamage * 0.3;
-            slashing = baseDamage * 0.2;
-        } else if (tool instanceof HoeItem) {
-            slashing = baseDamage;
-            piercing = baseDamage + 1;
-            bludgeoding = baseDamage;
+        // Проверяем кастомные данные
+        WeaponDamageData customData = DamageCore.WEAPON_DAMAGE_MANAGER.getDamageData(item);
+
+        if (customData != null && !customData.isEmpty()) {
+            // Используем кастомные данные из JSON
+            System.out.println("Using CUSTOM damage data for tool: " + customData.getDamageMap());
+            damagecore$customDamage = new HashMap<>(customData.getDamageMap());
+            damagecore$hasCustom = true;
+        } else {
+            // Стандартное распределение
+            System.out.println("Using DEFAULT damage distribution for tool");
+            damagecore$hasCustom = false;
+            double baseDamage = tool.getAttackDamage();
+
+            // распределение по умолчанию
+            double bludgeoning = baseDamage * 0.6;
+            double slashing = baseDamage * 0.2;
+            double piercing = baseDamage * 0.2;
+
+            // специальные правила для конкретных инструментов
+            if (tool instanceof AxeItem) {
+                slashing = baseDamage * 0.75;
+                bludgeoning = baseDamage * 0.25;
+                piercing = 0;
+            } else if (tool instanceof PickaxeItem) {
+                bludgeoning = baseDamage * 0.8;
+                piercing = baseDamage * 0.2;
+                slashing = 0;
+            } else if (tool instanceof ShovelItem) {
+                bludgeoning = baseDamage * 0.5;
+                piercing = baseDamage * 0.3;
+                slashing = baseDamage * 0.2;
+            } else if (tool instanceof HoeItem) {
+                slashing = baseDamage;
+                piercing = baseDamage + 1;
+                bludgeoning = baseDamage;
+            }
+
+            // сохраняем карту
+            damagecore$damageMap.clear();
+            if (bludgeoning > 0) damagecore$damageMap.put(DamageType.BLUDGEONING, bludgeoning);
+            if (slashing > 0) damagecore$damageMap.put(DamageType.SLASHING, slashing);
+            if (piercing > 0) damagecore$damageMap.put(DamageType.PIERCING, piercing);
         }
-
-        // сохраняем карту
-        damagecore$damageMap.clear();
-        if (bludgeoding > 0) damagecore$damageMap.put(DamageType.BLUDGEONING, bludgeoding);
-        if (slashing > 0) damagecore$damageMap.put(DamageType.SLASHING, slashing);
-        if (piercing > 0) damagecore$damageMap.put(DamageType.PIERCING, piercing);
 
         // создаём новые модификаторы
         Multimap<Attribute, AttributeModifier> modifiers = HashMultimap.create();
+        double totalDamage = damagecore$getTotalDamage();
+        System.out.println("Total tool damage: " + totalDamage);
+
         modifiers.put(
                 Attributes.ATTACK_DAMAGE,
                 new AttributeModifier(
-                        BASE_ATTACK_DAMAGE_UUID,
+                        DamageCoreUtil.BASE_ATTACK_DAMAGE_UUID,
                         "DamageCore tool damage",
-                        damagecore$getTotalDamage(),
+                        totalDamage,
                         AttributeModifier.Operation.ADDITION
                 )
         );
@@ -90,12 +115,24 @@ public abstract class DiggerItemMixin implements IDamageCoreWeapon {
 
     @Override
     public Map<DamageType, Double> damagecore$getDamageMap() {
-        return damagecore$damageMap;
+        return damagecore$hasCustom ? damagecore$customDamage : damagecore$damageMap;
+    }
+
+    @Override
+    public void damagecore$setCustomDamage(Map<DamageType, Double> customDamage) {
+        this.damagecore$customDamage = customDamage;
+        this.damagecore$hasCustom = true;
+    }
+
+    @Override
+    public boolean damagecore$hasCustomDamage() {
+        return damagecore$hasCustom;
     }
 
     @Unique
     public double damagecore$getTotalDamage() {
-        return damagecore$damageMap.values().stream()
+        Map<DamageType, Double> map = damagecore$getDamageMap();
+        return map.values().stream()
                 .mapToDouble(Double::doubleValue)
                 .sum();
     }
