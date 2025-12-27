@@ -62,20 +62,36 @@ public abstract class SwordItemMixin implements IDamageCoreWeapon {
                 damagecore$damageMap.put(DamageType.SLASHING, slashing);
             }
 
-            // Убираем vanilla ATTACK_DAMAGE
+            // Убираем vanilla атрибуты
             modifiers.removeAll(Attributes.ATTACK_DAMAGE);
+            if (customData != null && customData.hasAttackSpeed()) {
+                modifiers.removeAll(Attributes.ATTACK_SPEED);
+            }
 
-            // Добавляем суммарный урон обратно для реального урона
+            // Добавляем кастомный урон
             double totalDamage = damagecore$getTotalDamage();
             modifiers.put(
                     Attributes.ATTACK_DAMAGE,
                     new AttributeModifier(
                             DamageCoreUtil.BASE_ATTACK_DAMAGE_UUID,
-                            "DamageCore sword damage",
-                            totalDamage,
+                            "DamageCore weapon damage",
+                            totalDamage - 1.0, // -1 потому что база у мечей уже учтена
                             AttributeModifier.Operation.ADDITION
                     )
             );
+
+            // Добавляем кастомную скорость атаки если есть
+            if (customData != null && customData.hasAttackSpeed()) {
+                modifiers.put(
+                        Attributes.ATTACK_SPEED,
+                        new AttributeModifier(
+                                DamageCoreUtil.BASE_ATTACK_SPEED_UUID,
+                                "DamageCore attack speed",
+                                customData.getAttackSpeed() - 4.0, // Базовая скорость
+                                AttributeModifier.Operation.ADDITION
+                        )
+                );
+            }
         }
 
         cir.setReturnValue(ImmutableMultimap.copyOf(modifiers));

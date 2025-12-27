@@ -2,5 +2,16 @@
   "damagecore.damage.bludgeoning": "Bludgeoning damage: %s",
   "damagecore.damage.piercing": "Piercing damage: %s",
   "damagecore.damage.slashing": "Slashing damage: %s",
-  "damagecore.damage.fire": "Fire damage: %s"
+  "damagecore.attack_speed": "Attack speed: %s",
+  "damagecore.damage.fire": "Fire damage: %s",
+
+  "effect.damagecore.death_poison": "Death Poison",
+  "effect.damagecore.bleeding_1": "Bleeding I",
+  "effect.damagecore.bleeding_2": "Bleeding II",
+  "effect.damagecore.bleeding_3": "Bleeding III",
+  "effect.damagecore.stunning": "Stunning",
+  "death.attack.bleeding_1.player": "You bled out, which was already not enough",
+  "death.attack.bleeding_2.player": "You bled out",
+  "death.attack.bleeding_3.player": "Вы сильно истекли кровью",
+  "death.attack.death_poison.player": "You bled a lot"
 }

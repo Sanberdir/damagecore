@@ -1,4 +1,5 @@
 {
-  "slashing": 3.0,
-  "piercing": 1.0
+  "slashing": 8.0,
+  "piercing": 2.0,
+  "attack_speed": 1.9
 }

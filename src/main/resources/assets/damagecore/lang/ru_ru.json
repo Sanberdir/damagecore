@@ -2,5 +2,16 @@
   "damagecore.damage.bludgeoning": "Дробящий урон: %s",
   "damagecore.damage.piercing": "Колющий урон: %s",
   "damagecore.damage.slashing": "Режущий урон: %s",
-  "damagecore.damage.fire": "Огненный урон: %s"
+  "damagecore.damage.fire": "Огненный урон: %s",
+  "damagecore.attack_speed": "Скорость атаки: %s",
+
+  "effect.damagecore.death_poison": "Смертельный яд",
+  "effect.damagecore.bleeding_1": "Кровотечение I",
+  "effect.damagecore.bleeding_2": "Кровотечение II",
+  "effect.damagecore.bleeding_3": "Кровотечение III",
+  "effect.damagecore.stunning": "Оглушение",
+  "death.attack.death_poison.player": "Яд сожрал вас полностью!",
+  "death.attack.bleeding_1.player": "Вы истекли кровью, которой и так было мало",
+  "death.attack.bleeding_2.player": "Вы истекли кровью",
+  "death.attack.bleeding_3.player": "Вы сильно истекли кровью"
 }

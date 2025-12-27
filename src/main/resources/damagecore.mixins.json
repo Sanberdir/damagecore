@@ -8,6 +8,8 @@
     "DiggerItemMixin",
     "SwordItemMixin",
     "TridentItemMixin",
+    "LivingEntityMixin",
+    "ItemEffectMixin",
     "ItemMixin"
   ],
   "client": [

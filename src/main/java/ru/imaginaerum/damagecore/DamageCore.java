@@ -2,20 +2,14 @@ package ru.imaginaerum.damagecore;
 
 import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.world.food.FoodProperties;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.CreativeModeTab;
-import net.minecraft.world.item.CreativeModeTabs;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.level.block.Block;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.data.DataGenerator;
+import net.minecraft.data.PackOutput;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockBehaviour;
-import net.minecraft.world.level.material.MapColor;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.data.event.GatherDataEvent;
 import net.minecraftforge.event.AddReloadListenerEvent;
-import net.minecraftforge.event.BuildCreativeModeTabContentsEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -25,11 +19,14 @@ import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
-import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
-import net.minecraftforge.registries.RegistryObject;
 import org.slf4j.Logger;
+import ru.imaginaerum.damagecore.datagen.DamageTypeProvider;
+import ru.imaginaerum.damagecore.effect.DCEffects;
 import ru.imaginaerum.damagecore.library_damage.WeaponDamageManager;
+import ru.imaginaerum.damagecore.particle.DCParticles;
+
+import java.util.concurrent.CompletableFuture;
 
 // The value here should match an entry in the META-INF/mods.toml file
 @Mod(DamageCore.MODID)
@@ -42,15 +39,25 @@ public class DamageCore {
     // Create a Deferred Register to hold Blocks which will all be registered under the "damagecore" namespace
 
     public static final WeaponDamageManager WEAPON_DAMAGE_MANAGER = new WeaponDamageManager();
+    @SubscribeEvent
+    public void gatherData(final GatherDataEvent event) {
+        var generator = event.getGenerator();
+        var packOutput = generator.getPackOutput();
+        var lookupProvider = event.getLookupProvider();
+        var existingFileHelper = event.getExistingFileHelper();
 
+        generator.addProvider(event.includeServer(),
+                new DamageTypeProvider(packOutput, lookupProvider, existingFileHelper));
+    }
 
     public DamageCore() {
-        IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
 
+        IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
+        DCEffects.MOB_EFFECTS.register(modEventBus);
+        DCParticles.PARTICLE_TYPES.register(modEventBus);
         // Register the commonSetup method for modloading
         modEventBus.addListener(this::commonSetup);
         IEventBus forgeEventBus = MinecraftForge.EVENT_BUS;
-
         forgeEventBus.addListener(this::onAddReloadListeners);
 
         // Register ourselves for server and other game events we are interested in

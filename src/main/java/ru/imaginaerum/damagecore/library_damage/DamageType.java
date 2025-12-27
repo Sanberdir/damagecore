@@ -4,6 +4,7 @@ public enum DamageType {
     PIERCING("piercing"),
     SLASHING("slashing"),
     FIRE("fire"),
+    DEATH_POISON("death_poison"),
     BLUDGEONING("bludgeoning");
 
     private final String damageName;

@@ -34,6 +34,12 @@ public abstract class DiggerItemMixin implements IDamageCoreWeapon {
     @Unique
     private boolean damagecore$hasCustom = false;
 
+    @Unique
+    private boolean damagecore$initialized = false;
+
+    @Unique
+    private Double damagecore$cachedAttackSpeed = null;
+
     @Inject(
             method = "getDefaultAttributeModifiers",
             at = @At("HEAD"),
@@ -48,7 +54,45 @@ public abstract class DiggerItemMixin implements IDamageCoreWeapon {
         DiggerItem tool = (DiggerItem) (Object) this;
         Item item = (Item) tool;
 
-        System.out.println("=== Processing tool: " + item);
+        // Инициализируем данные только один раз
+        if (!damagecore$initialized) {
+            damagecore$initializeData(tool, item);
+            damagecore$initialized = true;
+        }
+
+        // создаём новые модификаторы с нуля
+        Multimap<Attribute, AttributeModifier> modifiers = HashMultimap.create();
+        double totalDamage = damagecore$getTotalDamage();
+
+        // Добавляем кастомный урон
+        modifiers.put(
+                Attributes.ATTACK_DAMAGE,
+                new AttributeModifier(
+                        DamageCoreUtil.BASE_ATTACK_DAMAGE_UUID,
+                        "DamageCore tool damage",
+                        totalDamage,
+                        AttributeModifier.Operation.ADDITION
+                )
+        );
+
+        // Добавляем скорость атаки
+        double attackSpeed = damagecore$getAttackSpeed(tool);
+        modifiers.put(
+                Attributes.ATTACK_SPEED,
+                new AttributeModifier(
+                        DamageCoreUtil.BASE_ATTACK_SPEED_UUID,
+                        "DamageCore tool attack speed",
+                        attackSpeed - 4.0, // Относительно базовой скорости 4.0
+                        AttributeModifier.Operation.ADDITION
+                )
+        );
+
+        cir.setReturnValue(ImmutableMultimap.copyOf(modifiers));
+    }
+
+    @Unique
+    private void damagecore$initializeData(DiggerItem tool, Item item) {
+        System.out.println("=== INITIALIZING tool: " + item);
 
         // Проверяем кастомные данные
         WeaponDamageData customData = DamageCore.WEAPON_DAMAGE_MANAGER.getDamageData(item);
@@ -58,6 +102,11 @@ public abstract class DiggerItemMixin implements IDamageCoreWeapon {
             System.out.println("Using CUSTOM damage data for tool: " + customData.getDamageMap());
             damagecore$customDamage = new HashMap<>(customData.getDamageMap());
             damagecore$hasCustom = true;
+
+            if (customData.hasAttackSpeed()) {
+                damagecore$cachedAttackSpeed = customData.getAttackSpeed();
+                System.out.println("Using CUSTOM attack speed for tool: " + damagecore$cachedAttackSpeed);
+            }
         } else {
             // Стандартное распределение
             System.out.println("Using DEFAULT damage distribution for tool");
@@ -93,24 +142,28 @@ public abstract class DiggerItemMixin implements IDamageCoreWeapon {
             if (bludgeoning > 0) damagecore$damageMap.put(DamageType.BLUDGEONING, bludgeoning);
             if (slashing > 0) damagecore$damageMap.put(DamageType.SLASHING, slashing);
             if (piercing > 0) damagecore$damageMap.put(DamageType.PIERCING, piercing);
+
+            damagecore$cachedAttackSpeed = getDefaultAttackSpeed(tool);
+            System.out.println("Using DEFAULT attack speed for tool: " + damagecore$cachedAttackSpeed);
         }
+    }
 
-        // создаём новые модификаторы
-        Multimap<Attribute, AttributeModifier> modifiers = HashMultimap.create();
-        double totalDamage = damagecore$getTotalDamage();
-        System.out.println("Total tool damage: " + totalDamage);
+    @Unique
+    private double damagecore$getAttackSpeed(DiggerItem tool) {
+        if (damagecore$cachedAttackSpeed != null) {
+            return damagecore$cachedAttackSpeed;
+        }
+        return getDefaultAttackSpeed(tool);
+    }
 
-        modifiers.put(
-                Attributes.ATTACK_DAMAGE,
-                new AttributeModifier(
-                        DamageCoreUtil.BASE_ATTACK_DAMAGE_UUID,
-                        "DamageCore tool damage",
-                        totalDamage,
-                        AttributeModifier.Operation.ADDITION
-                )
-        );
-
-        cir.setReturnValue(ImmutableMultimap.copyOf(modifiers));
+    @Unique
+    private double getDefaultAttackSpeed(DiggerItem tool) {
+        // Базовая скорость для разных типов инструментов
+        if (tool instanceof AxeItem) return 1.0;
+        if (tool instanceof PickaxeItem) return 1.2;
+        if (tool instanceof ShovelItem) return 1.5;
+        if (tool instanceof HoeItem) return 2.0;
+        return 1.0; // по умолчанию
     }
 
     @Override

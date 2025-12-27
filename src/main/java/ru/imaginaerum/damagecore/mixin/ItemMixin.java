@@ -10,8 +10,10 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import ru.imaginaerum.damagecore.DamageCore;
 import ru.imaginaerum.damagecore.library_damage.DamageType;
 import ru.imaginaerum.damagecore.library_damage.IDamageCoreWeapon;
+import ru.imaginaerum.damagecore.library_damage.WeaponDamageData;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -27,6 +29,8 @@ public abstract class ItemMixin {
     private void damagecore$addDamageTypeTooltip(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag, CallbackInfo ci) {
         if (stack.getItem() instanceof IDamageCoreWeapon weapon) {
             Map<DamageType, Double> map = weapon.damagecore$getDamageMap();
+
+            // Показываем типы урона
             for (Map.Entry<DamageType, Double> e : map.entrySet()) {
                 ChatFormatting color;
                 switch (e.getKey()) {
@@ -38,9 +42,22 @@ public abstract class ItemMixin {
                 }
                 tooltip.add(
                         Component.translatable(
-                                "damagecore.damage." + e.getKey().getDamageName(), // ключ для перевода
-                                String.format("%.1f", e.getValue())              // параметр %s для числа урона
+                                "damagecore.damage." + e.getKey().getDamageName(),
+                                String.format("%.1f", e.getValue())
                         ).withStyle(color)
+                );
+            }
+
+            // Показываем скорость атаки (абсолютное значение)
+            Item item = stack.getItem();
+            WeaponDamageData data = DamageCore.WEAPON_DAMAGE_MANAGER.getDamageData(item);
+            if (data != null && data.hasAttackSpeed()) {
+                double attackSpeed = data.getAttackSpeed();
+                tooltip.add(
+                        Component.translatable(
+                                "damagecore.attack_speed",
+                                String.format("%.1f", attackSpeed)
+                        ).withStyle(ChatFormatting.BLUE)
                 );
             }
         }

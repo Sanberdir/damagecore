@@ -8,18 +8,19 @@ import java.util.Map;
 
 public class WeaponDamageData {
     private final Map<DamageType, Double> damageMap;
+    private Double attackSpeed;
+    private final Map<DamageType, Double> effectChances;
 
     public WeaponDamageData() {
         this.damageMap = new HashMap<>();
-    }
-
-    public WeaponDamageData(Map<DamageType, Double> damageMap) {
-        this.damageMap = damageMap;
+        this.attackSpeed = null;
+        this.effectChances = new HashMap<>();
     }
 
     public static WeaponDamageData fromJson(JsonObject json) {
         WeaponDamageData data = new WeaponDamageData();
 
+        // Загружаем урон
         if (json.has("piercing")) {
             data.damageMap.put(DamageType.PIERCING, GsonHelper.getAsDouble(json, "piercing"));
         }
@@ -33,6 +34,15 @@ public class WeaponDamageData {
             data.damageMap.put(DamageType.FIRE, GsonHelper.getAsDouble(json, "fire"));
         }
 
+        // Загружаем скорость атаки
+        if (json.has("attack_speed")) {
+            data.attackSpeed = GsonHelper.getAsDouble(json, "attack_speed");
+        }
+
+        // Загружаем шансы эффектов
+        if (json.has("fire_chance")) {
+            data.effectChances.put(DamageType.FIRE, GsonHelper.getAsDouble(json, "fire_chance"));
+        }
 
         return data;
     }
@@ -41,11 +51,27 @@ public class WeaponDamageData {
         return damageMap;
     }
 
+    public Double getAttackSpeed() {
+        return attackSpeed;
+    }
+
+    public double getEffectChance(DamageType type) {
+        return effectChances.getOrDefault(type, 0.0);
+    }
+
+    public boolean hasAttackSpeed() {
+        return attackSpeed != null;
+    }
+
+    public boolean hasEffectChance(DamageType type) {
+        return effectChances.containsKey(type);
+    }
+
     public double getTotalDamage() {
         return damageMap.values().stream().mapToDouble(Double::doubleValue).sum();
     }
 
     public boolean isEmpty() {
-        return damageMap.isEmpty();
+        return damageMap.isEmpty() && !hasAttackSpeed() && effectChances.isEmpty();
     }
 }
