@@ -66,7 +66,6 @@ public class StunClientHandler {
     @SubscribeEvent
     public static void onClientTickStunning(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
-
         Minecraft mc = Minecraft.getInstance();
         Player player = mc.player;
         if (player == null) return;
@@ -75,6 +74,7 @@ public class StunClientHandler {
         boolean hasEffect = player.hasEffect(DCEffects.STUNNING.get());
 
         if (hasEffect) {
+            // --- ЭФФЕКТ АКТИВЕН ---
             // Отменяем восстановление камеры, если эффект вернулся
             isRestoringCamera = false;
 
@@ -91,37 +91,46 @@ public class StunClientHandler {
             int tickCount = playerTickCounter.getOrDefault(playerId, 0);
             tickCount++;
 
-            // Создаем/обновляем частицы чаще для плавности
+            // Создаем/обновляем частицы
             if (tickCount % RESPAWN_INTERVAL == 0) {
                 createStunParticles(mc.level, player, tickCount);
             }
-
             playerTickCounter.put(playerId, tickCount);
+
         } else {
-            // Если только что закончился эффект и еще не начали восстановление
+            // --- ЭФФЕКТ ОТСУТСТВУЕТ ---
+            // Этот блок выполняется только когда эффекта НЕТ.
+
+            // Если камера была зафиксирована, но восстановление еще не началось
             if (isCameraFixed && !isRestoringCamera) {
+                // Начинаем процесс восстановления
                 startCameraRestoration(player);
             }
 
             // Если идет процесс восстановления камеры
             if (isRestoringCamera) {
                 restoreCameraSmoothly(mc, player);
-            } else {
-                // Плавное затухание шатания перед полным восстановлением
-                if (Math.abs(currentSwayX) > 0.01f || Math.abs(currentSwayY) > 0.01f) {
-                    applySwayDecay();
-                    applySwayToCamera(mc, player, playerTickCounter.getOrDefault(playerId, 0));
-                } else {
-                    // Восстанавливаем управление и сбрасываем состояния
-                    restoreCrouching(player);
-
-                    // Сбрасываем счетчик когда эффект заканчивается
-                    playerTickCounter.remove(playerId);
-                }
+            } else if (isCameraFixed) {
+                // Если камера была зафиксирована, но восстановление не началось (сбой состояния),
+                // принудительно сбрасываем все.
+                // Это защита от застревания в состоянии оглушения.
+                finishStunEffect(player, mc);
             }
         }
     }
+    private static void finishStunEffect(Player player, Minecraft mc) {
+        // Восстанавливаем исходное состояние приседания
+        restoreCrouching(player);
 
+        // Сбрасываем все флаги и счетчики, связанные с оглушением
+        isCameraFixed = false;
+        isRestoringCamera = false;
+        currentSwayX = 0;
+        currentSwayY = 0;
+
+        // Сбрасываем счетчик тиков, когда эффект полностью завершен
+        playerTickCounter.remove(player.getUUID());
+    }
     private static void disablePlayerControls(Minecraft mc) {
         mc.options.keyUp.setDown(false);
         mc.options.keyDown.setDown(false);

@@ -13,5 +13,8 @@
   "death.attack.death_poison.player": "Яд сожрал вас полностью!",
   "death.attack.bleeding_1.player": "Вы истекли кровью, которой и так было мало",
   "death.attack.bleeding_2.player": "Вы истекли кровью",
-  "death.attack.bleeding_3.player": "Вы сильно истекли кровью"
+  "death.attack.bleeding_3.player": "Вы сильно истекли кровью",
+
+  "item.damagecore.birch_leaf": "Лист берёзы",
+  "item.damagecore.scarlet_stapler_ring": "Кольцо Алого Сшивателя"
 }

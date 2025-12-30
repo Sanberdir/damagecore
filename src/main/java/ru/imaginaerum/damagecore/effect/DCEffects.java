@@ -25,4 +25,9 @@ public class DCEffects {
             () -> new Bleeding2Effect(MobEffectCategory.HARMFUL, 0xAA2232));
     public static final RegistryObject<MobEffect> BLEEDING_3 = MOB_EFFECTS.register("bleeding_3",
             () -> new Bleeding3Effect(MobEffectCategory.HARMFUL, 0xAA2232));
+
+    public static final RegistryObject<MobEffect> DRUNKENNESS_1 = MOB_EFFECTS.register("drunkenness_1",
+            () -> new DrunkennessEffect(MobEffectCategory.HARMFUL, 0x082567));
+    public static final RegistryObject<MobEffect> DRUNKENNESS_2 = MOB_EFFECTS.register("drunkenness_2",
+            () -> new Drunkenness2Effect(MobEffectCategory.HARMFUL, 0x0000ff));
 }
