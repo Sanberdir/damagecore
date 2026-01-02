@@ -26,7 +26,17 @@ public class CreativeTabHandler {
 
             event.getEntries().putBefore(
                     Items.WOODEN_SHOVEL.getDefaultInstance(),
+                    DCItems.CHLOROPHILOSYNTHETIC_BELT.get().getDefaultInstance(),
+                    CreativeModeTab.TabVisibility.PARENT_AND_SEARCH_TABS
+            );
+            event.getEntries().putBefore(
+                    DCItems.CHLOROPHILOSYNTHETIC_BELT.get().getDefaultInstance(),
                     DCItems.SCARLET_STAPLER_RING.get().getDefaultInstance(),
+                    CreativeModeTab.TabVisibility.PARENT_AND_SEARCH_TABS
+            );
+            event.getEntries().putBefore(
+                    DCItems.SCARLET_STAPLER_RING.get().getDefaultInstance(),
+                    DCItems.HEAVY_BELT.get().getDefaultInstance(),
                     CreativeModeTab.TabVisibility.PARENT_AND_SEARCH_TABS
             );
         }

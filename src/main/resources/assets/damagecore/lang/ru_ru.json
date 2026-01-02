@@ -16,5 +16,7 @@
   "death.attack.bleeding_3.player": "Вы сильно истекли кровью",
 
   "item.damagecore.birch_leaf": "Лист берёзы",
+  "item.damagecore.heavy_belt": "Тяжёлый пояс",
+  "item.damagecore.chlorophilosynthetic_belt": "Хлорофилосинтезный пояс",
   "item.damagecore.scarlet_stapler_ring": "Кольцо Алого Сшивателя"
 }

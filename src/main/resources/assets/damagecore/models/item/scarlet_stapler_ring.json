@@ -2,5 +2,11 @@
   "parent": "minecraft:item/generated",
   "textures": {
     "layer0": "damagecore:item/scarlet_stapler_ring"
-  }
+  },
+  "overrides": [
+    {
+      "predicate": { "damagecore:hungry": 1 },
+      "model": "damagecore:item/hungry_scarlet_stapler_ring"
+    }
+  ]
 }
