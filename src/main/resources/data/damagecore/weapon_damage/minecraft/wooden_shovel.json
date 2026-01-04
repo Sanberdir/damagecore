@@ -1,4 +1,4 @@
 {
-  "piercing": 2.0,
-  "slashing": 400.0
+  "bludgeoning": 4.0,
+  "attack_speed": 1.5
 }

@@ -30,4 +30,6 @@ public class DCEffects {
             () -> new DrunkennessEffect(MobEffectCategory.HARMFUL, 0x082567));
     public static final RegistryObject<MobEffect> DRUNKENNESS_2 = MOB_EFFECTS.register("drunkenness_2",
             () -> new Drunkenness2Effect(MobEffectCategory.HARMFUL, 0x0000ff));
+    public static final RegistryObject<MobEffect> DRUNKENNESS_3 = MOB_EFFECTS.register("drunkenness_3",
+            () -> new Drunkenness2Effect(MobEffectCategory.HARMFUL, 0xa6caf0));
 }

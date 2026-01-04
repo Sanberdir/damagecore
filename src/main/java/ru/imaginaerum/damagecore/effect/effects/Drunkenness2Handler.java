@@ -17,16 +17,29 @@ import ru.imaginaerum.damagecore.DamageCore;
 import ru.imaginaerum.damagecore.effect.DCEffects;
 
 @Mod.EventBusSubscriber(modid = DamageCore.MODID, value = Dist.CLIENT)
-public class Drunkenness2Handler { // Изменено с DrunkennessHandler на Drunkenness2Handler
+public class Drunkenness2Handler {
+
+    // Переменные для хранения предыдущих значений для плавности
+    private static float prevWaveX = 0;
+    private static float prevWaveY = 0;
+    private static float prevWaveZ = 0;
+    private static float prevShake = 0;
+    private static float prevPixelScale = 1.0f;
+
+    private static float prevCameraShakeX = 0;
+    private static float prevCameraShakeY = 0;
+    private static float prevCameraRoll = 0;
 
     private static float swayTimer = 0;
-    private static float swayX = 0;
-    private static float swayZ = 0;
+    private static float prevSwayX = 0;
+    private static float prevSwayZ = 0;
+
+    // Факторы плавности
+    private static final float SMOOTH_FACTOR = 0.25f;
+    private static final float CAMERA_SMOOTH_FACTOR = 0.3f;
 
     @SubscribeEvent
     public static void onRenderLevelStage(RenderLevelStageEvent event) {
-        // Проверяем, что это нужная нам стадия рендеринга.
-        // AFTER_SKY - идеальная стадия для искажения камеры.
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_SKY) {
             return;
         }
@@ -34,49 +47,83 @@ public class Drunkenness2Handler { // Изменено с DrunkennessHandler н�
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
 
-        // Проверяем, есть ли у игрока эффект опьянения
         if (player != null && player.hasEffect(DCEffects.DRUNKENNESS_2.get())) {
             int amplifier = player.getEffect(DCEffects.DRUNKENNESS_2.get()).getAmplifier();
 
-            // Если есть и эффект тошноты, не делаем ничего, чтобы избежать конфликта
             if (player.hasEffect(MobEffects.CONFUSION)) {
+                resetValues();
                 return;
             }
 
-            // Получаем время для анимации волны
             long time = System.currentTimeMillis();
 
-            // Вычисляем интенсивность эффектов
-            float intensity = (amplifier + 1) * 0.2f; // Увеличена интенсивность
-            float pixelIntensity = (amplifier + 1) * 0.3f; // Отдельная интенсивность для пикселей
+            // Интенсивность
+            float intensity = (amplifier + 1) * 0.2f;
+            float pixelIntensity = (amplifier + 1) * 0.3f;
 
-            // Создаем "волну" по осям X и Y (наклон)
-            float waveX = (float) Math.sin(time * 0.001) * intensity;
-            float waveY = (float) Math.cos(time * 0.001 + 100) * intensity * 0.5f;
+            // Вычисляем целевые значения для волн (сохраняем оригинальную скорость)
+            float targetWaveX = (float) Math.sin(time * 0.001) * intensity;
+            float targetWaveY = (float) Math.cos(time * 0.001 + 100) * intensity * 0.5f;
 
-            // Создаем "дрожание" (zoom/quake)
-            float shake = (float) Math.sin(time * 0.01) * intensity * 0.15f;
+            // Плавно интерполируем к целевым значениям
+            float waveX = lerp(prevWaveX, targetWaveX, SMOOTH_FACTOR);
+            float waveY = lerp(prevWaveY, targetWaveY, SMOOTH_FACTOR);
 
-            // Получаем PoseStack из события
+            // Сохраняем для следующего кадра
+            prevWaveX = waveX;
+            prevWaveY = waveY;
+
+            // Целевое значение дрожания
+            float targetShake = (float) Math.sin(time * 0.01) * intensity * 0.15f;
+
+            // Плавное дрожание
+            float shake = lerp(prevShake, targetShake, SMOOTH_FACTOR * 1.2f);
+            prevShake = shake;
+
             PoseStack poseStack = event.getPoseStack();
 
-            // Применяем пикселизацию через масштабирование и сжатие
+            // Плавная пикселизация
             if (pixelIntensity > 0.1f) {
-                float pixelScale = 1.0f - pixelIntensity * 0.1f;
-                // Создаем эффект низкого разрешения
+                // Плавная "тошнотная" пикселизация
+                float pixelWave =
+                        (float) Math.sin(time * 0.0008f) * 0.5f + 0.5f; // 0..1
+
+                float targetPixelScale =
+                        1.0f - pixelIntensity * 0.08f * pixelWave;
+
+                float pixelScale =
+                        lerp(prevPixelScale, targetPixelScale, SMOOTH_FACTOR * 0.4f);
+
+                prevPixelScale = pixelScale;
                 poseStack.scale(pixelScale, pixelScale, pixelScale);
+            } else {
+                prevPixelScale = 1.0f;
             }
 
-            // Небольшое "приближение/отдаление" для дрожания
+            // Плавное дрожание масштаба
             poseStack.scale(1.0f + shake, 1.0f + shake, 1.0f);
 
-            // Наклон по осям X и Y для создания волны
-            poseStack.mulPose(Axis.XP.rotationDegrees(waveY * 15.0f)); // Увеличена сила наклона
-            poseStack.mulPose(Axis.YP.rotationDegrees(waveX * 15.0f));
+            // Движение пикселей (наклоны) - используем интерполированные значения
+            // Уменьшаем немного множитель для большей плавности
+            float tiltX = waveY * 14.0f; // Было 15.0
+            float tiltY = waveX * 14.0f;
 
-            // Добавляем дополнительный наклон по Z для эффекта "заваливания"
-            float waveZ = (float) Math.sin(time * 0.0015 + 50) * intensity * 0.3f;
-            poseStack.mulPose(Axis.ZP.rotationDegrees(waveZ * 5.0f));
+            poseStack.mulPose(Axis.XP.rotationDegrees(tiltX));
+            poseStack.mulPose(Axis.YP.rotationDegrees(tiltY));
+
+            // Плавный наклон по Z
+            float targetWaveZ = (float) Math.sin(time * 0.0015 + 50) * intensity * 0.3f;
+            float waveZ = lerp(prevWaveZ, targetWaveZ, SMOOTH_FACTOR);
+            prevWaveZ = waveZ;
+
+            poseStack.mulPose(Axis.ZP.rotationDegrees(waveZ * 4.5f)); // Было 5.0
+        } else {
+            // Плавный выход из эффекта
+            prevWaveX = lerp(prevWaveX, 0, SMOOTH_FACTOR * 0.5f);
+            prevWaveY = lerp(prevWaveY, 0, SMOOTH_FACTOR * 0.5f);
+            prevWaveZ = lerp(prevWaveZ, 0, SMOOTH_FACTOR * 0.5f);
+            prevShake = lerp(prevShake, 0, SMOOTH_FACTOR * 0.5f);
+            prevPixelScale = lerp(prevPixelScale, 1.0f, SMOOTH_FACTOR * 0.5f);
         }
     }
 
@@ -89,60 +136,106 @@ public class Drunkenness2Handler { // Изменено с DrunkennessHandler н�
             int amplifier = player.getEffect(DCEffects.DRUNKENNESS_2.get()).getAmplifier();
 
             if (player.hasEffect(MobEffects.CONFUSION)) {
+                prevCameraShakeX = 0;
+                prevCameraShakeY = 0;
+                prevCameraRoll = 0;
                 return;
             }
 
             float intensity = (amplifier + 1) * 0.25f;
             long time = System.currentTimeMillis();
 
-            // Добавляем дрожание камеры
-            float cameraShakeX = (float) Math.sin(time * 0.02) * intensity * 2.0f;
-            float cameraShakeY = (float) Math.cos(time * 0.017) * intensity * 1.5f;
+            // Целевые значения дрожания камеры (немного замедляем)
+            float targetCameraShakeX = (float) Math.sin(time * 0.018) * intensity * 1.8f; // Было 0.02 * 2.0
+            float targetCameraShakeY = (float) Math.cos(time * 0.015) * intensity * 1.3f; // Было 0.017 * 1.5
+            float targetCameraRoll = (float) Math.sin(time * 0.014) * intensity * 4.0f;   // Было 0.015 * 5.0
+
+            // Плавная интерполяция камеры
+            float cameraShakeX = lerp(prevCameraShakeX, targetCameraShakeX, CAMERA_SMOOTH_FACTOR);
+            float cameraShakeY = lerp(prevCameraShakeY, targetCameraShakeY, CAMERA_SMOOTH_FACTOR);
+            float cameraRoll = lerp(prevCameraRoll, targetCameraRoll, CAMERA_SMOOTH_FACTOR);
+
+            // Сохраняем
+            prevCameraShakeX = cameraShakeX;
+            prevCameraShakeY = cameraShakeY;
+            prevCameraRoll = cameraRoll;
 
             event.setYaw(event.getYaw() + cameraShakeX);
             event.setPitch(event.getPitch() + cameraShakeY);
-            event.setRoll(event.getRoll() + (float) Math.sin(time * 0.015) * intensity * 5.0f);
+            event.setRoll(event.getRoll() + cameraRoll);
+        } else {
+            // Плавный сброс камеры
+            prevCameraShakeX = lerp(prevCameraShakeX, 0, CAMERA_SMOOTH_FACTOR);
+            prevCameraShakeY = lerp(prevCameraShakeY, 0, CAMERA_SMOOTH_FACTOR);
+            prevCameraRoll = lerp(prevCameraRoll, 0, CAMERA_SMOOTH_FACTOR);
         }
     }
 
     @SubscribeEvent
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
-        // Добавляем шатание при ходьбе
         if (event.phase == TickEvent.Phase.END && event.player != null) {
             if (event.player.hasEffect(DCEffects.DRUNKENNESS_2.get())) {
                 int amplifier = event.player.getEffect(DCEffects.DRUNKENNESS_2.get()).getAmplifier();
 
                 if (event.player.hasEffect(MobEffects.CONFUSION)) {
                     swayTimer = 0;
-                    swayX = 0;
-                    swayZ = 0;
+                    prevSwayX = 0;
+                    prevSwayZ = 0;
                     return;
                 }
 
                 float intensity = (amplifier + 1) * 0.15f;
 
-                // Увеличиваем таймер
-                swayTimer += 0.1f;
+                // Увеличиваем таймер (немного медленнее)
+                swayTimer += 0.085f; // Было 0.1
 
-                // Вычисляем смещение для шатания
-                swayX = Mth.sin(swayTimer * 0.5f) * intensity * 0.6f;
-                swayZ = Mth.cos(swayTimer * 0.3f) * intensity * 0.6f;
+                // Целевые значения шатания (немного уменьшаем амплитуду)
+                float targetSwayX = Mth.sin(swayTimer * 0.45f) * intensity * 0.55f; // Было 0.5 * 0.6
+                float targetSwayZ = Mth.cos(swayTimer * 0.28f) * intensity * 0.55f; // Было 0.3 * 0.6
 
-                // Применяем смещение к позиции игрока
-                // Используем onGround() вместо isOnGround() для совместимости с версией Minecraft
+                // Плавное шатание
+                float swayX = lerp(prevSwayX, targetSwayX, 0.2f);
+                float swayZ = lerp(prevSwayZ, targetSwayZ, 0.2f);
+
+                // Сохраняем
+                prevSwayX = swayX;
+                prevSwayZ = swayZ;
+
+                // Применяем шатание (немного уменьшаем эффект)
                 if (event.player.onGround() && (event.player.xxa != 0 || event.player.zza != 0)) {
-                    // Только при движении
                     event.player.setPos(
-                            event.player.getX() + swayX,
+                            event.player.getX() + swayX * 0.8f, // Было 1.0
                             event.player.getY(),
-                            event.player.getZ() + swayZ
+                            event.player.getZ() + swayZ * 0.8f
                     );
                 }
             } else {
+                // Плавный сброс шатания
                 swayTimer = 0;
-                swayX = 0;
-                swayZ = 0;
+                prevSwayX = lerp(prevSwayX, 0, 0.15f);
+                prevSwayZ = lerp(prevSwayZ, 0, 0.15f);
             }
         }
+    }
+
+    // Функция линейной интерполяции
+    private static float lerp(float start, float end, float amount) {
+        amount = Math.max(0, Math.min(1, amount));
+        return start + (end - start) * amount;
+    }
+
+    // Сброс всех значений
+    private static void resetValues() {
+        prevWaveX = 0;
+        prevWaveY = 0;
+        prevWaveZ = 0;
+        prevShake = 0;
+        prevPixelScale = 1.0f;
+        prevCameraShakeX = 0;
+        prevCameraShakeY = 0;
+        prevCameraRoll = 0;
+        swayTimer = 0;
+        prevSwayX = 0;
+        prevSwayZ = 0;
     }
 }
