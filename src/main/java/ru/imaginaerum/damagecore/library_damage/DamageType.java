@@ -4,7 +4,16 @@ public enum DamageType {
     PIERCING("piercing"),
     SLASHING("slashing"),
     FIRE("fire"),
-    DEATH_POISON("death_poison"),
+    // силовой взрывы
+    FORCE("force"),
+    // Лучистый
+    LUMINOUS_RADIANT("luminous_radiant"),
+    NECROTIC("necrotic"),
+    LIGHTNING("lightning"),
+    POISON("poison"),
+    // Звуковой урон
+    SOUNDER("sounder"),
+    PSY("psy"),
     BLUDGEONING("bludgeoning");
 
     private final String damageName;

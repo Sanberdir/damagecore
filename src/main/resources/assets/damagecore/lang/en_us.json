@@ -13,7 +13,7 @@
   "death.attack.bleeding_1.player": "You bled out, which was already not enough",
   "death.attack.bleeding_2.player": "You bled out",
   "death.attack.bleeding_3.player": "Вы сильно истекли кровью",
-  "death.attack.death_poison.player": "You bled a lot",
+  "death.attack.poison.player": "You bled a lot",
 
 
   "item.damagecore.birch_leaf": "Birch Leaf",

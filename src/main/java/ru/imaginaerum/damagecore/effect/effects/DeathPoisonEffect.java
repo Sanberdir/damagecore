@@ -2,16 +2,15 @@ package ru.imaginaerum.damagecore.effect.effects;
 
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectCategory;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
-import ru.imaginaerum.damagecore.DamageCore;
+import net.minecraft.world.damagesource.DamageSource;
+import ru.imaginaerum.damagecore.api.IHasDamageType;
 import ru.imaginaerum.damagecore.datagen.DamageTypesGenerator;
+import ru.imaginaerum.damagecore.library_damage.DamageContext;
+import ru.imaginaerum.damagecore.library_damage.DamageType;
 import ru.imaginaerum.damagecore.library_damage.DeathPoisonDamageSource;
 
 public class DeathPoisonEffect extends MobEffect {
@@ -32,13 +31,21 @@ public class DeathPoisonEffect extends MobEffect {
 
         float damage = 1.0F * (amplifier + 1);
 
-        // Проверяем, доступен ли DamageType
+        // Устанавливаем тип урона POISON на жертве
+        if (entity instanceof IHasDamageType hasDamageType) {
+            hasDamageType.setLastDamageType(DamageType.POISON);
+        }
+
+        // Сохраняем информацию об уроне в DamageContext
+        DamageContext.add(entity, DamageType.POISON, damage);
+
+        // Проверяем, доступен ли кастомный DamageType DEATH_POISON
         var registry = entity.level().registryAccess().registry(Registries.DAMAGE_TYPE);
         if (registry.isPresent()) {
-            var damageTypeHolder = registry.get().getHolder(DamageTypesGenerator.DEATH_POISON);
+            var damageTypeHolder = registry.get().getHolder(DamageTypesGenerator.POISON);
 
             if (damageTypeHolder.isPresent()) {
-                // Используем кастомный DamageType
+                // Используем кастомный DamageSource для death poison
                 Entity sourceEntity = entity.getLastAttacker();
                 if (sourceEntity == null) {
                     sourceEntity = entity;
@@ -49,14 +56,6 @@ public class DeathPoisonEffect extends MobEffect {
                 return;
             }
         }
-
-        // Fallback на магический урон
-        DamageSource fallbackSource;
-        if (entity.getLastAttacker() != null) {
-            fallbackSource = entity.damageSources().indirectMagic(entity.getLastAttacker(), entity);
-        } else {
-            fallbackSource = entity.damageSources().magic();
-        }
-        entity.hurt(fallbackSource, damage);
+        
     }
 }

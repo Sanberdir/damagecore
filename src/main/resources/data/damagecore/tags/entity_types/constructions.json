@@ -1,0 +1,11 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:snow_golem",
+    "minecraft:iron_golem",
+    "minecraft:guardian",
+    "minecraft:shulker",
+    "minecraft:wither",
+    "minecraft:elder_guardian"
+  ]
+}

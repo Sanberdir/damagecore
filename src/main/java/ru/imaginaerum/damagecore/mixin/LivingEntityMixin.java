@@ -6,6 +6,8 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
@@ -13,10 +15,14 @@ import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import ru.imaginaerum.damagecore.effect.DCEffects;
+import ru.imaginaerum.damagecore.library_damage.DamageType;
+import ru.imaginaerum.damagecore.library_damage.IDamageCoreWeapon;
 
+import java.util.Map;
 import java.util.Random;
 
 @Mixin(LivingEntity.class)
@@ -88,6 +94,33 @@ public abstract class LivingEntityMixin {
 
             ci.cancel();
         }
+    }
+    @ModifyVariable(
+            method = "hurt",
+            at = @At("HEAD"),
+            argsOnly = true
+    )
+    private float damagecore$applySharpnessBonus(
+            float amount,
+            DamageSource source
+    ) {
+        if (source.getEntity() instanceof LivingEntity attacker) {
+            ItemStack stack = attacker.getMainHandItem();
+
+            if (stack.getItem() instanceof IDamageCoreWeapon) {
+                int sharpness = EnchantmentHelper.getItemEnchantmentLevel(
+                        Enchantments.SHARPNESS, stack
+                );
+
+                if (sharpness > 0) {
+                    double bonus = 1.25 * sharpness;
+
+                    // ❗ НЕ трогаем damageMap
+                    return (float) (amount + bonus);
+                }
+            }
+        }
+        return amount;
     }
 
     // Обработка приседания при оглушении

@@ -10,9 +10,9 @@ import net.minecraft.world.damagesource.DamageType;
 import ru.imaginaerum.damagecore.DamageCore;
 
 public class DamageTypesGenerator {
-    public static final ResourceKey<DamageType> DEATH_POISON =
+    public static final ResourceKey<DamageType> POISON =
             ResourceKey.create(net.minecraft.core.registries.Registries.DAMAGE_TYPE,
-                    ResourceLocation.fromNamespaceAndPath(DamageCore.MODID, "death_poison"));
+                    ResourceLocation.fromNamespaceAndPath(DamageCore.MODID, "poison"));
 
     public static final ResourceKey<DamageType> BLEEDING_1 =
             ResourceKey.create(net.minecraft.core.registries.Registries.DAMAGE_TYPE,
@@ -25,8 +25,8 @@ public class DamageTypesGenerator {
                     ResourceLocation.fromNamespaceAndPath(DamageCore.MODID, "bleeding_3"));
 
     public static void bootstrap(BootstapContext<DamageType> context) {
-        context.register(DEATH_POISON,
-                new DamageType("death_poison",
+        context.register(POISON,
+                new DamageType("poison",
                         DamageScaling.WHEN_CAUSED_BY_LIVING_NON_PLAYER,
                         0.1F, // exhaustion (истощение)
                         DamageEffects.HURT // эффект при получении урона

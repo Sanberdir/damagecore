@@ -10,7 +10,7 @@
   "effect.damagecore.bleeding_2": "Кровотечение II",
   "effect.damagecore.bleeding_3": "Кровотечение III",
   "effect.damagecore.stunning": "Оглушение",
-  "death.attack.death_poison.player": "Яд сожрал вас полностью!",
+  "death.attack.poison.player": "Яд сожрал вас полностью!",
   "death.attack.bleeding_1.player": "Вы истекли кровью, которой и так было мало",
   "death.attack.bleeding_2.player": "Вы истекли кровью",
   "death.attack.bleeding_3.player": "Вы сильно истекли кровью",

@@ -1,0 +1,12 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:blaze",
+    "minecraft:hoglin",
+    "minecraft:strider",
+    "minecraft:piglin_brute",
+    "minecraft:piglin",
+    "minecraft:hoglin",
+    "minecraft:ghast"
+  ]
+}
