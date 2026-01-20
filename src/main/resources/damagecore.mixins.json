@@ -16,6 +16,7 @@
     "LivingEntityMixin",
     "ItemEffectMixin",
     "EnchantmentHelperMixin",
+    "armor.ArmorItemMixin",
     "game_render_effect.GameRendererMixin",
     "damage_poison_mixins.PoisonEffectsMixin",
     "damage_explosion_mixins.ExplosionDamageMixin",
