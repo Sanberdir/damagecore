@@ -1,0 +1,8 @@
+{
+  "material": "turtle",
+  "helmet": {
+    "piercing": 6.0,
+    "slashing": 5.0,
+    "bludgeoning": 4.0
+  }
+}

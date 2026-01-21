@@ -1,0 +1,23 @@
+{
+  "material": "iron",
+  "helmet": {
+    "piercing": 4.0,
+    "slashing": 3.0,
+    "bludgeoning": 2.0
+  },
+  "chestplate": {
+    "piercing": 4.0,
+    "slashing": 3.0,
+    "bludgeoning": 2.0
+  },
+  "leggings": {
+    "piercing": 4.0,
+    "slashing": 3.0,
+    "bludgeoning": 2.0
+  },
+  "boots": {
+    "piercing": 4.0,
+    "slashing": 3.0,
+    "bludgeoning": 2.0
+  }
+}

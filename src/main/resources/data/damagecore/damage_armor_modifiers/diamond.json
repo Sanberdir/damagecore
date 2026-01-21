@@ -1,0 +1,23 @@
+{
+  "material": "diamond",
+  "helmet": {
+    "piercing": 6.0,
+    "slashing": 5.0,
+    "bludgeoning": 4.0
+  },
+  "chestplate": {
+    "piercing": 6.0,
+    "slashing": 5.0,
+    "bludgeoning": 4.0
+  },
+  "leggings": {
+    "piercing": 6.0,
+    "slashing": 5.0,
+    "bludgeoning": 4.0
+  },
+  "boots": {
+    "piercing": 6.0,
+    "slashing": 5.0,
+    "bludgeoning": 4.0
+  }
+}

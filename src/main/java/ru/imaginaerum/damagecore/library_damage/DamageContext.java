@@ -12,7 +12,13 @@ public final class DamageContext {
     private static final Map<LivingEntity, Map<DamageType, Float>> CONTEXT = new WeakHashMap<>();
 
     private DamageContext() {}
+    public static synchronized DamageType getLast(LivingEntity entity) {
+        Map<DamageType, Float> map = CONTEXT.get(entity);
+        if (map == null || map.isEmpty()) return null;
 
+        // Берём первый (или любой) ключ — у тебя обычно будет один тип за раз
+        return map.keySet().iterator().next();
+    }
     public static synchronized void add(LivingEntity entity, DamageType type, float amount) {
         Map<DamageType, Float> map = CONTEXT.computeIfAbsent(entity, k -> new EnumMap<>(DamageType.class));
         map.merge(type, amount, Float::sum);
