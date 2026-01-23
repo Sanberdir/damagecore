@@ -4,7 +4,6 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.TooltipFlag;
 import net.minecraftforge.event.entity.player.ItemTooltipEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -21,8 +20,8 @@ public class TooltipEventHandler {
         ItemStack stack = event.getItemStack();
 
         if (stack.getItem() instanceof ArmorItem armorItem) {
-            // Добавляем информацию о кастомных сопротивлениях
-            Map<DamageType, Float> resistances = DamageArmorModifier.getDamageResistances(
+            // Получаем сопротивления
+            Map<DamageType, DamageResistance> resistances = DamageArmorModifier.getDamageResistances(
                     armorItem.getMaterial(),
                     armorItem.getType()
             );
@@ -32,11 +31,15 @@ public class TooltipEventHandler {
                 event.getToolTip().add(Component.literal("Защита от типов урона:")
                         .withStyle(ChatFormatting.GRAY));
 
-                for (Map.Entry<DamageType, Float> entry : resistances.entrySet()) {
-                    if (entry.getValue() > 0) {
+                for (Map.Entry<DamageType, DamageResistance> entry : resistances.entrySet()) {
+                    DamageResistance resistance = entry.getValue();
+                    if (resistance.getFlat() > 0 || resistance.getPercent() > 0) {
                         String damageName = getTranslatedDamageName(entry.getKey());
-                        event.getToolTip().add(Component.literal("  " + damageName + ": " + entry.getValue())
-                                .withStyle(ChatFormatting.BLUE));
+                        String resistanceText = resistance.toString();
+
+                        Component tooltipLine = Component.literal("  " + damageName + ": " + resistanceText)
+                                .withStyle(ChatFormatting.BLUE);
+                        event.getToolTip().add(tooltipLine);
                     }
                 }
             }

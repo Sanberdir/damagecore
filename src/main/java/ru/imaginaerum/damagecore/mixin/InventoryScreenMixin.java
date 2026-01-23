@@ -1,15 +1,30 @@
 package ru.imaginaerum.damagecore.mixin;
 
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.ImageButton;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
-import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ArmorItem;
+import net.minecraft.world.item.ArmorMaterials;
+import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import ru.imaginaerum.damagecore.armor.DamageArmorModifier;
+import ru.imaginaerum.damagecore.armor.DamageResistance;
+import ru.imaginaerum.damagecore.library_damage.DamageType;
+
+import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 @Mixin(InventoryScreen.class)
 public abstract class InventoryScreenMixin {
@@ -104,6 +119,7 @@ public abstract class InventoryScreenMixin {
         this.damagecore$button.setPosition(buttonX, buttonY);
     }
 
+    // Заменённый/дополненный метод render — рендерим вкладку и содержимое
     @Inject(method = "render", at = @At("TAIL"))
     private void damagecore$renderDamageBook(GuiGraphics gui, int mouseX, int mouseY, float partialTicks, CallbackInfo ci) {
         InventoryScreen screen = (InventoryScreen) (Object) this;
@@ -114,7 +130,11 @@ public abstract class InventoryScreenMixin {
 
             int tabX = guiLeft - TAB_WIDTH;
             int tabY = guiTop;
+            // Рендер фоновой вкладки (как было)
             gui.blit(DAMAGE_BOOK_TAB, tabX, tabY - 1, 0, 0, TAB_WIDTH, ((AbstractContainerScreenAccessor) screen).damagecore$getImageHeight());
+
+            // Рендерим иконки типов урона + тексты (новая логика)
+            this.damagecore$renderDamageIconsAndTexts(gui, tabX, tabY);
         }
     }
 
@@ -160,4 +180,121 @@ public abstract class InventoryScreenMixin {
         }
     }
 
+    // -------------------------
+    // Новая вспомогательная логика рендера иконок и текстов
+    // -------------------------
+    @Unique
+    private void damagecore$renderDamageIconsAndTexts(GuiGraphics gui, int tabX, int tabY) {
+        Minecraft mc = Minecraft.getInstance();
+        Player player = mc.player;
+        if (player == null) return;
+
+        // Суммарные резисты
+        Map<DamageType, DamageResistance> totals = new EnumMap<>(DamageType.class);
+
+        for (ItemStack stack : player.getArmorSlots()) {
+            if (stack.getItem() instanceof ArmorItem armorItem) {
+                Map<DamageType, DamageResistance> part =
+                        DamageArmorModifier.getDamageResistances(
+                                armorItem.getMaterial(),
+                                armorItem.getType()
+                        );
+
+                for (Map.Entry<DamageType, DamageResistance> e : part.entrySet()) {
+                    DamageResistance dr = e.getValue();
+                    if (dr.getFlat() <= 0 && dr.getPercent() <= 0) continue;
+
+                    totals.merge(
+                            e.getKey(),
+                            new DamageResistance(dr.getFlat(), dr.getPercent()),
+                            (a, b) -> new DamageResistance(
+                                    a.getFlat() + b.getFlat(),
+                                    Math.min(1.0f, a.getPercent() + b.getPercent())
+                            )
+                    );
+                }
+            }
+        }
+
+        if (totals.isEmpty()) return;
+
+        // ---- Лэйаут ----
+        final int ICON_SIZE = 16;
+        final int START_X = tabX + 14;
+        final int START_Y = tabY + 15;
+        final int TEXT_AREA = 22;
+        final int GAP_AFTER_TEXT = 2;
+
+        final int ICONS_PER_ROW = 3;
+        final int ROW_SPACING = ICON_SIZE + 4;
+
+        int cursorX = START_X;
+        int cursorY = START_Y;
+        int index = 0;
+
+        Font font = mc.font;
+
+        for (DamageType dt : DamageType.values()) {
+            DamageResistance dr = totals.get(dt);
+            if (dr == null) continue;
+
+            // ---- Иконка ----
+            ResourceLocation icon = new ResourceLocation(
+                    "damagecore",
+                    "textures/gui/damage_types/" + dt.name().toLowerCase() + "_damage.png"
+            );
+
+            gui.blit(
+                    icon,
+                    cursorX,
+                    cursorY,
+                    0, 0,
+                    ICON_SIZE,
+                    ICON_SIZE,
+                    ICON_SIZE,
+                    ICON_SIZE
+            );
+
+            // ---- Текст ----
+            int flat = Math.round(dr.getFlat());
+            int percent = Math.round(dr.getPercent() * 100);
+
+            StringBuilder sb = new StringBuilder();
+            if (flat > 0) sb.append(flat);
+            if (percent > 0) {
+                if (!sb.isEmpty()) sb.append(" ");
+                sb.append(percent).append("%");
+            }
+
+            String text = sb.toString();
+            if (!text.isEmpty()) {
+                int textX = cursorX + ICON_SIZE + 2;
+                int textY = cursorY + 6;
+
+                // уменьшение текста в 1.5 раза
+                gui.pose().pushPose();
+                gui.pose().scale(0.7f, 0.7f, 1.0f);
+
+                gui.drawString(
+                        font,
+                        text,
+                        (int) (textX / 0.7f),
+                        (int) (textY / 0.7f),
+                        0xFFFFFF,
+                        false
+                );
+
+                gui.pose().popPose();
+            }
+
+            // ---- Сетка 3 в ряд ----
+            index++;
+            if (index % ICONS_PER_ROW == 0) {
+                cursorX = START_X;
+                cursorY += ROW_SPACING;
+            } else {
+                cursorX = cursorX + ICON_SIZE + 2 + TEXT_AREA + GAP_AFTER_TEXT;
+            }
+        }
+    }
 }

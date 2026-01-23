@@ -1,7 +1,6 @@
 package ru.imaginaerum.damagecore.armor;
 
 import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.damagesource.DamageTypes;
 import ru.imaginaerum.damagecore.library_damage.DamageType;
 
 public class DamageHelper {
