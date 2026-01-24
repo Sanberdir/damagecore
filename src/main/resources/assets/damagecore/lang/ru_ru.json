@@ -5,6 +5,17 @@
   "damagecore.damage.fire": "Огненный урон: %s",
   "damagecore.attack_speed": "Скорость атаки: %s",
 
+  "damagecore.damage_type.piercing": "Колющий",
+  "damagecore.damage_type.slashing": "Режущий",
+  "damagecore.damage_type.bludgeoning": "Дробящий",
+  "damagecore.damage_type.fire": "Огненный",
+
+  "damagecore.damage_type.damage": " урон",
+
+  "damagecore.tooltip.armor": "Броня - %s",
+  "damagecore.tooltip.potion": "Зелья - %s",
+  "damagecore.tooltip.food": "Пища - %s",
+
   "effect.damagecore.death_poison": "Смертельный яд",
   "effect.damagecore.bleeding_1": "Кровотечение I",
   "effect.damagecore.bleeding_2": "Кровотечение II",

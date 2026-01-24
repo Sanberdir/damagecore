@@ -5,6 +5,17 @@
   "damagecore.attack_speed": "Attack speed: %s",
   "damagecore.damage.fire": "Fire damage: %s",
 
+  "damagecore.damage_type.piercing": "Piercing",
+  "damagecore.damage_type.slashing": "Slashing",
+  "damagecore.damage_type.bludgeoning": "Bludgeoning",
+  "damagecore.damage_type.fire": "Fire",
+
+  "damagecore.damage_type.damage": " damage",
+
+  "damagecore.tooltip.armor": "Armor - %s",
+  "damagecore.tooltip.potion": "Potions - %s",
+  "damagecore.tooltip.food": "Food - %s",
+
   "effect.damagecore.death_poison": "Death Poison",
   "effect.damagecore.bleeding_1": "Bleeding I",
   "effect.damagecore.bleeding_2": "Bleeding II",

@@ -4,6 +4,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.alchemy.PotionUtils;
@@ -71,7 +72,14 @@ public final class DamageBookRenderer {
         }
     }
 
-    public static void renderDamageIconsAndTexts(GuiGraphics gui, int tabX, int tabY, Map<DamageType, DamageResistance> totals) {
+    public static void renderDamageIconsAndTexts(
+            GuiGraphics gui,
+            int tabX,
+            int tabY,
+            Map<DamageType, DamageResistance> totals,
+            int mouseX,
+            int mouseY
+    ) {
         if (totals == null || totals.isEmpty()) return;
 
         final int START_X = tabX + 14;
@@ -93,41 +101,76 @@ public final class DamageBookRenderer {
 
             ResourceLocation icon = new ResourceLocation(
                     "damagecore",
-                    "textures/gui/damage_types/" + dt.name().toLowerCase() + "_damage.png"
+                    "textures/gui/damage_types/" + dt.getDamageName() + "_damage.png"
             );
 
-            gui.blit(icon, cursorX, cursorY, 0, 0, ICON_SIZE, ICON_SIZE, ICON_SIZE, ICON_SIZE);
+            gui.blit(icon, cursorX, cursorY, 0, 0,
+                    ICON_SIZE, ICON_SIZE, ICON_SIZE, ICON_SIZE);
 
             int flat = Math.round(dr.getFlat());
             int percent = Math.round(dr.getPercent() * 100);
 
-            StringBuilder sb = new StringBuilder();
-            if (flat > 0) sb.append(flat);
+            String text = "";
+            if (flat > 0) text += flat;
             if (percent > 0) {
-                if (sb.length() > 0) sb.append(" ");
-                sb.append(percent).append("%");
+                if (!text.isEmpty()) text += " ";
+                text += percent + "%";
             }
 
-            String text = sb.toString();
             if (!text.isEmpty()) {
-                int textX = cursorX + ICON_SIZE + 2;
-                int textY = cursorY + 6;
-
                 gui.pose().pushPose();
                 gui.pose().scale(0.7f, 0.7f, 1.0f);
-
-                gui.drawString(font, text, (int) (textX / 0.7f), (int) (textY / 0.7f), 0xFFFFFF, false);
-
+                gui.drawString(
+                        font,
+                        text,
+                        (int) ((cursorX + ICON_SIZE + 2) / 0.7f),
+                        (int) ((cursorY + 6) / 0.7f),
+                        0xFFFFFF,
+                        false
+                );
                 gui.pose().popPose();
             }
+
+            // ---------- TOOLTIP ----------
+            int hoverX2 = cursorX + ICON_SIZE + TEXT_AREA;
+            int hoverY2 = cursorY + ICON_SIZE;
+
+            if (mouseX >= cursorX && mouseX < hoverX2 &&
+                    mouseY >= cursorY && mouseY < hoverY2) {
+
+                java.util.List<net.minecraft.util.FormattedCharSequence> tooltip =
+                        java.util.List.of(
+                                // Верхняя строка: "Пробивание урон", "Огненный урон" и т.д.
+                                Component.translatable("damagecore.damage_type." + dt.getDamageName())
+                                        .append(Component.translatable("damagecore.damage_type.damage"))
+                                        .getVisualOrderText(),
+
+                                // Броня
+                                Component.translatable("damagecore.tooltip.armor", percent + "%")
+                                        .getVisualOrderText(),
+
+                                // Зелья (заглушка 0)
+                                Component.translatable("damagecore.tooltip.potion", 0 + "%")
+                                        .getVisualOrderText(),
+
+                                // Пища (заглушка 0)
+                                Component.translatable("damagecore.tooltip.food", 0 + "%")
+                                        .getVisualOrderText()
+                        );
+
+                gui.renderTooltip(font, tooltip, mouseX, mouseY);
+            }
+            // ----------------------------
 
             index++;
             if (index % ICONS_PER_ROW == 0) {
                 cursorX = START_X;
                 cursorY += ROW_SPACING;
             } else {
-                cursorX = cursorX + ICON_SIZE + 2 + TEXT_AREA + GAP_AFTER_TEXT;
+                cursorX += ICON_SIZE + 2 + TEXT_AREA + GAP_AFTER_TEXT;
             }
         }
     }
+
+
 }

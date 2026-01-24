@@ -18,7 +18,6 @@ import ru.imaginaerum.damagecore.api.damage_book_protection.DamageBookStateColle
 import ru.imaginaerum.damagecore.armor.DamageResistance;
 import ru.imaginaerum.damagecore.library_damage.DamageType;
 
-import java.util.EnumMap;
 import java.util.Map;
 
 @Mixin(InventoryScreen.class)
@@ -132,7 +131,9 @@ public abstract class InventoryScreenMixin {
                             Minecraft.getInstance().player
                     );
 
-            DamageBookRenderer.renderDamageIconsAndTexts(gui, tabX, tabY, totals);
+            DamageBookRenderer.renderDamageIconsAndTexts(
+                    gui, tabX, tabY, totals, mouseX, mouseY
+            );
         }
         // selectedSmall == 1 → ничего не рендерим (пустая вкладка)
     }
