@@ -10,11 +10,30 @@
   "damagecore.damage_type.bludgeoning": "Дробящий",
   "damagecore.damage_type.fire": "Огненный",
 
-  "damagecore.damage_type.damage": " урон",
+  "damagecore.tooltip.total_protection": "Итого: %s",
+  "damagecore.tooltip.armor_detail": "Броня: %s",
+  "damagecore.tooltip.food_effect_detail": "Еда: %s",
+  "damagecore.tooltip.time_remaining": "Осталось: %d сек",
 
-  "damagecore.tooltip.armor": "Броня - %s",
-  "damagecore.tooltip.potion": "Зелья - %s",
-  "damagecore.tooltip.food": "Пища - %s",
+  "damagecore.tooltip.armor": "Броня: %s",
+  "damagecore.tooltip.potion": "Зелья: %s",
+  "damagecore.tooltip.food": "Еда: %s",
+  "damagecore.tooltip.food_effect": "Еда: %s",
+
+
+  "damagecore.effects.none": "Нет активных эффектов",
+  "damagecore.effects.source.armor": "Источник: Броня",
+  "damagecore.effects.source.food": "Источник: Еда",
+  "damagecore.effects.source.potion": "Источник: Зелье",
+  "damagecore.effects.armor_value": "Броня: %s",
+  "damagecore.effects.food_value": "Еда: %s",
+  "damagecore.effects.potion_value": "Зелье: %s",
+  "damagecore.effects.duration": "Длительность: %s",
+  "damagecore.effects.section.armor": "Броня",
+  "damagecore.effects.section.food": "Еда",
+  "damagecore.effects.section.potion": "Зелья",
+
+  "damagecore.damage_type.damage": " урон",
 
   "effect.damagecore.death_poison": "Смертельный яд",
   "effect.damagecore.bleeding_1": "Кровотечение I",

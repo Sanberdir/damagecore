@@ -15,10 +15,6 @@ import ru.imaginaerum.damagecore.api.damage_book_protection.DamageBookInputHandl
 import ru.imaginaerum.damagecore.api.damage_book_protection.DamageBookPositionHelper;
 import ru.imaginaerum.damagecore.api.damage_book_protection.DamageBookRenderer;
 import ru.imaginaerum.damagecore.api.damage_book_protection.DamageBookStateCollector;
-import ru.imaginaerum.damagecore.armor.DamageResistance;
-import ru.imaginaerum.damagecore.library_damage.DamageType;
-
-import java.util.Map;
 
 @Mixin(InventoryScreen.class)
 public abstract class InventoryScreenMixin {
@@ -126,16 +122,24 @@ public abstract class InventoryScreenMixin {
 
         // содержимое — старое поведение + переключение
         if (this.selectedSmall == 0) {
-            Map<DamageType, DamageResistance> totals =
-                    DamageBookStateCollector.collectTotalResistances(
+            DamageBookStateCollector.ProtectionData protectionData =
+                    DamageBookStateCollector.collectProtectionData(
                             Minecraft.getInstance().player
                     );
 
             DamageBookRenderer.renderDamageIconsAndTexts(
-                    gui, tabX, tabY, totals, mouseX, mouseY
+                    gui, tabX, tabY, protectionData, mouseX, mouseY
+            );
+        } else if (this.selectedSmall == 1) {
+            DamageBookStateCollector.ProtectionData protectionData =
+                    DamageBookStateCollector.collectProtectionData(
+                            Minecraft.getInstance().player
+                    );
+
+            DamageBookRenderer.renderActiveEffects(
+                    gui, tabX, tabY, protectionData, mouseX, mouseY
             );
         }
-        // selectedSmall == 1 → ничего не рендерим (пустая вкладка)
     }
 
 

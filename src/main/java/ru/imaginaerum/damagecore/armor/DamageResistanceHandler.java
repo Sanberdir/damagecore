@@ -1,6 +1,7 @@
 package ru.imaginaerum.damagecore.armor;
 
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
@@ -9,6 +10,8 @@ import net.minecraftforge.fml.common.Mod;
 import ru.imaginaerum.damagecore.DamageCore;
 import ru.imaginaerum.damagecore.library_damage.DamageContext;
 import ru.imaginaerum.damagecore.library_damage.DamageType;
+import ru.imaginaerum.damagecore.libraty_effects.FoodProtectionCapability;
+import ru.imaginaerum.damagecore.libraty_effects.FoodProtectionManager;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -49,26 +52,42 @@ public class DamageResistanceHandler {
             }
         }
 
+        // Добавляем защиту от эффектов еды (только для игроков)
+        float foodProtectionPercent = 0.0f;
+        if (entity instanceof Player player) {
+            FoodProtectionManager foodManager = FoodProtectionCapability.get(player);
+            if (foodManager != null) {
+                foodProtectionPercent = foodManager.getTotalProtectionPercent(damageType);
+            }
+        }
+
         // Применяем защиты в порядке: сначала вся абсолютная, потом вся процентная
+        float totalFlat = 0f;
+        float totalPercent = 0f;
+
         if (!allResistances.isEmpty()) {
             // Суммируем абсолютную защиту
-            float totalFlat = allResistances.stream()
+            totalFlat = allResistances.stream()
                     .map(DamageResistance::getFlat)
                     .reduce(0f, Float::sum);
 
-            // Суммируем процентную защиту (максимум 90%)
-            float totalPercent = allResistances.stream()
+            // Суммируем процентную защиту от брони
+            totalPercent = allResistances.stream()
                     .map(DamageResistance::getPercent)
                     .reduce(0f, Float::sum);
-            totalPercent = Math.min(1.0f, totalPercent); // Ограничиваем максимум 90%
-
-            // Применяем формулу: (Урон - Абсолютная защита) * (1 - Процентная защита)
-            float afterFlat = Math.max(0, incomingDamage - totalFlat);
-            float finalDamage = afterFlat * (1 - totalPercent);
-
-            event.setAmount(finalDamage);
-
         }
+
+        // Добавляем защиту от еды (только процентная)
+        totalPercent += foodProtectionPercent;
+
+        // Ограничиваем суммарную процентную защиту максимум 90%
+        totalPercent = Math.min(1.0f, totalPercent);
+
+        // Применяем формулу: (Урон - Абсолютная защита) * (1 - Процентная защита)
+        float afterFlat = Math.max(0, incomingDamage - totalFlat);
+        float finalDamage = afterFlat * (1 - totalPercent);
+
+        event.setAmount(finalDamage);
 
         // 🧹 3. ОБЯЗАТЕЛЬНО чистим контекст
         DamageContext.clear(entity);
