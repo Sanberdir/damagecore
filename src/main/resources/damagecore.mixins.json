@@ -13,7 +13,7 @@
     "TridentItemMixin",
     "InventoryScreenMixin",
     "ScreenInvoker",
-    "LivingEntityMixin",
+    "effects_mixins.LivingEntityMixin",
     "ItemEffectMixin",
     "EnchantmentHelperMixin",
     "armor.ArmorItemMixin",

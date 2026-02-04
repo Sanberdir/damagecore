@@ -4,6 +4,7 @@ public enum DamageType {
     PIERCING("piercing"),
     SLASHING("slashing"),
     FIRE("fire"),
+    COLD("cold"),
     // силовой взрывы
     FORCE("force"),
     // Лучистый

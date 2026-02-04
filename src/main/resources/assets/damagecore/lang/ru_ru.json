@@ -19,6 +19,7 @@
   "damagecore.tooltip.potion": "Зелья: %s",
   "damagecore.tooltip.food": "Еда: %s",
   "damagecore.tooltip.food_effect": "Еда: %s",
+  "damagecore.tooltip.potion_effect_detail": "Зелье %s",
 
 
   "damagecore.effects.none": "Нет активных эффектов",

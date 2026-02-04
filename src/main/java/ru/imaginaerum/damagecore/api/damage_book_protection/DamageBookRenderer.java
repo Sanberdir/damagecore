@@ -4,9 +4,14 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.*;
+import net.minecraft.world.item.alchemy.Potion;
 import net.minecraft.world.item.alchemy.PotionUtils;
 import net.minecraft.world.item.alchemy.Potions;
 import net.minecraft.resources.ResourceLocation;
@@ -106,55 +111,59 @@ public final class DamageBookRenderer {
         int index = 0;
 
         Font font = Minecraft.getInstance().font;
+        Player player = Minecraft.getInstance().player;
 
         for (DamageType dt : DamageType.values()) {
             DamageResistance armorResistance = armorTotals.get(dt);
             float foodProtection = foodTotals.getOrDefault(dt, 0.0f);
 
+            // ==== Временная защита от зелий / ванильного Resistance ====
+            float vanillaPercent = 0f;
+            if (player != null) {
+                for (MobEffectInstance inst : player.getActiveEffects()) {
+                    if (inst.getEffect() == MobEffects.DAMAGE_RESISTANCE) {
+                        int level = inst.getAmplifier() + 1;
+                        float percent = 0.10f * level;
+
+                        // проверка по типу урона
+                        if (dt == DamageType.PIERCING || dt == DamageType.SLASHING
+                                || dt == DamageType.BLUDGEONING) {
+                            vanillaPercent += percent;
+                        }
+                    }
+                }
+            }
+
             if ((armorResistance == null || (armorResistance.getFlat() <= 0 && armorResistance.getPercent() <= 0))
-                    && foodProtection <= 0) {
+                    && foodProtection <= 0 && vanillaPercent <= 0) {
                 continue;
             }
 
+            // ==== Иконка урона ====
             ResourceLocation icon = new ResourceLocation(
                     "damagecore",
                     "textures/gui/damage_types/" + dt.getDamageName() + "_damage.png"
             );
+            gui.blit(icon, cursorX, cursorY, 0, 0, ICON_SIZE, ICON_SIZE, ICON_SIZE, ICON_SIZE);
 
-            gui.blit(icon, cursorX, cursorY, 0, 0,
-                    ICON_SIZE, ICON_SIZE, ICON_SIZE, ICON_SIZE);
+            // ==== Суммарная защита ====
+            int totalFlat = armorResistance != null ? Math.round(armorResistance.getFlat()) : 0;
+            float totalPercent = (armorResistance != null ? armorResistance.getPercent() : 0f)
+                    + foodProtection + vanillaPercent;
 
-            int totalFlat = 0;
-            float totalPercent = 0.0f;
-
-            if (armorResistance != null) {
-                totalFlat = Math.round(armorResistance.getFlat());
-                totalPercent += armorResistance.getPercent();
-            }
-            totalPercent += foodProtection;
-
-            if (totalPercent > 1.0f) {
-                totalPercent = 1.0f;
-            }
-
+            if (totalPercent > 1.0f) totalPercent = 1.0f;
             int totalPercentInt = Math.round(totalPercent * 100);
 
+            // ==== Цвет: если есть временная защита — жёлтый ====
+            boolean hasTemporary = foodProtection > 0 || vanillaPercent > 0;
+            int displayColor = hasTemporary ? TEMPORARY_COLOR : PERMANENT_COLOR;
+
+            // ==== Формирование текста рядом с иконкой ====
             StringBuilder textBuilder = new StringBuilder();
-            int displayColor = PERMANENT_COLOR;
-
-            if (totalFlat > 0) {
-                textBuilder.append(totalFlat);
-            }
-
+            if (totalFlat > 0) textBuilder.append(totalFlat);
             if (totalPercentInt > 0) {
-                if (textBuilder.length() > 0) {
-                    textBuilder.append(" ");
-                }
+                if (textBuilder.length() > 0) textBuilder.append(" ");
                 textBuilder.append(totalPercentInt).append("%");
-
-                if (foodProtection > 0) {
-                    displayColor = TEMPORARY_COLOR;
-                }
             }
 
             String text = textBuilder.toString();
@@ -172,7 +181,7 @@ public final class DamageBookRenderer {
                 gui.pose().popPose();
             }
 
-            // ТУЛТИП ТОЛЬКО В ПЕРВОЙ ВКЛАДКЕ
+            // ==== Tooltip при наведении ====
             int hoverX2 = cursorX + ICON_SIZE + TEXT_AREA;
             int hoverY2 = cursorY + ICON_SIZE;
 
@@ -190,49 +199,32 @@ public final class DamageBookRenderer {
                 int armorPercentFromArmor = armorResistance != null ?
                         Math.round(armorResistance.getPercent() * 100) : 0;
                 int foodPercentInt = Math.round(foodProtection * 100);
-                int totalPercentFromTooltip = armorPercentFromArmor + foodPercentInt;
+                int vanillaPercentInt = Math.round(vanillaPercent * 100);
 
-                if (totalPercentFromTooltip > 100) {
-                    totalPercentFromTooltip = 100;
-                }
+                int totalPercentFromTooltip = armorPercentFromArmor + foodPercentInt + vanillaPercentInt;
+                if (totalPercentFromTooltip > 100) totalPercentFromTooltip = 100;
 
-                Component totalLine = Component.translatable("damagecore.tooltip.total_protection",
-                        totalPercentFromTooltip + "%");
-                tooltipLines.add(totalLine.getVisualOrderText());
-
+                tooltipLines.add(Component.translatable("damagecore.tooltip.total_protection",
+                        totalPercentFromTooltip + "%").getVisualOrderText());
                 tooltipLines.add(Component.literal("").getVisualOrderText());
 
                 if (armorResistance != null && armorResistance.getPercent() > 0) {
-                    int armorPercent = Math.round(armorResistance.getPercent() * 100);
-                    Component armorLine = Component.translatable("damagecore.tooltip.armor_detail",
-                            armorPercent + "%");
-                    tooltipLines.add(armorLine.getVisualOrderText());
+                    tooltipLines.add(Component.translatable("damagecore.tooltip.armor_detail",
+                            armorPercentFromArmor + "%").getVisualOrderText());
                 }
-
                 if (foodProtection > 0) {
-                    int foodPercent = Math.round(foodProtection * 100);
-                    Component foodLine = Component.translatable("damagecore.tooltip.food_effect_detail",
-                            foodPercent + "%");
-                    tooltipLines.add(foodLine.getVisualOrderText());
-
-                    if (Minecraft.getInstance().player != null) {
-                        var foodManager = FoodProtectionCapability.get(
-                                Minecraft.getInstance().player);
-                        if (foodManager != null) {
-                            var effect = foodManager.getEffect(dt);
-                            if (effect != null) {
-                                int remainingSeconds = effect.getRemainingTicks() / 20;
-                                Component timeLine = Component.translatable("damagecore.tooltip.time_remaining",
-                                        remainingSeconds);
-                                tooltipLines.add(timeLine.getVisualOrderText());
-                            }
-                        }
-                    }
+                    tooltipLines.add(Component.translatable("damagecore.tooltip.food_effect_detail",
+                            foodPercentInt + "%").getVisualOrderText());
+                }
+                if (vanillaPercentInt > 0) {
+                    tooltipLines.add(Component.translatable("damagecore.tooltip.potion_effect_detail",
+                            vanillaPercentInt + "%").getVisualOrderText());
                 }
 
                 gui.renderTooltip(font, tooltipLines, mouseX, mouseY);
             }
 
+            // ==== Позиционирование следующей иконки ====
             index++;
             if (index % ICONS_PER_ROW == 0) {
                 cursorX = START_X;
@@ -243,8 +235,11 @@ public final class DamageBookRenderer {
         }
     }
 
+
+
     protected static final ResourceLocation INVENTORY_LOCATION =
             new ResourceLocation("textures/gui/container/inventory.png");
+
     // Рендер второй вкладки (активные эффекты) - ПРОСТЫЕ ЯЧЕЙКИ В РЯД
     public static void renderActiveEffects(
             GuiGraphics gui,
@@ -257,99 +252,77 @@ public final class DamageBookRenderer {
         Player player = Minecraft.getInstance().player;
         if (player == null) return;
 
-        List<ItemStack> itemsToDisplay = new ArrayList<>();
+        List<ItemStack> allItemsToDisplay = new ArrayList<>();
 
-        // === ТОЛЬКО ВРЕМЕННЫЕ ЭФФЕКТЫ (еда / зелья) ===
+        // ==== Эффекты из FoodProtectionCapability ====
         var foodManager = FoodProtectionCapability.get(player);
         if (foodManager != null) {
             var effects = foodManager.getActiveEffects();
-
             Map<Item, List<FoodProtectionEffect>> grouped = new HashMap<>();
 
             for (List<FoodProtectionEffect> list : effects.values()) {
                 for (FoodProtectionEffect effect : list) {
-                    Item item = effect.getItem();
-
-                    grouped
-                            .computeIfAbsent(item, k -> new ArrayList<>())
-                            .add(effect);
+                    grouped.computeIfAbsent(effect.getItem(), k -> new ArrayList<>()).add(effect);
                 }
             }
 
             for (Item item : grouped.keySet()) {
-                itemsToDisplay.add(new ItemStack(item));
+                allItemsToDisplay.add(new ItemStack(item));
             }
         }
 
+        // ==== Ванильные эффекты как зелья ====
+        for (MobEffectInstance inst : player.getActiveEffects()) {
+            if (inst.getEffect() == MobEffects.DAMAGE_RESISTANCE) continue;
+
+            ItemStack potionStack = findPotionForEffect(inst);
+            if (potionStack != null) {
+                allItemsToDisplay.add(potionStack);
+            }
+        }
 
         final int START_X = tabX + 10;
         final int START_Y = tabY + 20;
         final int CELL_SPACING = 2;
         final int MAX_PER_ROW = 7;
+        final int MAX_ROWS = 3;
 
-        int x = START_X;
-        int y = START_Y;
-        int rowCount = 0;
+        Font font = Minecraft.getInstance().font;
 
-        for (int i = 0; i < itemsToDisplay.size(); i++) {
-            ItemStack stack = itemsToDisplay.get(i);
+        int curX = START_X;
+        int curY = START_Y;
+        int col = 0;
+        int row = 0;
 
-            if (rowCount >= MAX_PER_ROW) {
-                rowCount = 0;
-                x = START_X;
-                y += 18 + CELL_SPACING;
+        for (ItemStack stack : allItemsToDisplay) {
+            if (col >= MAX_PER_ROW) {
+                col = 0;
+                curX = START_X;
+                curY += 18 + CELL_SPACING;
+                row++;
+                if (row >= MAX_ROWS) break;
             }
 
-            // Ванильный слот
-            gui.blit(
-                    INVENTORY_LOCATION,
-                    x,
-                    y,
-                    7,
-                    83,
-                    18,
-                    18
-            );
+            gui.blit(INVENTORY_LOCATION, curX, curY, 7, 83, 18, 18);
+            gui.renderItem(stack, curX + 1, curY + 1);
+            gui.renderItemDecorations(font, stack, curX + 1, curY + 1);
 
-            gui.renderItem(stack, x + 1, y + 1);
-            gui.renderItemDecorations(
-                    Minecraft.getInstance().font,
-                    stack,
-                    x + 1,
-                    y + 1
-            );
-
-            x += 18 + CELL_SPACING;
-            rowCount++;
-
-            // максимум 3 ряда
-            if (i >= MAX_PER_ROW * 3 - 1) {
-                if (itemsToDisplay.size() > MAX_PER_ROW * 3) {
-                    gui.pose().pushPose();
-                    gui.pose().scale(0.7f, 0.7f, 1f);
-                    gui.drawString(
-                            Minecraft.getInstance().font,
-                            "...",
-                            (int) ((x + 2) / 0.7f),
-                            (int) ((y + 7) / 0.7f),
-                            0xAAAAAA,
-                            false
-                    );
-                    gui.pose().popPose();
-                }
-                break;
-            }
+            curX += 18 + CELL_SPACING;
+            col++;
         }
 
-        // Нет активных эффектов
-        if (itemsToDisplay.isEmpty()) {
+        // ==== Если вообще нет эффектов ====
+        boolean hasResistance = player.getActiveEffects()
+                .stream().anyMatch(e -> e.getEffect() == MobEffects.DAMAGE_RESISTANCE);
+
+        if (allItemsToDisplay.isEmpty() && !hasResistance) {
             String text = Component.translatable("damagecore.effects.none").getString();
             gui.pose().pushPose();
             gui.pose().scale(0.8f, 0.8f, 1f);
             gui.drawString(
-                    Minecraft.getInstance().font,
+                    font,
                     text,
-                    (int) ((tabX + TAB_WIDTH / 2f - Minecraft.getInstance().font.width(text) * 0.4f) / 0.8f),
+                    (int) ((tabX + TAB_WIDTH / 2f - font.width(text) * 0.4f) / 0.8f),
                     (int) ((START_Y + 40) / 0.8f),
                     0xAAAAAA,
                     false
@@ -358,5 +331,16 @@ public final class DamageBookRenderer {
         }
     }
 
-
+    private static ItemStack findPotionForEffect(MobEffectInstance effect) {
+        for (Potion potion : BuiltInRegistries.POTION) {
+            for (MobEffectInstance inst : potion.getEffects()) {
+                if (inst.getEffect() == effect.getEffect()) {
+                    ItemStack stack = new ItemStack(Items.POTION);
+                    PotionUtils.setPotion(stack, potion);
+                    return stack;
+                }
+            }
+        }
+        return null;
+    }
 }

@@ -3,8 +3,7 @@
   "override_vanilla_effects": true,
   "remove_effects": [
     "minecraft:resistance",
-    "minecraft:fire_resistance",
-    "minecraft:absorption"
+    "minecraft:fire_resistance"
   ],
   "effects": [
     {
