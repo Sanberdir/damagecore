@@ -23,18 +23,18 @@ public class ExplosionDamageMixin {
             )
     )
     private boolean damagecore$onEntityHurt(Entity targetEntity, DamageSource source, float amount) {
-        // targetEntity — это та самая сущность, которой наносят урон (жертва)
         if (targetEntity instanceof LivingEntity living) {
-            // проставим тип уронa на жертве (если она реализует интерфейс)
             if (living instanceof IHasDamageType has) {
-                has.setLastDamageType(DamageType.FORCE);
+                // Можно запомнить последний урон как комбинированный тип — либо хранить список, либо как специальный "multi" тип
+                // Здесь просто пример: запишем BLUDGEONING (основной) и добавим FIRE в DamageContext
+                has.setLastDamageType(DamageType.BLUDGEONING);
             }
-            // положим в DamageContext реальный урон (amount)
-            DamageContext.add(living, DamageType.FORCE, amount);
 
+            // Добавляем оба типа в DamageContext
+            DamageContext.add(living, DamageType.BLUDGEONING, amount * 0.5f); // половина урона BLUDGEONING
+            DamageContext.add(living, DamageType.FIRE, amount * 0.5f);         // половина урона FIRE
         }
 
-        // очень важно: вызвать оригинальный метод, чтобы урон применился
         return targetEntity.hurt(source, amount);
     }
 }

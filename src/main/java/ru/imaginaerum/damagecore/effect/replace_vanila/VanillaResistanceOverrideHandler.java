@@ -33,7 +33,7 @@ public class VanillaResistanceOverrideHandler {
 
         if (dt == null) return;
 
-        if (dt == DamageType.PIERCING || dt == DamageType.SLASHING || dt == DamageType.FIRE || dt == DamageType.BLUDGEONING) {
+        if (dt == DamageType.PIERCING || dt == DamageType.SLASHING || dt == DamageType.BLUDGEONING) {
             float old = event.getAmount();
             float updated = old * (1.0f - totalReduction);
             if (updated < 0f) updated = 0f;

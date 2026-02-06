@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(EnchantmentHelper.class)
-public class EnchantmentHelperMixin {
+public class EnchantmentSharpnessHelperMixin {
 
     @Inject(
             method = "getDamageBonus",

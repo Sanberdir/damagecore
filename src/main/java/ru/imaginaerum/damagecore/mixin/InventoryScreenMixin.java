@@ -15,6 +15,8 @@ import ru.imaginaerum.damagecore.api.damage_book_protection.DamageBookInputHandl
 import ru.imaginaerum.damagecore.api.damage_book_protection.DamageBookPositionHelper;
 import ru.imaginaerum.damagecore.api.damage_book_protection.DamageBookRenderer;
 import ru.imaginaerum.damagecore.api.damage_book_protection.DamageBookStateCollector;
+import ru.imaginaerum.damagecore.api.damage_book_protection.pages_book.RenderActiveEffects;
+import ru.imaginaerum.damagecore.api.damage_book_protection.pages_book.RenderDamageIconsAndTexts;
 
 @Mixin(InventoryScreen.class)
 public abstract class InventoryScreenMixin {
@@ -127,7 +129,7 @@ public abstract class InventoryScreenMixin {
                             Minecraft.getInstance().player
                     );
 
-            DamageBookRenderer.renderDamageIconsAndTexts(
+            RenderDamageIconsAndTexts.renderDamageIconsAndTexts(
                     gui, tabX, tabY, protectionData, mouseX, mouseY
             );
         } else if (this.selectedSmall == 1) {
@@ -136,7 +138,7 @@ public abstract class InventoryScreenMixin {
                             Minecraft.getInstance().player
                     );
 
-            DamageBookRenderer.renderActiveEffects(
+            RenderActiveEffects.renderActiveEffects(
                     gui, tabX, tabY, protectionData, mouseX, mouseY
             );
         }

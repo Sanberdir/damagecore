@@ -49,8 +49,6 @@ public class TooltipEventHandler {
                 String text = component.getString().toLowerCase();
                 return text.contains("armor") ||
                         text.contains("броня") ||
-                        text.contains("protection") ||
-                        text.contains("защита") ||
                         text.contains("toughness") ||
                         text.contains("прочность") ||
                         text.matches(".*\\+\\s*\\d+.*(armor|броня).*");
