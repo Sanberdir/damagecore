@@ -14,6 +14,7 @@
     "InventoryScreenMixin",
     "ScreenInvoker",
     "effects_mixins.LivingEntityMixin",
+    "enchanted.LivingEntityMagicAbsorbMixin",
     "ItemEffectMixin",
     "EnchantmentHelperMixin",
     "armor.ArmorItemMixin",

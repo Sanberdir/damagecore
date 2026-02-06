@@ -13,6 +13,7 @@
   "damagecore.tooltip.total_protection": "Итого: %s",
   "damagecore.tooltip.armor_detail": "Броня: %s",
   "damagecore.tooltip.food_effect_detail": "Еда: %s",
+  "damagecore.tooltip.enchant_protection_detail": "Чары %s",
   "damagecore.tooltip.time_remaining": "Осталось: %d сек",
 
   "damagecore.tooltip.armor": "Броня: %s",

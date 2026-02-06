@@ -4,7 +4,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -15,6 +14,7 @@ import net.minecraft.world.item.alchemy.Potion;
 import net.minecraft.world.item.alchemy.PotionUtils;
 import net.minecraft.world.item.alchemy.Potions;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.enchantment.Enchantments;
 import ru.imaginaerum.damagecore.armor.DamageResistance;
 import ru.imaginaerum.damagecore.library_damage.DamageType;
 import ru.imaginaerum.damagecore.libraty_effects.FoodProtectionCapability;
@@ -30,7 +30,24 @@ public final class DamageBookRenderer {
     private static final int PERMANENT_COLOR = 0xFFFFFF; // Белый цвет для постоянной защиты
     private static final int CELL_SIZE = 18; // Размер ячейки с границей
     private static final int CELL_BORDER_COLOR = 0xFFFFFF; // Белый цвет границы
+    // Защита от чар
+    private static float getProtectionEnchantPercent(Player player, DamageType dt) {
+        if (player == null) return 0f;
 
+        if (dt != DamageType.PIERCING
+                && dt != DamageType.SLASHING
+                && dt != DamageType.BLUDGEONING) {
+            return 0f;
+        }
+
+        int totalLevel = 0;
+
+        for (ItemStack stack : player.getArmorSlots()) {
+            totalLevel += stack.getEnchantmentLevel(Enchantments.ALL_DAMAGE_PROTECTION);
+        }
+
+        return totalLevel * 0.05f; // 5% за уровень
+    }
     private static final ResourceLocation DAMAGE_BOOK_TAB =
             new ResourceLocation("damagecore", "textures/gui/container/creative_inventory/damage_book.png");
 
@@ -119,6 +136,7 @@ public final class DamageBookRenderer {
 
             // ==== Временная защита от зелий / ванильного Resistance ====
             float vanillaPercent = 0f;
+            float enchantPercent = getProtectionEnchantPercent(player, dt);
             if (player != null) {
                 for (MobEffectInstance inst : player.getActiveEffects()) {
                     if (inst.getEffect() == MobEffects.DAMAGE_RESISTANCE) {
@@ -149,13 +167,13 @@ public final class DamageBookRenderer {
             // ==== Суммарная защита ====
             int totalFlat = armorResistance != null ? Math.round(armorResistance.getFlat()) : 0;
             float totalPercent = (armorResistance != null ? armorResistance.getPercent() : 0f)
-                    + foodProtection + vanillaPercent;
+                    + foodProtection + vanillaPercent + enchantPercent;
 
             if (totalPercent > 1.0f) totalPercent = 1.0f;
             int totalPercentInt = Math.round(totalPercent * 100);
 
             // ==== Цвет: если есть временная защита — жёлтый ====
-            boolean hasTemporary = foodProtection > 0 || vanillaPercent > 0;
+            boolean hasTemporary = foodProtection > 0 || vanillaPercent > 0 || enchantPercent > 0;
             int displayColor = hasTemporary ? TEMPORARY_COLOR : PERMANENT_COLOR;
 
             // ==== Формирование текста рядом с иконкой ====
@@ -200,26 +218,55 @@ public final class DamageBookRenderer {
                         Math.round(armorResistance.getPercent() * 100) : 0;
                 int foodPercentInt = Math.round(foodProtection * 100);
                 int vanillaPercentInt = Math.round(vanillaPercent * 100);
+                int enchantPercentInt = Math.round(enchantPercent * 100);
 
-                int totalPercentFromTooltip = armorPercentFromArmor + foodPercentInt + vanillaPercentInt;
+                int totalPercentFromTooltip =
+                        armorPercentFromArmor
+                                + foodPercentInt
+                                + vanillaPercentInt
+                                + enchantPercentInt;
+
                 if (totalPercentFromTooltip > 100) totalPercentFromTooltip = 100;
 
-                tooltipLines.add(Component.translatable("damagecore.tooltip.total_protection",
-                        totalPercentFromTooltip + "%").getVisualOrderText());
-                tooltipLines.add(Component.literal("").getVisualOrderText());
+// ---- детали по источникам ----
 
                 if (armorResistance != null && armorResistance.getPercent() > 0) {
-                    tooltipLines.add(Component.translatable("damagecore.tooltip.armor_detail",
-                            armorPercentFromArmor + "%").getVisualOrderText());
+                    tooltipLines.add(Component.translatable(
+                            "damagecore.tooltip.armor_detail",
+                            armorPercentFromArmor + "%"
+                    ).getVisualOrderText());
                 }
+
                 if (foodProtection > 0) {
-                    tooltipLines.add(Component.translatable("damagecore.tooltip.food_effect_detail",
-                            foodPercentInt + "%").getVisualOrderText());
+                    tooltipLines.add(Component.translatable(
+                            "damagecore.tooltip.food_effect_detail",
+                            foodPercentInt + "%"
+                    ).getVisualOrderText());
                 }
+
                 if (vanillaPercentInt > 0) {
-                    tooltipLines.add(Component.translatable("damagecore.tooltip.potion_effect_detail",
-                            vanillaPercentInt + "%").getVisualOrderText());
+                    tooltipLines.add(Component.translatable(
+                            "damagecore.tooltip.potion_effect_detail",
+                            vanillaPercentInt + "%"
+                    ).getVisualOrderText());
                 }
+
+                if (enchantPercentInt > 0) {
+                    tooltipLines.add(Component.translatable(
+                            "damagecore.tooltip.enchant_protection_detail",
+                            enchantPercentInt + "%"
+                    ).getVisualOrderText());
+                }
+
+// ---- пустая строка ----
+                tooltipLines.add(Component.literal("").getVisualOrderText());
+
+// ---- ИТОГО ВНИЗУ ----
+                tooltipLines.add(Component.translatable(
+                        "damagecore.tooltip.total_protection",
+                        totalPercentFromTooltip + "%"
+                ).getVisualOrderText());
+
 
                 gui.renderTooltip(font, tooltipLines, mouseX, mouseY);
             }
@@ -270,7 +317,12 @@ public final class DamageBookRenderer {
                 allItemsToDisplay.add(new ItemStack(item));
             }
         }
-
+        // ==== Броня с Protection ====
+        for (ItemStack armor : player.getArmorSlots()) {
+            if (armor.getEnchantmentLevel(Enchantments.ALL_DAMAGE_PROTECTION) > 0) {
+                allItemsToDisplay.add(armor.copy());
+            }
+        }
         // ==== Ванильные эффекты как зелья ====
         for (MobEffectInstance inst : player.getActiveEffects()) {
             if (inst.getEffect() == MobEffects.DAMAGE_RESISTANCE) continue;

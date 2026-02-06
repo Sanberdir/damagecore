@@ -27,6 +27,7 @@
   "damagecore.tooltip.food": "Food: %s",
   "damagecore.tooltip.food_effect": "Food: %s",
   "damagecore.tooltip.potion_effect_detail": "Potion %s",
+  "damagecore.tooltip.enchant_protection_detail": "Чары %s",
 
   "damagecore.damage_type.damage": " damage",
   "damagecore.damage_type.piercing": "Piercing",

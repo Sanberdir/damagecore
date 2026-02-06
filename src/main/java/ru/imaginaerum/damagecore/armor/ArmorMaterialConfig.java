@@ -22,27 +22,4 @@ public class ArmorMaterialConfig {
     // Глобальные модификаторы для всего набора
     public Map<String, Float> all_flat = new HashMap<>();
     public Map<String, Float> all_percent = new HashMap<>();
-
-    // Вспомогательные методы для получения значений
-    public float getFlat(String armorType, String damageType) {
-        Map<String, Float> map = switch (armorType) {
-            case "helmet" -> helmet_flat;
-            case "chestplate" -> chestplate_flat;
-            case "leggings" -> leggings_flat;
-            case "boots" -> boots_flat;
-            default -> null;
-        };
-        return map != null ? map.getOrDefault(damageType, 0.0f) : 0.0f;
-    }
-
-    public float getPercent(String armorType, String damageType) {
-        Map<String, Float> map = switch (armorType) {
-            case "helmet" -> helmet_percent;
-            case "chestplate" -> chestplate_percent;
-            case "leggings" -> leggings_percent;
-            case "boots" -> boots_percent;
-            default -> null;
-        };
-        return map != null ? map.getOrDefault(damageType, 0.0f) : 0.0f;
-    }
 }
