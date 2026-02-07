@@ -12,9 +12,13 @@ import java.util.*;
 
 public final class DamageBookRenderer {
     public static final int TAB_WIDTH = 150;
-    // Защита от чар
+    // Защита от чар (левая вкладка)
     private static final ResourceLocation DAMAGE_BOOK_TAB =
             new ResourceLocation("damagecore", "textures/gui/container/creative_inventory/damage_book.png");
+
+    // Правая интерфейсная текстура (в том же png указали область)
+    private static final ResourceLocation DAMAGE_CORE_INTERFACE =
+            new ResourceLocation("damagecore", "textures/gui/container/creative_inventory/damage_core_interface.png");
 
     private DamageBookRenderer() {}
 
@@ -65,5 +69,24 @@ public final class DamageBookRenderer {
                 gui.renderItemDecorations(Minecraft.getInstance().font, potion, potionX, itemY);
             }
         }
+    }
+
+    /**
+     * Рисует правую интерфейсную панель из текстуры damage_core_interface.
+     * Пользователь предоставил область: X=179..468, Y=0..166 (ширина=289, высота=166).
+     */
+    public static void renderRightInterface(GuiGraphics gui, InventoryScreen screen, int x, int y) {
+        int u = 179;
+        int v = 0;
+        int width = 289;
+        int height = 166;
+
+        gui.blit(
+                DAMAGE_CORE_INTERFACE,
+                x + 2, y,
+                u, v,
+                width, height,
+                512, 512   // ← полный размер текстуры
+        );
     }
 }
