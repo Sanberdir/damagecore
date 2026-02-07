@@ -18,7 +18,7 @@ public final class ExplosionProtectionHelper {
     /** Возвращает защиту от чар (в долях, 0..1) для конкретной сущности и типа урона. */
     public static float getEnchantProtectionPercent(LivingEntity entity, DamageType type) {
         if (entity == null) return 0f;
-        if (type != DamageType.BLUDGEONING && type != DamageType.FIRE) {
+        if (type != DamageType.BLUDGEONING) {
             return 0f;
         }
 

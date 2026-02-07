@@ -23,7 +23,7 @@
     "EnchantmentSharpnessHelperMixin",
     "armor.ArmorItemMixin",
     "damage_poison_mixins.PoisonEffectsMixin",
-    "damage_explosion_mixins.ExplosionDamageMixin",
+    "damage_explosion_mixins.ExplosionDamageTrackingMixin",
     "damage_fire_mixins.FireDamageMixin",
     "damage_fire_mixins.FireDamageMagmaMixin",
     "damage_fire_mixins.FireDamageSmallFireballMixin",

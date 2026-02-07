@@ -35,10 +35,8 @@ public class LivingEntityExplosionMagicAbsorbMixin {
             return;
         }
 
-        // только колющий урон
-        if (type != DamageType.BLUDGEONING
-            && type != DamageType.FIRE){
-            return; // НЕ отменяем — пусть другие миксины или ваниль работают
+        if (type != DamageType.BLUDGEONING){
+            return;
         }
 
         float reduction = ExplosionProtectionHelper
