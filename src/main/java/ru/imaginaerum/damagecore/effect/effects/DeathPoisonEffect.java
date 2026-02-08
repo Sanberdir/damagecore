@@ -56,6 +56,6 @@ public class DeathPoisonEffect extends MobEffect {
                 return;
             }
         }
-        
+
     }
 }
