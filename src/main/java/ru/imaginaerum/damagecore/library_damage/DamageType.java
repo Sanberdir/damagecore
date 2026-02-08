@@ -5,8 +5,6 @@ public enum DamageType {
     SLASHING("slashing"),
     FIRE("fire"),
     COLD("cold"),
-    // силовой взрывы
-    FORCE("force"),
     // Лучистый
     LUMINOUS_RADIANT("luminous_radiant"),
     NECROTIC("necrotic"),
