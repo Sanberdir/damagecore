@@ -415,31 +415,6 @@ public class ScarletStaplerRing extends Item implements ICurioItem {
         stack.setTag(tag);
     }
 
-    /**
-     * Публичный метод для расхода заряда извне
-     */
-    public static void consumeChargeFromExternal(ItemStack stack, LivingEntity entity) {
-        if (!isHungry(stack)) {
-            int currentCharges = getCharges(stack);
-            if (currentCharges > 0) {
-                setCharges(stack, currentCharges - 1);
-
-                // Если заряды закончились
-                if (currentCharges - 1 <= 0) {
-                    setHungry(stack, true);
-                    setCooldown(stack, 0);
-
-                    if (entity instanceof Player player) {
-                        player.displayClientMessage(
-                                net.minecraft.network.chat.Component.literal("§cКольцо проголодалось!"),
-                                true
-                        );
-                    }
-                }
-            }
-        }
-    }
-
     /* =========================
        Методы для отображения информации
        ========================= */
@@ -534,11 +509,7 @@ public class ScarletStaplerRing extends Item implements ICurioItem {
        Client-only model property
        ========================= */
 
-    @Mod.EventBusSubscriber(
-            modid = DamageCore.MODID,
-            value = Dist.CLIENT,
-            bus = Mod.EventBusSubscriber.Bus.MOD
-    )
+    @Mod.EventBusSubscriber(modid = DamageCore.MODID,value = Dist.CLIENT,bus = Mod.EventBusSubscriber.Bus.MOD)
     public static class Client {
         @SubscribeEvent
         public static void onClientSetup(FMLClientSetupEvent event) {
