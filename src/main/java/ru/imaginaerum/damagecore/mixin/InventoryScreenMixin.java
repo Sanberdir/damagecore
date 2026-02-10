@@ -11,10 +11,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import ru.imaginaerum.damagecore.api.damage_book_protection.DamageBookInputHandler;
-import ru.imaginaerum.damagecore.api.damage_book_protection.DamageBookPositionHelper;
-import ru.imaginaerum.damagecore.api.damage_book_protection.DamageBookRenderer;
-import ru.imaginaerum.damagecore.api.damage_book_protection.DamageBookStateCollector;
+import ru.imaginaerum.damagecore.api.damage_book_protection.*;
 import ru.imaginaerum.damagecore.api.damage_book_protection.pages_book.RenderActiveEffects;
 import ru.imaginaerum.damagecore.api.damage_book_protection.pages_book.RenderDamageIconsAndTexts;
 
@@ -84,11 +81,19 @@ public abstract class InventoryScreenMixin {
             this.skillTreeVisible = !this.skillTreeVisible;
 
             if (this.skillTreeVisible) {
-                // если открывается правая панель — закроем рецепт и левую книгу
+                // Если открывается правая панель — закроем рецепт и левую книгу
                 if (s.getRecipeBookComponent().isVisible()) {
                     s.getRecipeBookComponent().toggleVisibility();
                 }
                 this.damageBookVisible = false;
+
+                // Ленивая загрузка JSON из assets — делаем при первом открытии
+                if (SkillTreeRenderer.isEmpty()) {
+                    SkillTreeRenderer.load("skill_tree/skill_tree.json");
+                }
+            } else {
+                // при закрытии — опционально сбрасываем позицию
+                SkillTreeRenderer.resetTreePosition();
             }
 
             this.damagecore$updateInventoryPosition(s);
@@ -197,9 +202,54 @@ public abstract class InventoryScreenMixin {
 
         this.selectedSmall = DamageBookInputHandler.handleSmallTabsClick(mouseX, mouseY, screen, this.selectedSmall, tabX, tabY);
     }
+    /**
+     * Привязка нажатия мыши — начинает перетаскивание всего дерева,
+     * если правая панель видима и клик внутри её области.
+     */
+    @Inject(method = "mouseClicked", at = @At("TAIL"), cancellable = true)
+    private void damagecore$skillTree_mousePressed(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
+        InventoryScreen screen = (InventoryScreen) (Object) this;
+        if (!this.skillTreeVisible) return;
+
+        int guiLeft = ((AbstractContainerScreenAccessor) screen).getLeftPos();
+        int guiTop  = ((AbstractContainerScreenAccessor) screen).getTopPos();
+        int imageWidth = ((AbstractContainerScreenAccessor) screen).damagecore$getImageWidth();
+
+        // в renderRightInterface мы рисовали панель в tabX = guiLeft + imageWidth, а
+        // panelScreenX в SkillTreeRenderer ожидался как x+2, panelScreenY = y
+        int panelScreenX = guiLeft + imageWidth + 2;
+        int panelScreenY = guiTop;
+
+        boolean consumed = SkillTreeRenderer.mousePressed((int) mouseX, (int) mouseY, button, panelScreenX, panelScreenY);
+        if (consumed) {
+            cir.setReturnValue(true); // предотвращаем дальнейшую обработку клика
+        }
+    }
+
+    /**
+     * Отпускание кнопки мыши — завершает перетаскивание всего дерева.
+     */
+    @Inject(method = "mouseReleased", at = @At("HEAD"), cancellable = true)
+    private void damagecore$skillTree_mouseReleased(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
+        InventoryScreen screen = (InventoryScreen) (Object) this;
+        if (!this.skillTreeVisible) return;
+
+        boolean consumed = SkillTreeRenderer.mouseReleased((int) mouseX, (int) mouseY, button);
+        if (consumed) {
+            cir.setReturnValue(true);
+        }
+    }
+
+    /**
+     * Перемещение мыши с зажатой кнопкой — переносит всё дерево (если начато перетаскивание).
+     * Подключается к mouseDragged(double,double,int,double,double).
+     */
 
     @Unique
     private void damagecore$updateInventoryPosition(InventoryScreen screen) {
         DamageBookPositionHelper.updateInventoryPosition(screen, this.damageBookVisible, this.skillTreeVisible, TAB_WIDTH, RIGHT_INTERFACE_WIDTH);
     }
 }
+
+
+

@@ -10,6 +10,7 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.player.Player;
 import ru.imaginaerum.damagecore.api.damage_book_protection.*;
+import ru.imaginaerum.damagecore.api.damage_book_protection.protection_helpers.*;
 import ru.imaginaerum.damagecore.armor.DamageResistance;
 import ru.imaginaerum.damagecore.library_damage.DamageType;
 

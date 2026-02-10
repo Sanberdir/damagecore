@@ -1,0 +1,5 @@
+[
+  {"id":"root","item":"minecraft:netherite_helmet","lock":false,"parent":"start"},
+  {"id":"a","item":"minecraft:bread","lock":false,"parent":"root","side":"right"},
+  {"id":"b","item":"minecraft:iron_sword","lock":true,"parent":"root","side":"left"}
+]

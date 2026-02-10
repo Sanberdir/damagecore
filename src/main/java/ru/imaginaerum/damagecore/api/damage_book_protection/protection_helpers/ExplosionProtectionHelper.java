@@ -1,4 +1,4 @@
-package ru.imaginaerum.damagecore.api.damage_book_protection;
+package ru.imaginaerum.damagecore.api.damage_book_protection.protection_helpers;
 
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;

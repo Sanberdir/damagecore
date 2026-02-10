@@ -76,17 +76,53 @@ public final class DamageBookRenderer {
      * Пользователь предоставил область: X=179..468, Y=0..166 (ширина=289, высота=166).
      */
     public static void renderRightInterface(GuiGraphics gui, InventoryScreen screen, int x, int y) {
-        int u = 179;
-        int v = 0;
-        int width = 289;
-        int height = 166;
+        // 1) Основная правая панель (как было)
+        int u = 179;       // X координата в текстуре DAMAGE_CORE_INTERFACE, откуда брать область панели
+        int v = 0;         // Y координата в текстуре DAMAGE_CORE_INTERFACE, откуда брать область панели
+        int width = 289;   // Ширина области текстуры, которая будет отрисована (пиксели)
+        int height = 166;  // Высота области текстуры, которая будет отрисована (пиксели)
 
         gui.blit(
-                DAMAGE_CORE_INTERFACE,
-                x + 2, y,
-                u, v,
-                width, height,
-                512, 512   // ← полный размер текстуры
+                DAMAGE_CORE_INTERFACE, // текстура
+                x + 2,                 // экранная X позиция, где рисуем левый верхний угол панели
+                y,                     // экранная Y позиция, где рисуем левый верхний угол панели
+                u,                     // X на текстуре (см. выше)
+                v,                     // Y на текстуре (см. выше)
+                width,                 // ширина блока для отрисовки
+                height,                // высота блока для отрисовки
+                512, 512               // полный размер текстуры (для нормализации UV координат)
         );
+
+        // 2) Наложение маленькой под-текстуры (src: X0..28, Y173..200) внутрь панели
+        int srcExtraU = 0;          // X координата верхнего левого угла под-текстуры внутри файла PNG
+        int srcExtraV = 173;        // Y координата верхнего левого угла под-текстуры внутри файла PNG
+        int extraWidth = 28;        // Ширина под-текстуры (28 пикселей)
+        int extraHeight = 27;       // Высота под-текстуры (200 - 173 = 27 пикселей)
+
+        int destExtraX = x + 2;     // X экранная позиция для верхнего левого угла под-текстуры
+        int destExtraY = y + 163;   // Y экранная позиция для верхнего левого угла под-текстуры
+
+        gui.blit(
+                DAMAGE_CORE_INTERFACE, // текстура
+                destExtraX,            // экранная X позиция
+                destExtraY,            // экранная Y позиция
+                srcExtraU,             // X координата на текстуре
+                srcExtraV,             // Y координата на текстуре
+                extraWidth,            // ширина блока для отрисовки
+                extraHeight,           // высота блока для отрисовки
+                512, 512               // полный размер текстуры
+        );
+        // panelScreenX = x + 2; panelScreenY = y;
+        int panelScreenX = x + 2;
+        int panelScreenY = y;
+
+// (1) — загрузка (в реальном коде лучше вызывать однократно; здесь для наглядности)
+        SkillTreeRenderer.load("skill_tree/skill_tree.json");
+
+// (2) — отрисовка (передаём mouse координаты из render вызова)
+        SkillTreeRenderer.render(gui, screen, panelScreenX, panelScreenY, (int) Minecraft.getInstance().mouseHandler.xpos(), (int) Minecraft.getInstance().mouseHandler.ypos());
+
     }
+
+
 }

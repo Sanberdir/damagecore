@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import ru.imaginaerum.damagecore.api.IHasDamageType;
-import ru.imaginaerum.damagecore.api.damage_book_protection.ProtectionHelper;
+import ru.imaginaerum.damagecore.api.damage_book_protection.protection_helpers.ProtectionHelper;
 import ru.imaginaerum.damagecore.library_damage.DamageType;
 
 @Mixin(LivingEntity.class)

@@ -12,6 +12,7 @@
     "DiggerItemMixin",
     "SwordItemMixin",
     "TridentItemMixin",
+    "AbstractContainerScreenMixin",
     "InventoryScreenMixin",
     "ScreenInvoker",
     "effects_mixins.LivingEntityMixin",
