@@ -20,14 +20,7 @@ public abstract class AbstractContainerScreenMixin<T extends Container> extends 
 
     @Inject(method = "mouseDragged", at = @At("HEAD"), cancellable = true)
     private void skillTree$mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY, CallbackInfoReturnable<Boolean> cir) {
-        int guiLeft = ((AbstractContainerScreenAccessor)this).getLeftPos();
-        int guiTop = ((AbstractContainerScreenAccessor)this).getTopPos();
-        int imageWidth = ((AbstractContainerScreenAccessor)this).damagecore$getImageWidth();
-
-        int panelScreenX = guiLeft + imageWidth + 2;
-        int panelScreenY = guiTop;
-
-        boolean consumed = SkillTreeRenderer.mouseDragged((int)mouseX, (int)mouseY, button, panelScreenX, panelScreenY);
+        boolean consumed = SkillTreeRenderer.mouseDragged((int)mouseX, (int)mouseY, button);
         if (consumed) {
             cir.setReturnValue(true);
         }

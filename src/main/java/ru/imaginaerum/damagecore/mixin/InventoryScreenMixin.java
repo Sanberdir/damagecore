@@ -209,19 +209,9 @@ public abstract class InventoryScreenMixin {
      */
     @Inject(method = "mouseClicked", at = @At("TAIL"), cancellable = true)
     private void damagecore$skillTree_mousePressed(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
-        InventoryScreen screen = (InventoryScreen) (Object) this;
         if (!this.skillTreeVisible) return;
 
-        int guiLeft = ((AbstractContainerScreenAccessor) screen).getLeftPos();
-        int guiTop  = ((AbstractContainerScreenAccessor) screen).getTopPos();
-        int imageWidth = ((AbstractContainerScreenAccessor) screen).damagecore$getImageWidth();
-
-        // в renderRightInterface мы рисовали панель в tabX = guiLeft + imageWidth, а
-        // panelScreenX в SkillTreeRenderer ожидался как x+2, panelScreenY = y
-        int panelScreenX = guiLeft + imageWidth + 2;
-        int panelScreenY = guiTop;
-
-        boolean consumed = SkillTreeRenderer.mousePressed((int) mouseX, (int) mouseY, button, panelScreenX, panelScreenY);
+        boolean consumed = SkillTreeRenderer.mousePressed((int) mouseX, (int) mouseY, button);
         if (consumed) {
             cir.setReturnValue(true); // предотвращаем дальнейшую обработку клика
         }
