@@ -86,11 +86,11 @@ public abstract class InventoryScreenMixin {
                     s.getRecipeBookComponent().toggleVisibility();
                 }
                 this.damageBookVisible = false;
-                // ✅ ВОТ СЮДА
+
+                // Ленивая загрузка JSON из assets — делаем при первом открытии
                 if (SkillTreeRenderer.isEmpty()) {
                     SkillTreeRenderer.load("skill_tree/skill_tree.json");
                 }
-
             } else {
                 // при закрытии — опционально сбрасываем позицию
                 SkillTreeRenderer.resetTreePosition();
@@ -186,7 +186,6 @@ public abstract class InventoryScreenMixin {
             int tabY = guiTop;
 
             DamageBookRenderer.renderRightInterface(gui, screen, tabX, tabY, mouseX, mouseY);
-
         }
     }
 
@@ -209,9 +208,19 @@ public abstract class InventoryScreenMixin {
      */
     @Inject(method = "mouseClicked", at = @At("TAIL"), cancellable = true)
     private void damagecore$skillTree_mousePressed(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
+        InventoryScreen screen = (InventoryScreen) (Object) this;
         if (!this.skillTreeVisible) return;
 
-        boolean consumed = SkillTreeRenderer.mousePressed((int) mouseX, (int) mouseY, button);
+        int guiLeft = ((AbstractContainerScreenAccessor) screen).getLeftPos();
+        int guiTop  = ((AbstractContainerScreenAccessor) screen).getTopPos();
+        int imageWidth = ((AbstractContainerScreenAccessor) screen).damagecore$getImageWidth();
+
+        // в renderRightInterface мы рисовали панель в tabX = guiLeft + imageWidth, а
+        // panelScreenX в SkillTreeRenderer ожидался как x+2, panelScreenY = y
+        int panelScreenX = guiLeft + imageWidth + 2;
+        int panelScreenY = guiTop;
+
+        boolean consumed = SkillTreeRenderer.mousePressed((int) mouseX, (int) mouseY, button, panelScreenX, panelScreenY);
         if (consumed) {
             cir.setReturnValue(true); // предотвращаем дальнейшую обработку клика
         }
