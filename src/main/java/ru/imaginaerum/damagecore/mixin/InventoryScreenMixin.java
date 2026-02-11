@@ -86,11 +86,11 @@ public abstract class InventoryScreenMixin {
                     s.getRecipeBookComponent().toggleVisibility();
                 }
                 this.damageBookVisible = false;
-
-                // Ленивая загрузка JSON из assets — делаем при первом открытии
+                // ✅ ВОТ СЮДА
                 if (SkillTreeRenderer.isEmpty()) {
                     SkillTreeRenderer.load("skill_tree/skill_tree.json");
                 }
+
             } else {
                 // при закрытии — опционально сбрасываем позицию
                 SkillTreeRenderer.resetTreePosition();
@@ -185,7 +185,8 @@ public abstract class InventoryScreenMixin {
             int tabX = guiLeft + imageWidth;
             int tabY = guiTop;
 
-            DamageBookRenderer.renderRightInterface(gui, screen, tabX, tabY);
+            DamageBookRenderer.renderRightInterface(gui, screen, tabX, tabY, mouseX, mouseY);
+
         }
     }
 

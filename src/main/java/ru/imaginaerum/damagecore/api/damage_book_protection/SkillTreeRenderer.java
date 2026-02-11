@@ -3,7 +3,6 @@ package ru.imaginaerum.damagecore.api.damage_book_protection;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
-import net.minecraft.client.gui.Font;
 
 import java.util.*;
 

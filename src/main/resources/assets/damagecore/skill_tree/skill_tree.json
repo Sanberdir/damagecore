@@ -1,5 +1,7 @@
 [
   {"id":"root","item":"minecraft:netherite_helmet","lock":false,"parent":"start"},
   {"id":"a","item":"minecraft:bread","lock":false,"parent":"root","side":"right"},
-  {"id":"b","item":"minecraft:iron_sword","lock":true,"parent":"root","side":"left"}
+  {"id":"b","item":"minecraft:iron_sword","lock":true,"parent":"root","side":"left"},
+  {"id":"d","item":"minecraft:iron_sword","lock":true,"parent":"root","side":"top"},
+  {"id":"c","item":"minecraft:iron_sword","lock":true,"parent":"b","side":"bottom"}
 ]
