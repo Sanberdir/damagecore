@@ -252,29 +252,26 @@ public final class SkillTreeRenderer {
         int areaX = panelScreenX + PANEL_DRAW_OFFSET_X_IN_PANEL;
         int areaY = panelScreenY + PANEL_DRAW_OFFSET_Y_IN_PANEL;
 
-        // Находим границы дерева
-        int minNodeX = Integer.MAX_VALUE;
-        int maxNodeX = Integer.MIN_VALUE;
-        int minNodeY = Integer.MAX_VALUE;
-        int maxNodeY = Integer.MIN_VALUE;
+        int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE;
+        int minY = Integer.MAX_VALUE, maxY = Integer.MIN_VALUE;
 
-        // Временный расчет позиций для определения границ
-        SkillTreeNode start = nodes.values().stream()
-                .filter(n -> n.parentId == null || "start".equalsIgnoreCase(n.parentId))
-                .findFirst().orElse(null);
-
-        if (start != null) {
-            // Простой расчет границ (предполагаем, что дерево не больше области)
-            // На практике здесь нужно было бы вычислить фактические границы дерева
-            // Но для простоты ограничим смещение половиной размера области
-            int maxAllowedOffset = AREA_WIDTH / 3;
-
-            if (offsetX > maxAllowedOffset) offsetX = maxAllowedOffset;
-            if (offsetX < -maxAllowedOffset) offsetX = -maxAllowedOffset;
-            if (offsetY > maxAllowedOffset) offsetY = maxAllowedOffset;
-            if (offsetY < -maxAllowedOffset) offsetY = -maxAllowedOffset;
+        for (SkillTreeNode n : nodes.values()) {
+            minX = Math.min(minX, n.x - offsetX);
+            maxX = Math.max(maxX, n.x - offsetX + SkillTreeNode.FRAME_SIZE);
+            minY = Math.min(minY, n.y - offsetY);
+            maxY = Math.max(maxY, n.y - offsetY + SkillTreeNode.FRAME_SIZE);
         }
+
+        int maxOffsetX = Math.max(0, AREA_WIDTH - (maxX - minX));
+        int maxOffsetY = Math.max(0, AREA_HEIGHT - (maxY - minY));
+
+        if (offsetX > maxOffsetX / 2) offsetX = maxOffsetX / 2;
+        if (offsetX < -maxOffsetX / 2) offsetX = -maxOffsetX / 2;
+        if (offsetY > maxOffsetY / 2) offsetY = maxOffsetY / 2;
+        if (offsetY < -maxOffsetY / 2) offsetY = -maxOffsetY / 2;
     }
+
+
 
     public static int[] panelPositionFromRenderParams(int renderX, int renderY) {
         return new int[]{ renderX + 2, renderY };
