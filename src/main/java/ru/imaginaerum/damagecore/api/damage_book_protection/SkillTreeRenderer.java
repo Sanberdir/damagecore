@@ -201,11 +201,12 @@ public final class SkillTreeRenderer {
 
             drawThickLine(
                     gui,
-                    parent.centerX(), parent.centerY(),
-                    child.centerX(), child.centerY(),
+                    parent.centerX(scale),
+                    parent.centerY(scale),
+                    child.centerX(scale),
+                    child.centerY(scale),
                     2,
-                    lineColor,
-                    scale  // Добавь этот параметр
+                    lineColor
             );
         }
 
@@ -269,31 +270,39 @@ public final class SkillTreeRenderer {
         }
     }
 
-    private static void drawThickLine(GuiGraphics gui, int x1, int y1, int x2, int y2, int thickness, int color, float scale) {
+    private static void drawThickLine(
+            GuiGraphics gui,
+            int x1, int y1,
+            int x2, int y2,
+            int thickness,
+            int color
+    ) {
         if (y1 == y2) {
-            // Горизонтальная линия
-            gui.fill(Math.min(x1,x2), y1 - (int)(thickness/2 * scale),
-                    Math.max(x1,x2), y1 + (int)(thickness/2 * scale), color);
+            gui.fill(Math.min(x1,x2), y1 - thickness/2,
+                    Math.max(x1,x2), y1 + thickness/2 + 1, color);
             return;
         }
+
         if (x1 == x2) {
-            // Вертикальная линия
-            gui.fill(x1 - (int)(thickness/2 * scale), Math.min(y1,y2),
-                    x1 + (int)(thickness/2 * scale), Math.max(y1,y2), color);
+            gui.fill(x1 - thickness/2, Math.min(y1,y2),
+                    x1 + thickness/2 + 1, Math.max(y1,y2), color);
             return;
         }
-        // Диагональная линия - рисуем точки с учетом масштаба
-        int dx = x2 - x1, dy = y2 - y1, steps = Math.max(Math.abs(dx), Math.abs(dy));
-        int scaledThickness = Math.max(1, (int)(thickness * scale));
+
+        int dx = x2 - x1;
+        int dy = y2 - y1;
+        int steps = Math.max(Math.abs(dx), Math.abs(dy));
 
         for (int i = 0; i <= steps; i++) {
-            float t = i / (float) Math.max(1, steps);
+            float t = i / (float) steps;
             int px = Math.round(x1 + t * dx);
             int py = Math.round(y1 + t * dy);
-            gui.fill(px - scaledThickness/2, py - scaledThickness/2,
-                    px + scaledThickness/2 + 1, py + scaledThickness/2 + 1, color);
+
+            gui.fill(px - thickness/2, py - thickness/2,
+                    px + thickness/2 + 1, py + thickness/2 + 1, color);
         }
     }
+
 
     // ------ INPUT: drag & drop всего дерева ------
     public static boolean mousePressed(int mouseX, int mouseY, int button, int panelScreenX, int panelScreenY) {
@@ -350,8 +359,8 @@ public final class SkillTreeRenderer {
         int minY = Integer.MAX_VALUE, maxY = Integer.MIN_VALUE;
 
         for (SkillTreeNode n : nodes.values()) {
-            int nodeScreenX = n.x - offsetX;
-            int nodeScreenY = n.y - offsetY;
+            int nodeScreenX = n.x;
+            int nodeScreenY = n.y;
             int frameSize = (int)(SkillTreeNode.FRAME_SIZE * scale);
 
             minX = Math.min(minX, nodeScreenX);
