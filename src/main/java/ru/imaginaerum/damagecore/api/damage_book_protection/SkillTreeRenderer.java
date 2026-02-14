@@ -94,103 +94,107 @@ public final class SkillTreeRenderer {
 
         int areaX = panelScreenX + PANEL_DRAW_OFFSET_X_IN_PANEL;
         int areaY = panelScreenY + PANEL_DRAW_OFFSET_Y_IN_PANEL;
+
         int centerX = areaX + AREA_WIDTH / 2 + offsetX;
         int centerY = areaY + AREA_HEIGHT / 2 + offsetY;
 
         SkillTreeNode start = nodes.values().stream()
                 .filter(n -> n.parentId == null || "start".equalsIgnoreCase(n.parentId))
                 .findFirst().orElse(null);
-        if (start == null && !nodes.isEmpty()) start = nodes.values().iterator().next();
 
-        if (start != null) {
-            start.x = centerX;
-            start.y = centerY;
+        if (start == null && !nodes.isEmpty())
+            start = nodes.values().iterator().next();
 
-            Queue<SkillTreeNode> queue = new ArrayDeque<>();
-            queue.add(start);
-            Set<String> placed = new HashSet<>();
-            placed.add(start.id);
+        if (start == null) return;
 
-            while (!queue.isEmpty()) {
-                SkillTreeNode parent = queue.poll();
+        start.x = centerX - SkillTreeNode.FRAME_SIZE / 2;
+        start.y = centerY - SkillTreeNode.FRAME_SIZE / 2;
 
-                for (SkillTreeNode child : childrenMap.getOrDefault(parent.id, Collections.emptyList())) {
-                    if (!placed.contains(child.id)) {
-                        switch (child.side) {
-                            case RIGHT -> {
-                                child.x = parent.x + (int)(SPACING * scale);
-                                child.y = parent.y;
-                            }
-                            case LEFT -> {
-                                child.x = parent.x - (int)(SPACING * scale);
-                                child.y = parent.y;
-                            }
-                            case TOP -> {
-                                child.x = parent.x;
-                                child.y = parent.y - (int)(SPACING * scale);
-                            }
-                            case BOTTOM -> {
-                                child.x = parent.x;
-                                child.y = parent.y + (int)(SPACING * scale);
-                            }
-                            default -> {
-                                child.x = parent.x + (int)(SPACING * scale);
-                                child.y = parent.y;
-                            }
-                        }
-                        placed.add(child.id);
-                        queue.add(child);
+        Queue<SkillTreeNode> queue = new ArrayDeque<>();
+        queue.add(start);
+
+        Set<String> placed = new HashSet<>();
+        placed.add(start.id);
+
+        while (!queue.isEmpty()) {
+            SkillTreeNode parent = queue.poll();
+
+            for (SkillTreeNode child : childrenMap.getOrDefault(parent.id, Collections.emptyList())) {
+                if (placed.contains(child.id)) continue;
+
+                switch (child.side) {
+                    case RIGHT -> {
+                        child.x = parent.x + SPACING;
+                        child.y = parent.y;
+                    }
+                    case LEFT -> {
+                        child.x = parent.x - SPACING;
+                        child.y = parent.y;
+                    }
+                    case TOP -> {
+                        child.x = parent.x;
+                        child.y = parent.y - SPACING;
+                    }
+                    case BOTTOM -> {
+                        child.x = parent.x;
+                        child.y = parent.y + SPACING;
+                    }
+                    default -> {
+                        child.x = parent.x + SPACING;
+                        child.y = parent.y;
                     }
                 }
-            }
 
-            for (SkillTreeNode n : nodes.values()) {
-                if (!placed.contains(n.id)) {
-                    n.x = centerX + (int)(SPACING * scale);
-                    n.y = centerY + (int)(SPACING * scale);
-                }
+                placed.add(child.id);
+                queue.add(child);
+            }
+        }
+
+        for (SkillTreeNode n : nodes.values()) {
+            if (!placed.contains(n.id)) {
+                n.x = centerX + SPACING;
+                n.y = centerY + SPACING;
             }
         }
     }
+
 
     public static void render(GuiGraphics gui, InventoryScreen screen,
                               int panelScreenX, int panelScreenY,
                               int mouseX, int mouseY) {
 
-        // Если дерево пустое — выходим
         if (nodes.isEmpty()) return;
 
-        // Сохраняем текущие координаты панели
         currentPanelScreenX = panelScreenX;
         currentPanelScreenY = panelScreenY;
 
-        // Обновляем offset при перетаскивании
         if (isDragging) {
-            int deltaX = mouseX - dragStartX;
-            int deltaY = mouseY - dragStartY;
-
-            offsetX = dragStartOffsetX + deltaX;
-            offsetY = dragStartOffsetY + deltaY;
-
-            // Пересчитываем позиции при перетаскивании
-            calculateAndUpdatePositions(panelScreenX, panelScreenY);
+            offsetX = dragStartOffsetX + (mouseX - dragStartX);
+            offsetY = dragStartOffsetY + (mouseY - dragStartY);
         }
 
-        // Считаем позиции узлов (если еще не пересчитали)
         calculateAndUpdatePositions(panelScreenX, panelScreenY);
 
-        // ---------- SCISSOR ГРАНИЦЫ ----------
         int clipX1 = panelScreenX + PANEL_DRAW_OFFSET_X_IN_PANEL;
         int clipY1 = panelScreenY + PANEL_DRAW_OFFSET_Y_IN_PANEL;
         int clipX2 = clipX1 + AREA_WIDTH;
         int clipY2 = clipY1 + AREA_HEIGHT;
 
-        // ВАЖНО: проверяем, что область коррекции имеет положительные размеры
         if (clipX2 > clipX1 && clipY2 > clipY1) {
             gui.enableScissor(clipX1, clipY1, clipX2, clipY2);
         }
 
-        // ---------- ЛИНИИ СВЯЗЕЙ ----------
+        PoseStack pose = gui.pose();
+        pose.pushPose();
+
+        int pivotX = clipX1 + AREA_WIDTH / 2;
+        int pivotY = clipY1 + AREA_HEIGHT / 2;
+
+        pose.translate(pivotX, pivotY, 0);
+        pose.scale(scale, scale, 1f);
+        pose.translate(-pivotX, -pivotY, 0);
+
+        // -------- ЛИНИИ --------
         int lineColor = 0xFF000000;
 
         for (SkillTreeNode child : nodes.values()) {
@@ -199,76 +203,64 @@ public final class SkillTreeRenderer {
             SkillTreeNode parent = nodes.get(child.parentId);
             if (parent == null) continue;
 
-            drawThickLine(
-                    gui,
-                    parent.centerX(scale),
-                    parent.centerY(scale),
-                    child.centerX(scale),
-                    child.centerY(scale),
+            drawThickLine(gui,
+                    parent.centerX(),
+                    parent.centerY(),
+                    child.centerX(),
+                    child.centerY(),
                     2,
-                    lineColor
-            );
+                    lineColor);
         }
 
-        // ---------- НОДЫ ----------
-        // В методе render(), внутри цикла по nodes:
+        // -------- НОДЫ --------
         for (SkillTreeNode n : nodes.values()) {
-            int frameSize = (int)(SkillTreeNode.FRAME_SIZE * scale);
-            int padding = (int)(SkillTreeNode.FRAME_PADDING * scale);
+            int frameSize = SkillTreeNode.FRAME_SIZE;
+            int padding = SkillTreeNode.FRAME_PADDING;
 
-            // Рамка узла
             gui.fill(n.x, n.y, n.x + frameSize, n.y + frameSize, 0xFF333333);
-            gui.fill(n.x + padding, n.y + padding, n.x + frameSize - padding, n.y + frameSize - padding, 0xFF777777);
+            gui.fill(n.x + padding, n.y + padding,
+                    n.x + frameSize - padding,
+                    n.y + frameSize - padding,
+                    0xFF777777);
 
-            // Позиция предмета с учетом масштаба
-            int itemX = n.x + (frameSize - (int)(16 * scale)) / 2;
-            int itemY = n.y + (frameSize - (int)(16 * scale)) / 2;
-            int itemSize = (int)(16 * scale);
+            int itemX = n.x + (frameSize - 16) / 2;
+            int itemY = n.y + (frameSize - 16) / 2;
 
-            // Масштабируем предмет через матричные трансформации
-            PoseStack poseStack = gui.pose();
-            poseStack.pushPose();
-            poseStack.translate(itemX, itemY, 0);
-            poseStack.scale(scale, scale, 1.0f);
-
-            // Рендерим предмет в масштабе 1.0 (он уже scaled матрицей)
-            gui.renderItem(n.itemStack, 0, 0);
-            gui.renderItemDecorations(Minecraft.getInstance().font, n.itemStack, 0, 0);
-
-            poseStack.popPose();
+            gui.renderItem(n.itemStack, itemX, itemY);
+            gui.renderItemDecorations(Minecraft.getInstance().font, n.itemStack, itemX, itemY);
         }
 
-        // ---------- ВЫКЛЮЧАЕМ SCISSOR ТОЛЬКО ЕСЛИ ОН БЫЛ ВКЛЮЧЕН ----------
+        pose.popPose();
+
         if (clipX2 > clipX1 && clipY2 > clipY1) {
             gui.disableScissor();
         }
 
-        // ---------- ИНДИКАТОР МАСШТАБА (РИСУЕМ БЕЗ SCISSOR) ----------
+        // -------- SCALE TEXT --------
+        Font font = Minecraft.getInstance().font;
         String scaleText = String.format("%.0f%%", scale * 100);
+
         int textX = clipX1 + 5;
         int textY = clipY1 + 5;
+        int w = font.width(scaleText);
 
-        // Рисуем фон для текста
-        Font font = Minecraft.getInstance().font;
-        int textWidth = font.width(scaleText);
-        gui.fill(textX - 2, textY - 2, textX + textWidth + 2, textY + font.lineHeight + 2, 0xAA000000);
+        gui.fill(textX - 2, textY - 2, textX + w + 2, textY + font.lineHeight + 2, 0xAA000000);
         gui.drawString(font, scaleText, textX, textY, 0xFFFFFFFF, true);
 
-        // ---------- TOOLTIP (РИСУЕМ БЕЗ SCISSOR) ----------
+        // -------- TOOLTIP --------
         for (SkillTreeNode n : nodes.values()) {
-            if (n.containsPoint(mouseX, mouseY)) {
-                gui.drawString(
-                        font,
+            if (n.containsPoint(mouseX, mouseY, scale)) {
+                gui.drawString(font,
                         n.id + (n.locked ? " (locked)" : ""),
                         mouseX + 10,
                         mouseY + 6,
                         0xFFFFFFFF,
-                        false
-                );
+                        false);
                 break;
             }
         }
     }
+
 
     private static void drawThickLine(
             GuiGraphics gui,

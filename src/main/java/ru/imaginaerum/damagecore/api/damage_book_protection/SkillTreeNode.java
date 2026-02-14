@@ -28,16 +28,17 @@ public final class SkillTreeNode {
         this.y = 0;
     }
 
-    public int centerX(float scale) {
-        return x + (int)(FRAME_SIZE * scale / 2);
+    public int centerX() {
+        return x + FRAME_SIZE / 2;
     }
 
-    public int centerY(float scale) {
-        return y + (int)(FRAME_SIZE * scale / 2);
+    public int centerY() {
+        return y + FRAME_SIZE / 2;
     }
 
-
-    public boolean containsPoint(int px, int py) {
-        return px >= x && px < x + FRAME_SIZE && py >= y && py < y + FRAME_SIZE;
+    public boolean containsPoint(int px, int py, float scale) {
+        int size = (int)(FRAME_SIZE * scale);
+        return px >= x && px < x + size && py >= y && py < y + size;
     }
+
 }
