@@ -1,5 +1,6 @@
 package ru.imaginaerum.damagecore.api.damage_book_protection;
 
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
@@ -203,23 +204,37 @@ public final class SkillTreeRenderer {
                     parent.centerX(), parent.centerY(),
                     child.centerX(), child.centerY(),
                     2,
-                    lineColor
+                    lineColor,
+                    scale  // Добавь этот параметр
             );
         }
 
         // ---------- НОДЫ ----------
+        // В методе render(), внутри цикла по nodes:
         for (SkillTreeNode n : nodes.values()) {
             int frameSize = (int)(SkillTreeNode.FRAME_SIZE * scale);
             int padding = (int)(SkillTreeNode.FRAME_PADDING * scale);
 
+            // Рамка узла
             gui.fill(n.x, n.y, n.x + frameSize, n.y + frameSize, 0xFF333333);
             gui.fill(n.x + padding, n.y + padding, n.x + frameSize - padding, n.y + frameSize - padding, 0xFF777777);
 
-            int itemX = n.x + (frameSize - 16) / 2;
-            int itemY = n.y + (frameSize - 16) / 2;
+            // Позиция предмета с учетом масштаба
+            int itemX = n.x + (frameSize - (int)(16 * scale)) / 2;
+            int itemY = n.y + (frameSize - (int)(16 * scale)) / 2;
+            int itemSize = (int)(16 * scale);
 
-            gui.renderItem(n.itemStack, itemX, itemY);
-            gui.renderItemDecorations(Minecraft.getInstance().font, n.itemStack, itemX, itemY);
+            // Масштабируем предмет через матричные трансформации
+            PoseStack poseStack = gui.pose();
+            poseStack.pushPose();
+            poseStack.translate(itemX, itemY, 0);
+            poseStack.scale(scale, scale, 1.0f);
+
+            // Рендерим предмет в масштабе 1.0 (он уже scaled матрицей)
+            gui.renderItem(n.itemStack, 0, 0);
+            gui.renderItemDecorations(Minecraft.getInstance().font, n.itemStack, 0, 0);
+
+            poseStack.popPose();
         }
 
         // ---------- ВЫКЛЮЧАЕМ SCISSOR ТОЛЬКО ЕСЛИ ОН БЫЛ ВКЛЮЧЕН ----------
@@ -254,21 +269,29 @@ public final class SkillTreeRenderer {
         }
     }
 
-    private static void drawThickLine(GuiGraphics gui, int x1, int y1, int x2, int y2, int thickness, int color) {
+    private static void drawThickLine(GuiGraphics gui, int x1, int y1, int x2, int y2, int thickness, int color, float scale) {
         if (y1 == y2) {
-            gui.fill(Math.min(x1,x2), y1-thickness/2, Math.max(x1,x2), y1+thickness/2, color);
+            // Горизонтальная линия
+            gui.fill(Math.min(x1,x2), y1 - (int)(thickness/2 * scale),
+                    Math.max(x1,x2), y1 + (int)(thickness/2 * scale), color);
             return;
         }
         if (x1 == x2) {
-            gui.fill(x1-thickness/2, Math.min(y1,y2), x1+thickness/2, Math.max(y1,y2), color);
+            // Вертикальная линия
+            gui.fill(x1 - (int)(thickness/2 * scale), Math.min(y1,y2),
+                    x1 + (int)(thickness/2 * scale), Math.max(y1,y2), color);
             return;
         }
+        // Диагональная линия - рисуем точки с учетом масштаба
         int dx = x2 - x1, dy = y2 - y1, steps = Math.max(Math.abs(dx), Math.abs(dy));
-        for (int i=0;i<=steps;i++) {
-            float t = i/(float)Math.max(1,steps);
-            int px = Math.round(x1+t*dx);
-            int py = Math.round(y1+t*dy);
-            gui.fill(px-thickness/2, py-thickness/2, px+thickness/2+1, py+thickness/2+1, color);
+        int scaledThickness = Math.max(1, (int)(thickness * scale));
+
+        for (int i = 0; i <= steps; i++) {
+            float t = i / (float) Math.max(1, steps);
+            int px = Math.round(x1 + t * dx);
+            int py = Math.round(y1 + t * dy);
+            gui.fill(px - scaledThickness/2, py - scaledThickness/2,
+                    px + scaledThickness/2 + 1, py + scaledThickness/2 + 1, color);
         }
     }
 
