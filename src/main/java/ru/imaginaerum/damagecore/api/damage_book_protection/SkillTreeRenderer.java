@@ -158,7 +158,6 @@ public final class SkillTreeRenderer {
         }
     }
 
-
     public static void render(GuiGraphics gui, InventoryScreen screen,
                               int panelScreenX, int panelScreenY,
                               int mouseX, int mouseY) {
@@ -211,7 +210,6 @@ public final class SkillTreeRenderer {
                     2,
                     lineColor);
         }
-
         // -------- НОДЫ --------
         for (SkillTreeNode n : nodes.values()) {
             int frameSize = SkillTreeNode.FRAME_SIZE;
@@ -235,7 +233,6 @@ public final class SkillTreeRenderer {
         if (clipX2 > clipX1 && clipY2 > clipY1) {
             gui.disableScissor();
         }
-
         // -------- SCALE TEXT --------
         Font font = Minecraft.getInstance().font;
         String scaleText = String.format("%.0f%%", scale * 100);
@@ -260,8 +257,6 @@ public final class SkillTreeRenderer {
             }
         }
     }
-
-
     private static void drawThickLine(
             GuiGraphics gui,
             int x1, int y1,
@@ -294,8 +289,6 @@ public final class SkillTreeRenderer {
                     px + thickness/2 + 1, py + thickness/2 + 1, color);
         }
     }
-
-
     // ------ INPUT: drag & drop всего дерева ------
     public static boolean mousePressed(int mouseX, int mouseY, int button, int panelScreenX, int panelScreenY) {
         int areaX = panelScreenX + PANEL_DRAW_OFFSET_X_IN_PANEL;
@@ -381,10 +374,6 @@ public final class SkillTreeRenderer {
         }
     }
 
-    public static int[] panelPositionFromRenderParams(int renderX, int renderY) {
-        return new int[]{ renderX + 2, renderY };
-    }
-
     // Метод для сброса позиции дерева и масштаба
     public static void resetTreePosition() {
         offsetX = 0;
@@ -395,16 +384,13 @@ public final class SkillTreeRenderer {
     public static boolean isEmpty() {
         return nodes.isEmpty();
     }
-
     // Геттеры для масштаба и смещения
     public static float getScale() {
         return scale;
     }
-
     public static int getOffsetX() {
         return offsetX;
     }
-
     public static int getOffsetY() {
         return offsetY;
     }

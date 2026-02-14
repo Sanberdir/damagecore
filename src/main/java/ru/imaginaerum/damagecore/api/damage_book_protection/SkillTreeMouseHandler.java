@@ -5,7 +5,6 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ScreenEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-import ru.imaginaerum.damagecore.events.custom.GuiMouseScrollEvent;
 
 @Mod.EventBusSubscriber(modid = "damagecore", bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public class SkillTreeMouseHandler {
@@ -17,7 +16,7 @@ public class SkillTreeMouseHandler {
         Minecraft mc = Minecraft.getInstance();
         System.out.println("Current screen: " + mc.screen);
 
-        int panelScreenX = 100; // пока хардкод — потом подключим реальные координаты
+        int panelScreenX = 100;
         int panelScreenY = 100;
 
         boolean used = SkillTreeRenderer.mouseScrolled(
