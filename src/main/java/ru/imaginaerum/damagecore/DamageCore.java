@@ -15,6 +15,7 @@ import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import org.slf4j.Logger;
+import ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeMouseHandler;
 import ru.imaginaerum.damagecore.datagen.DamageTypeProvider;
 import ru.imaginaerum.damagecore.effect.DCEffects;
 import ru.imaginaerum.damagecore.item.DCItems;
@@ -54,7 +55,6 @@ public class DamageCore {
         modEventBus.addListener(this::commonSetup);
         IEventBus forgeEventBus = MinecraftForge.EVENT_BUS;
         forgeEventBus.addListener(this::onAddReloadListeners);
-
         // Register ourselves for server and other game events we are interested in
         MinecraftForge.EVENT_BUS.register(this);
 

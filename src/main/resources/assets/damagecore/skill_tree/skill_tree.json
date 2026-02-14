@@ -3,5 +3,8 @@
   {"id":"a","item":"minecraft:bread","lock":false,"parent":"root","side":"right"},
   {"id":"b","item":"minecraft:iron_sword","lock":true,"parent":"root","side":"left"},
   {"id":"d","item":"minecraft:iron_sword","lock":true,"parent":"root","side":"top"},
-  {"id":"c","item":"minecraft:iron_sword","lock":true,"parent":"b","side":"bottom"}
+  {"id":"c","item":"minecraft:iron_sword","lock":true,"parent":"a","side":"bottom"},
+  {"id":"e","item":"minecraft:iron_sword","lock":true,"parent":"c","side":"right"},
+  {"id":"f","item":"minecraft:iron_sword","lock":true,"parent":"e","side":"right"},
+  {"id":"g","item":"minecraft:iron_sword","lock":true,"parent":"f","side":"right"}
 ]

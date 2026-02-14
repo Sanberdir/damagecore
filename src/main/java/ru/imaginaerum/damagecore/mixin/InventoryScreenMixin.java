@@ -16,7 +16,7 @@ import ru.imaginaerum.damagecore.api.damage_book_protection.pages_book.RenderAct
 import ru.imaginaerum.damagecore.api.damage_book_protection.pages_book.RenderDamageIconsAndTexts;
 
 @Mixin(InventoryScreen.class)
-public abstract class InventoryScreenMixin {
+public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
     private static final ResourceLocation DAMAGE_TYPE_BUTTON = new ResourceLocation("damagecore", "textures/gui/damage_type_button.png");
     private static final ResourceLocation SKILL_TREE_BUTTON = new ResourceLocation("damagecore", "textures/gui/skill_tree_button.png");
 
@@ -38,14 +38,19 @@ public abstract class InventoryScreenMixin {
     @Unique
     private static final int TAB_WIDTH = DamageBookRenderer.TAB_WIDTH;
     @Unique
-    private static final int RIGHT_INTERFACE_WIDTH = 289; // 468 - 179
+    private static final int RIGHT_INTERFACE_WIDTH = 289;
     @Unique
     private int recipeButtonOffsetX = 0;
     @Unique
     private int recipeButtonOffsetY = 0;
 
     @Unique
-    private int selectedSmall = 0; // 0 = верхняя активная, 1 = нижняя активная
+    private int selectedSmall = 0;
+
+    @Override
+    public boolean damagecore$isSkillTreeVisible() {
+        return this.skillTreeVisible;
+    }
 
     @Inject(method = "init", at = @At("TAIL"))
     private void damagecore$init(CallbackInfo ci) {
@@ -68,7 +73,6 @@ public abstract class InventoryScreenMixin {
                 if (s.getRecipeBookComponent().isVisible()) {
                     s.getRecipeBookComponent().toggleVisibility();
                 }
-                // если открывается левая панель, закрываем правую (чтобы не налезало)
                 this.skillTreeVisible = false;
             }
 
@@ -81,18 +85,15 @@ public abstract class InventoryScreenMixin {
             this.skillTreeVisible = !this.skillTreeVisible;
 
             if (this.skillTreeVisible) {
-                // Если открывается правая панель — закроем рецепт и левую книгу
                 if (s.getRecipeBookComponent().isVisible()) {
                     s.getRecipeBookComponent().toggleVisibility();
                 }
                 this.damageBookVisible = false;
 
-                // Ленивая загрузка JSON из assets — делаем при первом открытии
                 if (SkillTreeRenderer.isEmpty()) {
                     SkillTreeRenderer.load("skill_tree/skill_tree.json");
                 }
             } else {
-                // при закрытии — опционально сбрасываем позицию
                 SkillTreeRenderer.resetTreePosition();
             }
 
@@ -142,7 +143,6 @@ public abstract class InventoryScreenMixin {
         int buttonY = newRecipeY;
         this.damagecore$button.setPosition(buttonX, buttonY);
 
-        // skill tree button — справа от кнопки брони
         int skillX = buttonX + this.damagecore$button.getWidth() + 2;
         int skillY = buttonY;
         this.damagecore$skillTreeButton.setPosition(skillX, skillY);
@@ -157,7 +157,6 @@ public abstract class InventoryScreenMixin {
         int guiLeft = ((AbstractContainerScreenAccessor) screen).getLeftPos();
         int guiTop  = ((AbstractContainerScreenAccessor) screen).getTopPos();
 
-        // Левая панель (Damage Book) — старая логика
         if (this.damageBookVisible) {
             int tabX = guiLeft - TAB_WIDTH;
             int tabY = guiTop;
@@ -178,9 +177,7 @@ public abstract class InventoryScreenMixin {
             }
         }
 
-        // Правая панель (Skill Tree заглушка) — новая
         if (this.skillTreeVisible) {
-            // рисуем справа от инвентаря
             int imageWidth = ((AbstractContainerScreenAccessor) screen).damagecore$getImageWidth();
             int tabX = guiLeft + imageWidth;
             int tabY = guiTop;
@@ -188,7 +185,6 @@ public abstract class InventoryScreenMixin {
             DamageBookRenderer.renderRightInterface(gui, screen, tabX, tabY, mouseX, mouseY);
         }
     }
-
 
     @Inject(method = "mouseClicked", at = @At("TAIL"))
     private void damagecore$handleSmallClick(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
@@ -202,10 +198,7 @@ public abstract class InventoryScreenMixin {
 
         this.selectedSmall = DamageBookInputHandler.handleSmallTabsClick(mouseX, mouseY, screen, this.selectedSmall, tabX, tabY);
     }
-    /**
-     * Привязка нажатия мыши — начинает перетаскивание всего дерева,
-     * если правая панель видима и клик внутри её области.
-     */
+
     @Inject(method = "mouseClicked", at = @At("TAIL"), cancellable = true)
     private void damagecore$skillTree_mousePressed(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
         InventoryScreen screen = (InventoryScreen) (Object) this;
@@ -215,20 +208,15 @@ public abstract class InventoryScreenMixin {
         int guiTop  = ((AbstractContainerScreenAccessor) screen).getTopPos();
         int imageWidth = ((AbstractContainerScreenAccessor) screen).damagecore$getImageWidth();
 
-        // в renderRightInterface мы рисовали панель в tabX = guiLeft + imageWidth, а
-        // panelScreenX в SkillTreeRenderer ожидался как x+2, panelScreenY = y
         int panelScreenX = guiLeft + imageWidth + 2;
         int panelScreenY = guiTop;
 
         boolean consumed = SkillTreeRenderer.mousePressed((int) mouseX, (int) mouseY, button, panelScreenX, panelScreenY);
         if (consumed) {
-            cir.setReturnValue(true); // предотвращаем дальнейшую обработку клика
+            cir.setReturnValue(true);
         }
     }
 
-    /**
-     * Отпускание кнопки мыши — завершает перетаскивание всего дерева.
-     */
     @Inject(method = "mouseReleased", at = @At("HEAD"), cancellable = true)
     private void damagecore$skillTree_mouseReleased(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
         InventoryScreen screen = (InventoryScreen) (Object) this;
@@ -240,16 +228,8 @@ public abstract class InventoryScreenMixin {
         }
     }
 
-    /**
-     * Перемещение мыши с зажатой кнопкой — переносит всё дерево (если начато перетаскивание).
-     * Подключается к mouseDragged(double,double,int,double,double).
-     */
-
     @Unique
     private void damagecore$updateInventoryPosition(InventoryScreen screen) {
         DamageBookPositionHelper.updateInventoryPosition(screen, this.damageBookVisible, this.skillTreeVisible, TAB_WIDTH, RIGHT_INTERFACE_WIDTH);
     }
 }
-
-
-

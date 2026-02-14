@@ -19,8 +19,8 @@ public final class SkillTreeRenderer {
 
     private static final int PANEL_TEXTURE_U = 179;
     private static final int PANEL_TEXTURE_V = 0;
-    private static final int PANEL_DRAW_OFFSET_X_IN_PANEL = AREA_TEX_X0 - PANEL_TEXTURE_U; // 8
-    private static final int PANEL_DRAW_OFFSET_Y_IN_PANEL = AREA_TEX_Y0 - PANEL_TEXTURE_V; // 8
+    public static final int PANEL_DRAW_OFFSET_X_IN_PANEL = AREA_TEX_X0 - PANEL_TEXTURE_U; // 8
+    public static final int PANEL_DRAW_OFFSET_Y_IN_PANEL = AREA_TEX_Y0 - PANEL_TEXTURE_V; // 8
 
     private static final int GAP = 6;
     private static final int SPACING = SkillTreeNode.FRAME_SIZE + GAP;
@@ -39,15 +39,43 @@ public final class SkillTreeRenderer {
     private static int offsetX = 0;
     private static int offsetY = 0;
 
+    private static float scale = 1.0f;           // текущий масштаб
+    private static final float MIN_SCALE = 0.5f; // минимальный масштаб
+    private static final float MAX_SCALE = 2.0f; // максимальный масштаб
+    private static final float ZOOM_STEP = 0.1f; // шаг масштабирования
+
+    // Текущие координаты панели для пересчета позиций
+    private static int currentPanelScreenX = 0;
+    private static int currentPanelScreenY = 0;
+
+    // ------ INPUT: масштабирование колесиком мыши ------
+    public static boolean mouseScrolled(int mouseX, int mouseY, double delta, int panelScreenX, int panelScreenY) {
+        System.out.println("!!! mouseScrolled CALLED !!! delta=" + delta);
+
+        float oldScale = scale;
+        scale = scale + (delta > 0 ? ZOOM_STEP : -ZOOM_STEP);
+        scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale));
+
+        System.out.println("Scale changed: " + oldScale + " -> " + scale);
+
+        // Принудительно пересчитываем позиции
+        if (!nodes.isEmpty()) {
+            calculateAndUpdatePositions(panelScreenX, panelScreenY);
+        }
+
+        return true;
+    }
+
     public static void load(String resourcePath) {
         nodes.clear();
         List<SkillTreeNode> list = SkillTreeLoader.loadFromResource(resourcePath);
         for (SkillTreeNode n : list) nodes.put(n.id, n);
         rebuildChildrenMap();
 
-        // Сбрасываем смещение при загрузке
+        // Сбрасываем смещение и масштаб при загрузке
         offsetX = 0;
         offsetY = 0;
+        scale = 1.0f;
         isDragging = false;
     }
 
@@ -65,8 +93,8 @@ public final class SkillTreeRenderer {
 
         int areaX = panelScreenX + PANEL_DRAW_OFFSET_X_IN_PANEL;
         int areaY = panelScreenY + PANEL_DRAW_OFFSET_Y_IN_PANEL;
-        int centerX = areaX + AREA_WIDTH / 2 - SkillTreeNode.FRAME_SIZE / 2;
-        int centerY = areaY + AREA_HEIGHT / 2 - SkillTreeNode.FRAME_SIZE / 2;
+        int centerX = areaX + AREA_WIDTH / 2 + offsetX;
+        int centerY = areaY + AREA_HEIGHT / 2 + offsetY;
 
         SkillTreeNode start = nodes.values().stream()
                 .filter(n -> n.parentId == null || "start".equalsIgnoreCase(n.parentId))
@@ -74,9 +102,8 @@ public final class SkillTreeRenderer {
         if (start == null && !nodes.isEmpty()) start = nodes.values().iterator().next();
 
         if (start != null) {
-            // Стартовый узел в центре с учетом смещения
-            start.x = centerX + offsetX;
-            start.y = centerY + offsetY;
+            start.x = centerX;
+            start.y = centerY;
 
             Queue<SkillTreeNode> queue = new ArrayDeque<>();
             queue.add(start);
@@ -88,102 +115,144 @@ public final class SkillTreeRenderer {
 
                 for (SkillTreeNode child : childrenMap.getOrDefault(parent.id, Collections.emptyList())) {
                     if (!placed.contains(child.id)) {
-                        // Располагаем детей относительно родителя
                         switch (child.side) {
                             case RIGHT -> {
-                                child.x = parent.x + SPACING;
+                                child.x = parent.x + (int)(SPACING * scale);
                                 child.y = parent.y;
                             }
                             case LEFT -> {
-                                child.x = parent.x - SPACING;
+                                child.x = parent.x - (int)(SPACING * scale);
                                 child.y = parent.y;
                             }
                             case TOP -> {
                                 child.x = parent.x;
-                                child.y = parent.y - SPACING;
+                                child.y = parent.y - (int)(SPACING * scale);
                             }
                             case BOTTOM -> {
                                 child.x = parent.x;
-                                child.y = parent.y + SPACING;
+                                child.y = parent.y + (int)(SPACING * scale);
                             }
                             default -> {
-                                child.x = parent.x + SPACING;
+                                child.x = parent.x + (int)(SPACING * scale);
                                 child.y = parent.y;
                             }
                         }
-
                         placed.add(child.id);
                         queue.add(child);
                     }
                 }
             }
 
-            // Оставшиеся узлы
             for (SkillTreeNode n : nodes.values()) {
                 if (!placed.contains(n.id)) {
-                    n.x = centerX + offsetX + SPACING;
-                    n.y = centerY + offsetY;
+                    n.x = centerX + (int)(SPACING * scale);
+                    n.y = centerY + (int)(SPACING * scale);
                 }
             }
-
-
         }
     }
 
-    public static void render(GuiGraphics gui, InventoryScreen screen, int panelScreenX, int panelScreenY, int mouseX, int mouseY) {
-        // Если дерево пустое, ничего не рисуем
+    public static void render(GuiGraphics gui, InventoryScreen screen,
+                              int panelScreenX, int panelScreenY,
+                              int mouseX, int mouseY) {
+
+        // Если дерево пустое — выходим
         if (nodes.isEmpty()) return;
 
-        // Если идёт перетаскивание — обновляем смещение дерева в реальном времени
+        // Сохраняем текущие координаты панели
+        currentPanelScreenX = panelScreenX;
+        currentPanelScreenY = panelScreenY;
+
+        // Обновляем offset при перетаскивании
         if (isDragging) {
-            // Рассчитываем дельту относительно начала перетаскивания (используем координаты мыши, переданные в render)
             int deltaX = mouseX - dragStartX;
             int deltaY = mouseY - dragStartY;
 
             offsetX = dragStartOffsetX + deltaX;
             offsetY = dragStartOffsetY + deltaY;
 
-            // Ограничиваем смещение, чтобы дерево не выходило за границы панели
-            limitOffset(panelScreenX, panelScreenY);
+            // Пересчитываем позиции при перетаскивании
+            calculateAndUpdatePositions(panelScreenX, panelScreenY);
         }
 
-        // Обновляем позиции узлов с учётом текущего offset
+        // Считаем позиции узлов (если еще не пересчитали)
         calculateAndUpdatePositions(panelScreenX, panelScreenY);
 
-        // Сначала рисуем линии (связи между узлами)
-        int lineColor = 0xFF000000;
-        for (SkillTreeNode child : nodes.values()) {
-            if (child.parentId == null || "start".equalsIgnoreCase(child.parentId)) continue;
-            SkillTreeNode parent = nodes.get(child.parentId);
-            if (parent == null) continue;
-            drawThickLine(gui, parent.centerX(), parent.centerY(), child.centerX(), child.centerY(), 2, lineColor);
+        // ---------- SCISSOR ГРАНИЦЫ ----------
+        int clipX1 = panelScreenX + PANEL_DRAW_OFFSET_X_IN_PANEL;
+        int clipY1 = panelScreenY + PANEL_DRAW_OFFSET_Y_IN_PANEL;
+        int clipX2 = clipX1 + AREA_WIDTH;
+        int clipY2 = clipY1 + AREA_HEIGHT;
+
+        // ВАЖНО: проверяем, что область коррекции имеет положительные размеры
+        if (clipX2 > clipX1 && clipY2 > clipY1) {
+            gui.enableScissor(clipX1, clipY1, clipX2, clipY2);
         }
 
-        // Затем рисуем ноды
-        for (SkillTreeNode n : nodes.values()) {
-            // Рамка узла
-            gui.fill(n.x, n.y, n.x + SkillTreeNode.FRAME_SIZE, n.y + SkillTreeNode.FRAME_SIZE, 0xFF333333);
-            gui.fill(n.x + SkillTreeNode.FRAME_PADDING, n.y + SkillTreeNode.FRAME_PADDING,
-                    n.x + SkillTreeNode.FRAME_SIZE - SkillTreeNode.FRAME_PADDING,
-                    n.y + SkillTreeNode.FRAME_SIZE - SkillTreeNode.FRAME_PADDING, 0xFF777777);
+        // ---------- ЛИНИИ СВЯЗЕЙ ----------
+        int lineColor = 0xFF000000;
 
-            // Предмет внутри узла
-            int itemX = n.x + (SkillTreeNode.FRAME_SIZE - 16) / 2;
-            int itemY = n.y + (SkillTreeNode.FRAME_SIZE - 16) / 2;
+        for (SkillTreeNode child : nodes.values()) {
+            if (child.parentId == null || "start".equalsIgnoreCase(child.parentId)) continue;
+
+            SkillTreeNode parent = nodes.get(child.parentId);
+            if (parent == null) continue;
+
+            drawThickLine(
+                    gui,
+                    parent.centerX(), parent.centerY(),
+                    child.centerX(), child.centerY(),
+                    2,
+                    lineColor
+            );
+        }
+
+        // ---------- НОДЫ ----------
+        for (SkillTreeNode n : nodes.values()) {
+            int frameSize = (int)(SkillTreeNode.FRAME_SIZE * scale);
+            int padding = (int)(SkillTreeNode.FRAME_PADDING * scale);
+
+            gui.fill(n.x, n.y, n.x + frameSize, n.y + frameSize, 0xFF333333);
+            gui.fill(n.x + padding, n.y + padding, n.x + frameSize - padding, n.y + frameSize - padding, 0xFF777777);
+
+            int itemX = n.x + (frameSize - 16) / 2;
+            int itemY = n.y + (frameSize - 16) / 2;
+
             gui.renderItem(n.itemStack, itemX, itemY);
             gui.renderItemDecorations(Minecraft.getInstance().font, n.itemStack, itemX, itemY);
         }
 
-        // Подсказка при наведении
+        // ---------- ВЫКЛЮЧАЕМ SCISSOR ТОЛЬКО ЕСЛИ ОН БЫЛ ВКЛЮЧЕН ----------
+        if (clipX2 > clipX1 && clipY2 > clipY1) {
+            gui.disableScissor();
+        }
+
+        // ---------- ИНДИКАТОР МАСШТАБА (РИСУЕМ БЕЗ SCISSOR) ----------
+        String scaleText = String.format("%.0f%%", scale * 100);
+        int textX = clipX1 + 5;
+        int textY = clipY1 + 5;
+
+        // Рисуем фон для текста
+        Font font = Minecraft.getInstance().font;
+        int textWidth = font.width(scaleText);
+        gui.fill(textX - 2, textY - 2, textX + textWidth + 2, textY + font.lineHeight + 2, 0xAA000000);
+        gui.drawString(font, scaleText, textX, textY, 0xFFFFFFFF, true);
+
+        // ---------- TOOLTIP (РИСУЕМ БЕЗ SCISSOR) ----------
         for (SkillTreeNode n : nodes.values()) {
             if (n.containsPoint(mouseX, mouseY)) {
-                gui.drawString(Minecraft.getInstance().font, n.id + (n.locked ? " (locked)" : ""),
-                        mouseX + 10, mouseY + 6, 0xFFFFFFFF, false);
+                gui.drawString(
+                        font,
+                        n.id + (n.locked ? " (locked)" : ""),
+                        mouseX + 10,
+                        mouseY + 6,
+                        0xFFFFFFFF,
+                        false
+                );
                 break;
             }
         }
     }
-
 
     private static void drawThickLine(GuiGraphics gui, int x1, int y1, int x2, int y2, int thickness, int color) {
         if (y1 == y2) {
@@ -238,17 +307,19 @@ public final class SkillTreeRenderer {
 
         if (deltaX == 0 && deltaY == 0) return false;
 
-        // Обновляем смещение дерева
         offsetX = dragStartOffsetX + deltaX;
         offsetY = dragStartOffsetY + deltaY;
 
-        // Ограничиваем смещение, чтобы дерево не выходило за границы
+        // Пересчитываем позиции при перетаскивании
+        calculateAndUpdatePositions(panelScreenX, panelScreenY);
         limitOffset(panelScreenX, panelScreenY);
 
         return true;
     }
 
     private static void limitOffset(int panelScreenX, int panelScreenY) {
+        if (nodes.isEmpty()) return;
+
         int areaX = panelScreenX + PANEL_DRAW_OFFSET_X_IN_PANEL;
         int areaY = panelScreenY + PANEL_DRAW_OFFSET_Y_IN_PANEL;
 
@@ -256,33 +327,61 @@ public final class SkillTreeRenderer {
         int minY = Integer.MAX_VALUE, maxY = Integer.MIN_VALUE;
 
         for (SkillTreeNode n : nodes.values()) {
-            minX = Math.min(minX, n.x - offsetX);
-            maxX = Math.max(maxX, n.x - offsetX + SkillTreeNode.FRAME_SIZE);
-            minY = Math.min(minY, n.y - offsetY);
-            maxY = Math.max(maxY, n.y - offsetY + SkillTreeNode.FRAME_SIZE);
+            int nodeScreenX = n.x - offsetX;
+            int nodeScreenY = n.y - offsetY;
+            int frameSize = (int)(SkillTreeNode.FRAME_SIZE * scale);
+
+            minX = Math.min(minX, nodeScreenX);
+            maxX = Math.max(maxX, nodeScreenX + frameSize);
+            minY = Math.min(minY, nodeScreenY);
+            maxY = Math.max(maxY, nodeScreenY + frameSize);
         }
 
-        int maxOffsetX = Math.max(0, AREA_WIDTH - (maxX - minX));
-        int maxOffsetY = Math.max(0, AREA_HEIGHT - (maxY - minY));
+        int padding = 20;
 
-        if (offsetX > maxOffsetX / 2) offsetX = maxOffsetX / 2;
-        if (offsetX < -maxOffsetX / 2) offsetX = -maxOffsetX / 2;
-        if (offsetY > maxOffsetY / 2) offsetY = maxOffsetY / 2;
-        if (offsetY < -maxOffsetY / 2) offsetY = -maxOffsetY / 2;
+        int minOffsetX = -(minX - areaX - padding);
+        int maxOffsetX = areaX + AREA_WIDTH - maxX - padding;
+        int minOffsetY = -(minY - areaY - padding);
+        int maxOffsetY = areaY + AREA_HEIGHT - maxY - padding;
+
+        if (minOffsetX < maxOffsetX) {
+            offsetX = Math.max(minOffsetX, Math.min(maxOffsetX, offsetX));
+        } else {
+            offsetX = (minOffsetX + maxOffsetX) / 2;
+        }
+
+        if (minOffsetY < maxOffsetY) {
+            offsetY = Math.max(minOffsetY, Math.min(maxOffsetY, offsetY));
+        } else {
+            offsetY = (minOffsetY + maxOffsetY) / 2;
+        }
     }
-
-
 
     public static int[] panelPositionFromRenderParams(int renderX, int renderY) {
         return new int[]{ renderX + 2, renderY };
     }
 
-    // Метод для сброса позиции дерева
+    // Метод для сброса позиции дерева и масштаба
     public static void resetTreePosition() {
         offsetX = 0;
         offsetY = 0;
+        scale = 1.0f;
     }
+
     public static boolean isEmpty() {
         return nodes.isEmpty();
+    }
+
+    // Геттеры для масштаба и смещения
+    public static float getScale() {
+        return scale;
+    }
+
+    public static int getOffsetX() {
+        return offsetX;
+    }
+
+    public static int getOffsetY() {
+        return offsetY;
     }
 }
