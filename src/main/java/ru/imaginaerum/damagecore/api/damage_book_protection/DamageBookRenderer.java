@@ -2,6 +2,7 @@ package ru.imaginaerum.damagecore.api.damage_book_protection;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.world.item.*;
 import net.minecraft.world.item.alchemy.PotionUtils;
@@ -12,6 +13,7 @@ import java.util.*;
 
 public final class DamageBookRenderer {
     public static final int TAB_WIDTH = 150;
+    public static int selectedBottomTab = 0;
     // Защита от чар (левая вкладка)
     private static final ResourceLocation DAMAGE_BOOK_TAB =
             new ResourceLocation("damagecore", "textures/gui/container/creative_inventory/damage_book.png");
@@ -21,8 +23,6 @@ public final class DamageBookRenderer {
             new ResourceLocation("damagecore", "textures/gui/container/creative_inventory/damage_core_interface.png");
 
     private DamageBookRenderer() {}
-
-
     public static void renderMainTab(GuiGraphics gui, InventoryScreen screen, int tabX, int tabY) {
         gui.blit(DAMAGE_BOOK_TAB, tabX, tabY - 1, 0, 0, TAB_WIDTH,
                 ((ru.imaginaerum.damagecore.mixin.AbstractContainerScreenAccessor) screen).damagecore$getImageHeight());
@@ -79,30 +79,73 @@ public final class DamageBookRenderer {
             GuiGraphics gui,
             InventoryScreen screen,
             int x, int y,
-            int mouseX, int mouseY
+            int mouseX,
+            int mouseY
     ) {
-        int u = 179;
-        int v = 0;
-        int width = 289;
-        int height = 166;
+        int PANEL_W = 289;
+        int PANEL_H = 166;
 
-        gui.blit(DAMAGE_CORE_INTERFACE, x + 2, y, u, v, width, height, 512, 512);
+        int panelLeft = x + 2;
+        int panelTop  = y;
 
-        int srcExtraU = 0;
-        int srcExtraV = 173;
-        int extraWidth = 28;
-        int extraHeight = 27;
+        // Основная панель
+        gui.blit(DAMAGE_CORE_INTERFACE, panelLeft, panelTop, 179, 0, PANEL_W, PANEL_H, 512, 512);
 
-        gui.blit(DAMAGE_CORE_INTERFACE, x + 2, y + 163,
-                srcExtraU, srcExtraV, extraWidth, extraHeight, 512, 512);
+        // Нижние вкладки
+        int TAB_W = 28;
+        int TAB_Y = panelTop + 163;
 
-        int panelScreenX = x + 2;
-        int panelScreenY = y;
+        // Левая вкладка (0)
+        int leftTabX = panelLeft;
+        int leftTabY = TAB_Y + (selectedBottomTab == 0 ? -1 : 0);
+        int leftU  = 0;
+        int leftV  = (selectedBottomTab == 0 ? 204 : 173);
+        int leftH  = (selectedBottomTab == 0 ? 32 : 27);
+        gui.blit(DAMAGE_CORE_INTERFACE, leftTabX, leftTabY, leftU, leftV, TAB_W, leftH, 512, 512);
 
-        // ✅ только render — без load
-        SkillTreeRenderer.render(gui, screen, panelScreenX, panelScreenY, mouseX, mouseY);
+        // Правая вкладка (11) — индекс последней вкладки
+        int rightTabX = panelLeft + PANEL_W - TAB_W;
+// Исправлено: базовая Y позиция TAB_Y, сдвиг -1 пиксель только если активна
+        int rightTabY = TAB_Y + (selectedBottomTab == 11 ? -1 : 1);
+        int rightU = 56;
+        int rightV = (selectedBottomTab == 11 ? 204 : 174);
+        int rightH = (selectedBottomTab == 11 ? 32 : 27); // активная высота 32, неактивная 27
+        gui.blit(DAMAGE_CORE_INTERFACE, rightTabX, rightTabY, rightU, rightV, TAB_W, rightH, 512, 512);
+
+        // Средние вкладки (1..8)
+        int middleTabsCount = 8;
+        int middleTabWidth = 28;  // ширина каждой средней вкладки
+        int gapCount = middleTabsCount - 1;
+        int startX = leftTabX + TAB_W;        // сразу после левой вкладки
+        int endX = rightTabX;                 // до начала правой вкладки
+        int totalSpace = endX - startX;       // доступная ширина для средних вкладок
+
+        int gap = (totalSpace - middleTabWidth * middleTabsCount) / gapCount; // равномерный промежуток
+
+        int middleU = 28;
+        int middleInactiveV = 175;
+        int middleActiveV = 204;
+        int middleH_inactive = 25;
+        int middleH_active = 32;
+
+        for (int i = 0; i < middleTabsCount; i++) {
+            int drawX = startX + i * (middleTabWidth + gap) + 1;
+            boolean isActive = (selectedBottomTab == (i + 1));
+            int drawY = TAB_Y + (isActive ? -1 : 2);
+            int srcV = isActive ? middleActiveV : middleInactiveV;
+            int srcH = isActive ? middleH_active : middleH_inactive;
+
+            gui.blit(DAMAGE_CORE_INTERFACE, drawX, drawY, middleU, srcV, middleTabWidth, srcH, 512, 512);
+        }
+
+        // Рендер дерева навыков
+        SkillTreeRenderer.render(gui, screen, panelLeft, panelTop, mouseX, mouseY);
     }
 
 
 
+
+    public static void setBottomTab(int tab) {
+        selectedBottomTab = tab;
+    }
 }

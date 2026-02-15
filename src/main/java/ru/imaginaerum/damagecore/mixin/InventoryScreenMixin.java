@@ -2,9 +2,12 @@ package ru.imaginaerum.damagecore.mixin;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.gui.components.ImageButton;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.sounds.SoundEvents;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -51,6 +54,94 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
     public boolean damagecore$isSkillTreeVisible() {
         return this.skillTreeVisible;
     }
+    // Клик по вкладкам внизу
+    @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
+    private void damagecore$bottomTabsClick(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
+        if (button != 0) return;
+
+        AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
+        int guiLeft = ((AbstractContainerScreenAccessor) screen).getLeftPos();
+        int guiTop  = ((AbstractContainerScreenAccessor) screen).getTopPos();
+        int imageWidth = ((AbstractContainerScreenAccessor) screen).damagecore$getImageWidth();
+
+        int panelLeft = guiLeft + imageWidth + 2;
+        int panelTop  = guiTop;
+
+        int PANEL_W = 289;
+        int TAB_W = 28;
+        int TAB_Y = panelTop + 163;
+
+        int middleTabsCount = 8;
+
+        // Левая вкладка (0)
+        int leftTabX = panelLeft;
+        int leftTabY = TAB_Y + (DamageBookRenderer.selectedBottomTab == 0 ? -1 : 0);
+        int leftTabH = (DamageBookRenderer.selectedBottomTab == 0 ? 32 : 27);
+
+        // Правая вкладка (11)
+        int rightTabX = panelLeft + PANEL_W - TAB_W;
+        int rightTabY = TAB_Y + (DamageBookRenderer.selectedBottomTab == 11 ? -1 : 1);
+        int rightTabH = (DamageBookRenderer.selectedBottomTab == 11 ? 32 : 27);
+
+        // Средние вкладки (1..middleTabsCount)
+        int middleW = 28;
+        int startX = leftTabX + TAB_W;
+        int endX = rightTabX;
+        int gapCount = middleTabsCount - 1;
+        int totalSpace = endX - startX;
+        int gap = (totalSpace - middleW * middleTabsCount) / gapCount;
+
+        // Проверка клика по левой вкладке
+        if (inside(mouseX, mouseY, leftTabX, leftTabY, TAB_W, leftTabH)) {
+            if (DamageBookRenderer.selectedBottomTab != 0) {
+                DamageBookRenderer.setBottomTab(0);
+                Minecraft.getInstance().getSoundManager().play(
+                        SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F)
+                );
+            }
+            cir.setReturnValue(true);
+            return;
+        }
+
+        // Проверка клика по правой вкладке
+        if (inside(mouseX, mouseY, rightTabX, rightTabY, TAB_W, rightTabH)) {
+            if (DamageBookRenderer.selectedBottomTab != 11) {
+                DamageBookRenderer.setBottomTab(11);
+                Minecraft.getInstance().getSoundManager().play(
+                        SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F)
+                );
+            }
+            cir.setReturnValue(true);
+            return;
+        }
+
+        // Проверка клика по средним вкладкам (1..middleTabsCount)
+        for (int i = 0; i < middleTabsCount; i++) {
+            int drawX = startX + i * (middleW + gap) + 1;
+            int drawY = TAB_Y + (DamageBookRenderer.selectedBottomTab == (i + 1) ? -1 : 2);
+            int drawH = (DamageBookRenderer.selectedBottomTab == (i + 1) ? 32 : 25);
+
+            if (inside(mouseX, mouseY, drawX, drawY, middleW, drawH)) {
+                if (DamageBookRenderer.selectedBottomTab != (i + 1)) {
+                    DamageBookRenderer.setBottomTab(i + 1);
+                    Minecraft.getInstance().getSoundManager().play(
+                            SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F)
+                    );
+                }
+                cir.setReturnValue(true);
+                return;
+            }
+        }
+    }
+
+
+    // Проверка попадания мыши в прямоугольник
+    private static boolean inside(double mx, double my, int x, int y, int w, int h) {
+        return mx >= x && mx < x + w && my >= y && my < y + h;
+    }
+
+
+
 
     @Inject(method = "init", at = @At("TAIL"))
     private void damagecore$init(CallbackInfo ci) {
