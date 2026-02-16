@@ -105,7 +105,7 @@ public final class DamageBookRenderer {
 
         // Правая вкладка (11) — индекс последней вкладки
         int rightTabX = panelLeft + PANEL_W - TAB_W;
-// Исправлено: базовая Y позиция TAB_Y, сдвиг -1 пиксель только если активна
+        // Исправлено: базовая Y позиция TAB_Y, сдвиг -1 пиксель только если активна
         int rightTabY = TAB_Y + (selectedBottomTab == 11 ? -1 : 1);
         int rightU = 56;
         int rightV = (selectedBottomTab == 11 ? 204 : 174);
@@ -137,6 +137,77 @@ public final class DamageBookRenderer {
 
             gui.blit(DAMAGE_CORE_INTERFACE, drawX, drawY, middleU, srcV, middleTabWidth, srcH, 512, 512);
         }
+// =====================
+// Верхние вкладки (зеркально нижним, индексы 12..)
+// =====================
+
+        int TOP_TAB_W = 28;
+        int TOP_TAB_BASE_Y = panelTop - 27 + 2;
+
+        int topLeftIndex = 12;
+
+// ---------- Левая верхняя
+        int topLeftX = panelLeft;
+        int topLeftY = TOP_TAB_BASE_Y + (selectedBottomTab == topLeftIndex ? -3 : 1);
+
+        int topLeftU = 89;
+        int topLeftV = (selectedBottomTab == topLeftIndex ? 203 : 175);
+        int topLeftH = (selectedBottomTab == topLeftIndex ? 32 : 26);
+
+        gui.blit(DAMAGE_CORE_INTERFACE,
+                topLeftX, topLeftY,
+                topLeftU, topLeftV,
+                TOP_TAB_W, topLeftH,
+                512, 512);
+
+// ---------- Средние верхние (как нижние по количеству и gap)
+        int topMiddleTabsCount = middleTabsCount;
+        int topMiddleTabWidth = middleTabWidth;
+
+        int topStartX = leftTabX + TAB_W;
+        int topEndX   = rightTabX;
+        int topTotalSpace = topEndX - topStartX;
+
+        int topGap = (topTotalSpace - topMiddleTabWidth * topMiddleTabsCount)
+                / (topMiddleTabsCount - 1);
+
+        int topMiddleU = 117;
+        int topMiddleInactiveV = 175;
+        int topMiddleActiveV   = 203;
+        int topMiddleH_inactive = 25;
+        int topMiddleH_active   = 32;
+
+        for (int i = 0; i < topMiddleTabsCount; i++) {
+            int idx = topLeftIndex + 1 + i;
+
+            int drawX = topStartX + i * (topMiddleTabWidth + topGap) + 1;
+            int drawY = TOP_TAB_BASE_Y + (selectedBottomTab == idx ? -3 : 1);
+            int srcV  = (selectedBottomTab == idx ? topMiddleActiveV : topMiddleInactiveV);
+            int srcH  = (selectedBottomTab == idx ? topMiddleH_active : topMiddleH_inactive);
+
+            gui.blit(DAMAGE_CORE_INTERFACE,
+                    drawX, drawY,
+                    topMiddleU, srcV,
+                    topMiddleTabWidth, srcH,
+                    512, 512);
+        }
+
+// ---------- Правая верхняя
+        int topRightIndex = topLeftIndex + 1 + topMiddleTabsCount;
+        int topRightX = panelLeft + PANEL_W - TOP_TAB_W;
+        int topRightY = TOP_TAB_BASE_Y + (selectedBottomTab == topRightIndex ? -3 : 1);
+
+        int topRightU = 145;
+        int topRightV = (selectedBottomTab == topRightIndex ? 203 : 175);
+        int topRightH = (selectedBottomTab == topRightIndex ? 32 : 27);
+
+        gui.blit(DAMAGE_CORE_INTERFACE,
+                topRightX, topRightY,
+                topRightU, topRightV,
+                TOP_TAB_W, topRightH,
+                512, 512);
+
+
 
         // Рендер дерева навыков
         SkillTreeRenderer.render(gui, screen, panelLeft, panelTop, mouseX, mouseY);

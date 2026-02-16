@@ -132,6 +132,73 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
                 return;
             }
         }
+        // =====================
+        // Верхние вкладки (зеркально нижним)
+        // =====================
+
+        int TOP_TAB_BASE_Y = panelTop - 27 + 2;
+        int topLeftIndex = 12;
+
+        // Левая верхняя
+        int topLeftX = panelLeft;
+        int topLeftY = TOP_TAB_BASE_Y + (DamageBookRenderer.selectedBottomTab == topLeftIndex ? -1 : 1);
+        int topLeftH = (DamageBookRenderer.selectedBottomTab == topLeftIndex ? 32 : 26);
+
+        if (inside(mouseX, mouseY, topLeftX, topLeftY, TAB_W, topLeftH)) {
+            if (DamageBookRenderer.selectedBottomTab != topLeftIndex) {
+                DamageBookRenderer.setBottomTab(topLeftIndex);
+                Minecraft.getInstance().getSoundManager().play(
+                        SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F)
+                );
+            }
+            cir.setReturnValue(true);
+            return;
+        }
+
+        // Средние верхние — столько же сколько нижних
+        int topMiddleTabsCount = middleTabsCount;
+        int topMiddleW = middleW;
+
+        int topStartX = startX;
+        int topGap = gap;
+
+        for (int i = 0; i < topMiddleTabsCount; i++) {
+            int idx = topLeftIndex + 1 + i;
+
+            int drawX = topStartX + i * (topMiddleW + topGap) + 1;
+            int drawY = TOP_TAB_BASE_Y +
+                    (DamageBookRenderer.selectedBottomTab == idx ? -2 : 1); // ← на 1px выше как ты просил
+            int drawH = (DamageBookRenderer.selectedBottomTab == idx ? 32 : 25);
+
+            if (inside(mouseX, mouseY, drawX, drawY, topMiddleW, drawH)) {
+                if (DamageBookRenderer.selectedBottomTab != idx) {
+                    DamageBookRenderer.setBottomTab(idx);
+                    Minecraft.getInstance().getSoundManager().play(
+                            SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F)
+                    );
+                }
+                cir.setReturnValue(true);
+                return;
+            }
+        }
+
+        // Правая верхняя
+        int topRightIndex = topLeftIndex + 1 + topMiddleTabsCount;
+        int topRightX = rightTabX;
+        int topRightY = TOP_TAB_BASE_Y +
+                (DamageBookRenderer.selectedBottomTab == topRightIndex ? -1 : 1);
+        int topRightH = (DamageBookRenderer.selectedBottomTab == topRightIndex ? 32 : 27);
+
+        if (inside(mouseX, mouseY, topRightX, topRightY, TAB_W, topRightH)) {
+            if (DamageBookRenderer.selectedBottomTab != topRightIndex) {
+                DamageBookRenderer.setBottomTab(topRightIndex);
+                Minecraft.getInstance().getSoundManager().play(
+                        SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F)
+                );
+            }
+            cir.setReturnValue(true);
+            return;
+        }
     }
 
 
