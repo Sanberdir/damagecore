@@ -213,9 +213,6 @@ public final class DamageBookRenderer {
         SkillTreeRenderer.render(gui, screen, panelLeft, panelTop, mouseX, mouseY);
     }
 
-
-
-
     public static void setBottomTab(int tab) {
         selectedBottomTab = tab;
     }
