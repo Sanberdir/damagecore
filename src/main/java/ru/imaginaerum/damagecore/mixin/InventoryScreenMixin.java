@@ -64,6 +64,7 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
         if (button != 0) return;
 
         AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
+
         int guiLeft = ((AbstractContainerScreenAccessor) screen).getLeftPos();
         int guiTop  = ((AbstractContainerScreenAccessor) screen).getTopPos();
         int imageWidth = ((AbstractContainerScreenAccessor) screen).damagecore$getImageWidth();
@@ -73,149 +74,70 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
 
         int PANEL_W = 289;
         int TAB_W = 28;
-        int TAB_Y = panelTop + 163;
-        int TOP_TAB_BASE_Y = panelTop - 27 + 2;
 
-        // ===================== НИЖНИЕ ВКЛАДКИ (0-11) =====================
+        int bottomY = panelTop + 163;
+        int topY = panelTop - 25;
 
-        // Левая нижняя вкладка (ID 0)
-        if (SkillTreeRenderer.hasTreeForTab(0)) {
-            int leftTabX = panelLeft;
-            int leftTabY = TAB_Y + (DamageBookRenderer.selectedBottomTab == 0 ? -1 : 0);
-            int leftTabH = (DamageBookRenderer.selectedBottomTab == 0 ? 32 : 27);
-
-            if (inside(mouseX, mouseY, leftTabX, leftTabY, TAB_W, leftTabH)) {
-                if (DamageBookRenderer.selectedBottomTab != 0) {
-                    DamageBookRenderer.setBottomTab(0);
-                    SkillTreeRenderer.setActiveTree(0);
-                    Minecraft.getInstance().getSoundManager().play(
-                            SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F)
-                    );
-                }
-                cir.setReturnValue(true);
-                return;
-            }
+        // ---- нижний ряд ----
+        if (handleRowClick(mouseX, mouseY, panelLeft, PANEL_W, TAB_W, bottomY, true)) {
+            cir.setReturnValue(true);
+            return;
         }
 
-        // Правая нижняя вкладка (ID 11)
-        if (SkillTreeRenderer.hasTreeForTab(11)) {
-            int rightTabX = panelLeft + PANEL_W - TAB_W;
-            int rightTabY = TAB_Y + (DamageBookRenderer.selectedBottomTab == 11 ? -1 : 1);
-            int rightTabH = (DamageBookRenderer.selectedBottomTab == 11 ? 32 : 27);
-
-            if (inside(mouseX, mouseY, rightTabX, rightTabY, TAB_W, rightTabH)) {
-                if (DamageBookRenderer.selectedBottomTab != 11) {
-                    DamageBookRenderer.setBottomTab(11);
-                    SkillTreeRenderer.setActiveTree(11);
-                    Minecraft.getInstance().getSoundManager().play(
-                            SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F)
-                    );
-                }
-                cir.setReturnValue(true);
-                return;
-            }
-        }
-
-        // Средние нижние вкладки (1-8) - фиксированные позиции
-        int middleTabsCount = 8;
-        int middleTabWidth = 28;
-        int gapCount = middleTabsCount - 1;
-        int startX = panelLeft + TAB_W;
-        int endX = panelLeft + PANEL_W - TAB_W;
-        int totalSpace = endX - startX;
-        int gap = (totalSpace - middleTabWidth * middleTabsCount) / gapCount;
-
-        for (int i = 0; i < middleTabsCount; i++) {
-            int tabId = i + 1; // ID от 1 до 8
-
-            if (SkillTreeRenderer.hasTreeForTab(tabId)) {
-                int drawX = startX + i * (middleTabWidth + gap) + 1;
-                int drawY = TAB_Y + (DamageBookRenderer.selectedBottomTab == tabId ? -1 : 2);
-                int drawH = (DamageBookRenderer.selectedBottomTab == tabId ? 32 : 25);
-
-                if (inside(mouseX, mouseY, drawX, drawY, TAB_W, drawH)) {
-                    if (DamageBookRenderer.selectedBottomTab != tabId) {
-                        DamageBookRenderer.setBottomTab(tabId);
-                        SkillTreeRenderer.setActiveTree(tabId);
-                        Minecraft.getInstance().getSoundManager().play(
-                                SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F)
-                        );
-                    }
-                    cir.setReturnValue(true);
-                    return;
-                }
-            }
-        }
-
-        // ===================== ВЕРХНИЕ ВКЛАДКИ (12-23) =====================
-
-        // Левая верхняя вкладка (ID 12)
-        if (SkillTreeRenderer.hasTreeForTab(12)) {
-            int topLeftX = panelLeft;
-            int topLeftY = TOP_TAB_BASE_Y + (DamageBookRenderer.selectedBottomTab == 12 ? -1 : 1);
-            int topLeftH = (DamageBookRenderer.selectedBottomTab == 12 ? 32 : 26);
-
-            if (inside(mouseX, mouseY, topLeftX, topLeftY, TAB_W, topLeftH)) {
-                if (DamageBookRenderer.selectedBottomTab != 12) {
-                    DamageBookRenderer.setBottomTab(12);
-                    SkillTreeRenderer.setActiveTree(12);
-                    Minecraft.getInstance().getSoundManager().play(
-                            SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F)
-                    );
-                }
-                cir.setReturnValue(true);
-                return;
-            }
-        }
-
-        // Правая верхняя вкладка (ID 23)
-        if (SkillTreeRenderer.hasTreeForTab(23)) {
-            int topRightX = panelLeft + PANEL_W - TAB_W;
-            int topRightY = TOP_TAB_BASE_Y + (DamageBookRenderer.selectedBottomTab == 23 ? -1 : 1);
-            int topRightH = (DamageBookRenderer.selectedBottomTab == 23 ? 32 : 27);
-
-            if (inside(mouseX, mouseY, topRightX, topRightY, TAB_W, topRightH)) {
-                if (DamageBookRenderer.selectedBottomTab != 23) {
-                    DamageBookRenderer.setBottomTab(23);
-                    SkillTreeRenderer.setActiveTree(23);
-                    Minecraft.getInstance().getSoundManager().play(
-                            SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F)
-                    );
-                }
-                cir.setReturnValue(true);
-                return;
-            }
-        }
-
-        // Средние верхние вкладки (13-20) - фиксированные позиции
-        int topMiddleTabsCount = 8;
-        int topStartX = panelLeft + TAB_W;
-        int topEndX = panelLeft + PANEL_W - TAB_W;
-        int topTotalSpace = topEndX - topStartX;
-        int topGap = (topTotalSpace - middleTabWidth * topMiddleTabsCount) / (topMiddleTabsCount - 1);
-
-        for (int i = 0; i < topMiddleTabsCount; i++) {
-            int tabId = 13 + i; // ID от 13 до 20
-
-            if (SkillTreeRenderer.hasTreeForTab(tabId)) {
-                int drawX = topStartX + i * (middleTabWidth + topGap) + 1;
-                int drawY = TOP_TAB_BASE_Y + (DamageBookRenderer.selectedBottomTab == tabId ? -2 : 1);
-                int drawH = (DamageBookRenderer.selectedBottomTab == tabId ? 32 : 25);
-
-                if (inside(mouseX, mouseY, drawX, drawY, TAB_W, drawH)) {
-                    if (DamageBookRenderer.selectedBottomTab != tabId) {
-                        DamageBookRenderer.setBottomTab(tabId);
-                        SkillTreeRenderer.setActiveTree(tabId);
-                        Minecraft.getInstance().getSoundManager().play(
-                                SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F)
-                        );
-                    }
-                    cir.setReturnValue(true);
-                    return;
-                }
-            }
+        // ---- верхний ряд ----
+        if (handleRowClick(mouseX, mouseY, panelLeft, PANEL_W, TAB_W, topY, false)) {
+            cir.setReturnValue(true);
         }
     }
+
+    @Unique
+    private boolean handleRowClick(double mx, double my, int panelLeft, int panelW, int tabW, int y, boolean bottom) {
+
+        int rowBase = bottom ? 0 : DamageBookRenderer.TABS_PER_ROW;
+
+        // левая
+        if (clickTab(mx, my, panelLeft, y, tabW, rowBase)) return true;
+
+        // средние
+        for (int i = 0; i < DamageBookRenderer.MIDDLE_TABS; i++) {
+            int id = rowBase + 1 + i;
+            if (!SkillTreeRenderer.hasTreeForTab(id)) continue;
+
+            int x = DamageBookRenderer.calcMiddleX(i, panelLeft, panelW, tabW);
+            if (clickTab(mx, my, x, y, tabW, id)) return true;
+        }
+
+        // правая
+        int rightId = rowBase + DamageBookRenderer.TABS_PER_ROW - 1;
+        return clickTab(mx, my, panelLeft + panelW - tabW, y, tabW, rightId);
+    }
+
+    @Unique
+    private boolean clickTab(double mx, double my, int x, int y, int w, int id) {
+        if (!inside(mx, my, x, y - 3, w, 32)) return false;
+
+        if (DamageBookRenderer.selectedBottomTab != id) {
+            DamageBookRenderer.setBottomTab(id);
+            SkillTreeRenderer.setActiveTree(id);
+            Minecraft.getInstance().getSoundManager().play(
+                    SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F)
+            );
+        }
+        return true;
+    }
+
+
+    @Unique
+    private void selectTab(int id) {
+        if (DamageBookRenderer.selectedBottomTab == id) return;
+
+        DamageBookRenderer.setBottomTab(id);
+        SkillTreeRenderer.setActiveTree(id);
+        Minecraft.getInstance().getSoundManager().play(
+                SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F)
+        );
+    }
+
 
 
     // Проверка попадания мыши в прямоугольник

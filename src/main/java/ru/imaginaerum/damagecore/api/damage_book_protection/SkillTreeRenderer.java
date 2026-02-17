@@ -103,24 +103,52 @@ public final class SkillTreeRenderer {
         sortedFileNames.clear();
 
         try {
+            // Формируем правильный путь к папке
+            String path = folderPath;
+
+            // Убираем ведущие и завершающие слеши
+            if (path.startsWith("/")) {
+                path = path.substring(1);
+            }
+            if (path.endsWith("/")) {
+                path = path.substring(0, path.length() - 1);
+            }
+
+            // Создаем effectively final копию для использования в лямбде
+            final String finalPath = path;
+
             // Получаем все ресурсы из папки
             var resourceManager = Minecraft.getInstance().getResourceManager();
-            var resources = resourceManager.listResources(folderPath,
-                    location -> location.getPath().endsWith(".json"));
 
-            // Сортируем имена файлов по алфавиту
+            // Ищем все JSON файлы в указанной папке
+            var resources = resourceManager.listResources(finalPath,
+                    location -> {
+                        String fullPath = location.getPath();
+                        // Проверяем, что файл находится в нужной папке и имеет расширение .json
+                        return fullPath.startsWith(finalPath + "/") && fullPath.endsWith(".json");
+                    });
+
+            // Собираем имена файлов
             sortedFileNames = new ArrayList<>();
             for (var location : resources.keySet()) {
-                String path = location.getPath();
-                String fileName = path.substring(path.lastIndexOf('/') + 1);
+                String fullPath = location.getPath();
+                String fileName = fullPath.substring(fullPath.lastIndexOf('/') + 1);
                 sortedFileNames.add(fileName);
+                System.out.println("Found skill tree file: " + fileName);
             }
+
+            // Сортируем по алфавиту (без учета регистра)
             Collections.sort(sortedFileNames, String.CASE_INSENSITIVE_ORDER);
+
+            System.out.println("Total files found: " + sortedFileNames.size());
+            if (!sortedFileNames.isEmpty()) {
+                System.out.println("Files in alphabetical order: " + String.join(", ", sortedFileNames));
+            }
 
             // Загружаем деревья в алфавитном порядке
             int tabId = 0;
             for (String fileName : sortedFileNames) {
-                String resourcePath = folderPath + "/" + fileName;
+                String resourcePath = finalPath + "/" + fileName;
                 String displayName = fileName.replace(".json", "");
 
                 List<SkillTreeNode> list = SkillTreeLoader.loadFromResource(resourcePath);
@@ -140,13 +168,58 @@ public final class SkillTreeRenderer {
 
                     trees.put(tabId, tree);
                     fileNameToTabId.put(fileName, tabId);
+                    System.out.println("Loaded skill tree: " + fileName + " as tab ID " + tabId);
                     tabId++;
+                } else {
+                    System.out.println("Failed to load skill tree from: " + resourcePath + " (empty or invalid)");
                 }
             }
 
-            System.out.println("Loaded " + trees.size() + " skill trees in alphabetical order");
+            System.out.println("Successfully loaded " + trees.size() + " skill trees");
 
         } catch (Exception e) {
+            System.err.println("Error loading skill trees:");
+            e.printStackTrace();
+        }
+    }
+
+    // Запасной метод загрузки
+    private static void loadTreesFallback(String folderPath) {
+        try {
+            // Пробуем загрузить по известным именам файлов (0-23 как запасной вариант)
+            for (int i = 0; i <= 23; i++) {
+                String resourcePath = folderPath + "/skill_tree_" + i + ".json";
+                List<SkillTreeNode> list = SkillTreeLoader.loadFromResource(resourcePath);
+
+                if (!list.isEmpty()) {
+                    String fileName = "skill_tree_" + i + ".json";
+                    String displayName = "Tree " + i;
+
+                    SkillTreeData tree = new SkillTreeData(fileName, displayName);
+
+                    for (SkillTreeNode n : list) {
+                        tree.nodes.put(n.id, n);
+                    }
+                    rebuildChildrenMap(tree);
+
+                    tree.offsetX = 0;
+                    tree.offsetY = 0;
+                    tree.scale = 1.0f;
+                    tree.isDragging = false;
+
+                    int tabId = trees.size();
+                    trees.put(tabId, tree);
+                    fileNameToTabId.put(fileName, tabId);
+                    sortedFileNames.add(fileName);
+                    System.out.println("Fallback: Loaded " + fileName + " as tab ID " + tabId);
+                }
+            }
+
+            Collections.sort(sortedFileNames, String.CASE_INSENSITIVE_ORDER);
+            System.out.println("Fallback loaded " + trees.size() + " trees");
+
+        } catch (Exception e) {
+            System.err.println("Fallback loading also failed:");
             e.printStackTrace();
         }
     }
