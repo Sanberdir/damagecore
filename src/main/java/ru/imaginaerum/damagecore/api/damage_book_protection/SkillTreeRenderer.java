@@ -5,8 +5,11 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.gui.Font;
+import net.minecraft.server.packs.resources.Resource;
 
+import java.io.InputStream;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class SkillTreeRenderer {
     private SkillTreeRenderer() {}
@@ -26,84 +29,170 @@ public final class SkillTreeRenderer {
     private static final int GAP = 6;
     private static final int SPACING = SkillTreeNode.FRAME_SIZE + GAP;
 
-    private static final Map<String, SkillTreeNode> nodes = new LinkedHashMap<>();
-    private static final Map<String, List<SkillTreeNode>> childrenMap = new HashMap<>();
+    // Карта деревьев: ключ - ID вкладки, значение - дерево
+    private static final Map<Integer, SkillTreeData> trees = new ConcurrentHashMap<>();
 
-    // Состояние перетаскивания
-    private static boolean isDragging = false;
-    private static int dragStartX = 0;
-    private static int dragStartY = 0;
-    private static int dragStartOffsetX = 0;
-    private static int dragStartOffsetY = 0;
+    // Карта для соответствия имени файла и ID вкладки
+    private static final Map<String, Integer> fileNameToTabId = new HashMap<>();
 
-    // Текущее смещение дерева
-    private static int offsetX = 0;
-    private static int offsetY = 0;
+    // Список имен файлов в алфавитном порядке
+    private static List<String> sortedFileNames = new ArrayList<>();
 
-    private static float scale = 1.0f;           // текущий масштаб
-    private static final float MIN_SCALE = 0.5f; // минимальный масштаб
-    private static final float MAX_SCALE = 2.0f; // максимальный масштаб
-    private static final float ZOOM_STEP = 0.1f; // шаг масштабирования
+    // Текущее активное дерево (по ID вкладки)
+    private static int activeTreeId = 0;
+
+    // Внутренний класс для хранения состояния дерева
+    private static class SkillTreeData {
+        final Map<String, SkillTreeNode> nodes = new LinkedHashMap<>();
+        final Map<String, List<SkillTreeNode>> childrenMap = new HashMap<>();
+
+        // Состояние перетаскивания для каждого дерева
+        boolean isDragging = false;
+        int dragStartX = 0;
+        int dragStartY = 0;
+        int dragStartOffsetX = 0;
+        int dragStartOffsetY = 0;
+
+        // Текущее смещение дерева
+        int offsetX = 0;
+        int offsetY = 0;
+
+        float scale = 1.0f;
+
+        // Имя дерева (имя файла)
+        String fileName;
+        // Отображаемое имя (без расширения)
+        String displayName;
+
+        SkillTreeData(String fileName, String displayName) {
+            this.fileName = fileName;
+            this.displayName = displayName;
+        }
+    }
+
+    private static final float MIN_SCALE = 0.5f;
+    private static final float MAX_SCALE = 2.0f;
+    private static final float ZOOM_STEP = 0.1f;
 
     // Текущие координаты панели для пересчета позиций
     private static int currentPanelScreenX = 0;
     private static int currentPanelScreenY = 0;
 
-    // ------ INPUT: масштабирование колесиком мыши ------
-    public static boolean mouseScrolled(int mouseX, int mouseY, double delta, int panelScreenX, int panelScreenY) {
-        System.out.println("!!! mouseScrolled CALLED !!! delta=" + delta);
-
-        float oldScale = scale;
-        scale = scale + (delta > 0 ? ZOOM_STEP : -ZOOM_STEP);
-        scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale));
-
-        System.out.println("Scale changed: " + oldScale + " -> " + scale);
-
-        // Принудительно пересчитываем позиции
-        if (!nodes.isEmpty()) {
-            calculateAndUpdatePositions(panelScreenX, panelScreenY);
+    // Получить текущее активное дерево
+    private static SkillTreeData getCurrentTree() {
+        SkillTreeData tree = trees.get(activeTreeId);
+        if (tree == null) {
+            // Если дерево не найдено, создаем пустое
+            tree = new SkillTreeData("empty", "Empty Tree " + (activeTreeId + 1));
+            trees.put(activeTreeId, tree);
         }
-
-        return true;
+        return tree;
     }
 
-    public static void load(String resourcePath) {
-        nodes.clear();
-        List<SkillTreeNode> list = SkillTreeLoader.loadFromResource(resourcePath);
-        for (SkillTreeNode n : list) nodes.put(n.id, n);
-        rebuildChildrenMap();
-
-        // Сбрасываем смещение и масштаб при загрузке
-        offsetX = 0;
-        offsetY = 0;
-        scale = 1.0f;
-        isDragging = false;
+    // Установить активное дерево по ID вкладки
+    public static void setActiveTree(int tabId) {
+        if (tabId >= 0 && tabId < trees.size()) {
+            activeTreeId = tabId;
+        }
     }
 
-    private static void rebuildChildrenMap() {
-        childrenMap.clear();
-        for (SkillTreeNode n : nodes.values()) {
-            if (n.parentId != null && !"start".equalsIgnoreCase(n.parentId))
-                childrenMap.computeIfAbsent(n.parentId, k -> new ArrayList<>()).add(n);
+    // Загрузить все деревья из папки assets/damagecore/skill_tree/
+    public static void loadAllTrees(String folderPath) {
+        trees.clear();
+        fileNameToTabId.clear();
+        sortedFileNames.clear();
+
+        try {
+            // Получаем все ресурсы из папки
+            var resourceManager = Minecraft.getInstance().getResourceManager();
+            var resources = resourceManager.listResources(folderPath,
+                    location -> location.getPath().endsWith(".json"));
+
+            // Сортируем имена файлов по алфавиту
+            sortedFileNames = new ArrayList<>();
+            for (var location : resources.keySet()) {
+                String path = location.getPath();
+                String fileName = path.substring(path.lastIndexOf('/') + 1);
+                sortedFileNames.add(fileName);
+            }
+            Collections.sort(sortedFileNames, String.CASE_INSENSITIVE_ORDER);
+
+            // Загружаем деревья в алфавитном порядке
+            int tabId = 0;
+            for (String fileName : sortedFileNames) {
+                String resourcePath = folderPath + "/" + fileName;
+                String displayName = fileName.replace(".json", "");
+
+                List<SkillTreeNode> list = SkillTreeLoader.loadFromResource(resourcePath);
+                if (!list.isEmpty()) {
+                    SkillTreeData tree = new SkillTreeData(fileName, displayName);
+
+                    for (SkillTreeNode n : list) {
+                        tree.nodes.put(n.id, n);
+                    }
+                    rebuildChildrenMap(tree);
+
+                    // Сбрасываем состояние
+                    tree.offsetX = 0;
+                    tree.offsetY = 0;
+                    tree.scale = 1.0f;
+                    tree.isDragging = false;
+
+                    trees.put(tabId, tree);
+                    fileNameToTabId.put(fileName, tabId);
+                    tabId++;
+                }
+            }
+
+            System.out.println("Loaded " + trees.size() + " skill trees in alphabetical order");
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    // Получить ID вкладки по имени файла
+    public static Integer getTabIdByFileName(String fileName) {
+        return fileNameToTabId.get(fileName);
+    }
+
+    // Получить имя файла по ID вкладки
+    public static String getFileNameByTabId(int tabId) {
+        SkillTreeData tree = trees.get(tabId);
+        return tree != null ? tree.fileName : null;
+    }
+
+    // Получить отображаемое имя по ID вкладки
+    public static String getDisplayNameByTabId(int tabId) {
+        SkillTreeData tree = trees.get(tabId);
+        return tree != null ? tree.displayName : "Tab " + tabId;
+    }
+
+    private static void rebuildChildrenMap(SkillTreeData tree) {
+        tree.childrenMap.clear();
+        for (SkillTreeNode n : tree.nodes.values()) {
+            if (n.parentId != null && !"start".equalsIgnoreCase(n.parentId)) {
+                tree.childrenMap.computeIfAbsent(n.parentId, k -> new ArrayList<>()).add(n);
+            }
         }
     }
 
     // Вычисляет базовые позиции узлов (без смещения)
-    private static void calculateAndUpdatePositions(int panelScreenX, int panelScreenY) {
-        if (nodes.isEmpty()) return;
+    private static void calculateAndUpdatePositions(SkillTreeData tree, int panelScreenX, int panelScreenY) {
+        if (tree.nodes.isEmpty()) return;
 
         int areaX = panelScreenX + PANEL_DRAW_OFFSET_X_IN_PANEL;
         int areaY = panelScreenY + PANEL_DRAW_OFFSET_Y_IN_PANEL;
 
-        int centerX = areaX + AREA_WIDTH / 2 + offsetX;
-        int centerY = areaY + AREA_HEIGHT / 2 + offsetY;
+        int centerX = areaX + AREA_WIDTH / 2 + tree.offsetX;
+        int centerY = areaY + AREA_HEIGHT / 2 + tree.offsetY;
 
-        SkillTreeNode start = nodes.values().stream()
+        SkillTreeNode start = tree.nodes.values().stream()
                 .filter(n -> n.parentId == null || "start".equalsIgnoreCase(n.parentId))
                 .findFirst().orElse(null);
 
-        if (start == null && !nodes.isEmpty())
-            start = nodes.values().iterator().next();
+        if (start == null && !tree.nodes.isEmpty())
+            start = tree.nodes.values().iterator().next();
 
         if (start == null) return;
 
@@ -119,7 +208,7 @@ public final class SkillTreeRenderer {
         while (!queue.isEmpty()) {
             SkillTreeNode parent = queue.poll();
 
-            for (SkillTreeNode child : childrenMap.getOrDefault(parent.id, Collections.emptyList())) {
+            for (SkillTreeNode child : tree.childrenMap.getOrDefault(parent.id, Collections.emptyList())) {
                 if (placed.contains(child.id)) continue;
 
                 switch (child.side) {
@@ -150,7 +239,7 @@ public final class SkillTreeRenderer {
             }
         }
 
-        for (SkillTreeNode n : nodes.values()) {
+        for (SkillTreeNode n : tree.nodes.values()) {
             if (!placed.contains(n.id)) {
                 n.x = centerX + SPACING;
                 n.y = centerY + SPACING;
@@ -158,21 +247,62 @@ public final class SkillTreeRenderer {
         }
     }
 
+    private static void limitOffset(SkillTreeData tree, int panelScreenX, int panelScreenY) {
+        if (tree.nodes.isEmpty()) return;
+
+        int areaX = panelScreenX + PANEL_DRAW_OFFSET_X_IN_PANEL;
+        int areaY = panelScreenY + PANEL_DRAW_OFFSET_Y_IN_PANEL;
+
+        int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE;
+        int minY = Integer.MAX_VALUE, maxY = Integer.MIN_VALUE;
+
+        for (SkillTreeNode n : tree.nodes.values()) {
+            int nodeScreenX = n.x;
+            int nodeScreenY = n.y;
+            int frameSize = (int)(SkillTreeNode.FRAME_SIZE * tree.scale);
+
+            minX = Math.min(minX, nodeScreenX);
+            maxX = Math.max(maxX, nodeScreenX + frameSize);
+            minY = Math.min(minY, nodeScreenY);
+            maxY = Math.max(maxY, nodeScreenY + frameSize);
+        }
+
+        int padding = 20;
+
+        int minOffsetX = -(minX - areaX - padding);
+        int maxOffsetX = areaX + AREA_WIDTH - maxX - padding;
+        int minOffsetY = -(minY - areaY - padding);
+        int maxOffsetY = areaY + AREA_HEIGHT - maxY - padding;
+
+        if (minOffsetX < maxOffsetX) {
+            tree.offsetX = Math.max(minOffsetX, Math.min(maxOffsetX, tree.offsetX));
+        } else {
+            tree.offsetX = (minOffsetX + maxOffsetX) / 2;
+        }
+
+        if (minOffsetY < maxOffsetY) {
+            tree.offsetY = Math.max(minOffsetY, Math.min(maxOffsetY, tree.offsetY));
+        } else {
+            tree.offsetY = (minOffsetY + maxOffsetY) / 2;
+        }
+    }
+
     public static void render(GuiGraphics gui, InventoryScreen screen,
                               int panelScreenX, int panelScreenY,
                               int mouseX, int mouseY) {
 
-        if (nodes.isEmpty()) return;
+        SkillTreeData currentTree = getCurrentTree();
+        if (currentTree.nodes.isEmpty()) return;
 
         currentPanelScreenX = panelScreenX;
         currentPanelScreenY = panelScreenY;
 
-        if (isDragging) {
-            offsetX = dragStartOffsetX + (mouseX - dragStartX);
-            offsetY = dragStartOffsetY + (mouseY - dragStartY);
+        if (currentTree.isDragging) {
+            currentTree.offsetX = currentTree.dragStartOffsetX + (mouseX - currentTree.dragStartX);
+            currentTree.offsetY = currentTree.dragStartOffsetY + (mouseY - currentTree.dragStartY);
         }
 
-        calculateAndUpdatePositions(panelScreenX, panelScreenY);
+        calculateAndUpdatePositions(currentTree, panelScreenX, panelScreenY);
 
         int clipX1 = panelScreenX + PANEL_DRAW_OFFSET_X_IN_PANEL;
         int clipY1 = panelScreenY + PANEL_DRAW_OFFSET_Y_IN_PANEL;
@@ -190,16 +320,16 @@ public final class SkillTreeRenderer {
         int pivotY = clipY1 + AREA_HEIGHT / 2;
 
         pose.translate(pivotX, pivotY, 0);
-        pose.scale(scale, scale, 1f);
+        pose.scale(currentTree.scale, currentTree.scale, 1f);
         pose.translate(-pivotX, -pivotY, 0);
 
         // -------- ЛИНИИ --------
         int lineColor = 0xFF000000;
 
-        for (SkillTreeNode child : nodes.values()) {
+        for (SkillTreeNode child : currentTree.nodes.values()) {
             if (child.parentId == null || "start".equalsIgnoreCase(child.parentId)) continue;
 
-            SkillTreeNode parent = nodes.get(child.parentId);
+            SkillTreeNode parent = currentTree.nodes.get(child.parentId);
             if (parent == null) continue;
 
             drawThickLine(gui,
@@ -210,8 +340,9 @@ public final class SkillTreeRenderer {
                     2,
                     lineColor);
         }
+
         // -------- НОДЫ --------
-        for (SkillTreeNode n : nodes.values()) {
+        for (SkillTreeNode n : currentTree.nodes.values()) {
             int frameSize = SkillTreeNode.FRAME_SIZE;
             int padding = SkillTreeNode.FRAME_PADDING;
 
@@ -233,20 +364,27 @@ public final class SkillTreeRenderer {
         if (clipX2 > clipX1 && clipY2 > clipY1) {
             gui.disableScissor();
         }
-        // -------- SCALE TEXT --------
+
+        // -------- ИНФОРМАЦИЯ О ДЕРЕВЕ --------
         Font font = Minecraft.getInstance().font;
-        String scaleText = String.format("%.0f%%", scale * 100);
+        String scaleText = String.format("%.0f%%", currentTree.scale * 100);
+        String treeName = currentTree.displayName + " (Tab " + (activeTreeId + 1) + "/" + trees.size() + ")";
 
         int textX = clipX1 + 5;
         int textY = clipY1 + 5;
-        int w = font.width(scaleText);
 
-        gui.fill(textX - 2, textY - 2, textX + w + 2, textY + font.lineHeight + 2, 0xAA000000);
-        gui.drawString(font, scaleText, textX, textY, 0xFFFFFFFF, true);
+        int w1 = font.width(scaleText);
+        int w2 = font.width(treeName);
+        int maxW = Math.max(w1, w2);
+
+        gui.fill(textX - 2, textY - 2, textX + maxW + 2, textY + font.lineHeight * 2 + 4, 0xAA000000);
+
+        gui.drawString(font, treeName, textX, textY, 0xFFFFFFAA, true);
+        gui.drawString(font, scaleText, textX, textY + font.lineHeight + 2, 0xFFFFFFFF, true);
 
         // -------- TOOLTIP --------
-        for (SkillTreeNode n : nodes.values()) {
-            if (n.containsPoint(mouseX, mouseY, scale)) {
+        for (SkillTreeNode n : currentTree.nodes.values()) {
+            if (n.containsPoint(mouseX, mouseY, currentTree.scale)) {
                 gui.drawString(font,
                         n.id + (n.locked ? " (locked)" : ""),
                         mouseX + 10,
@@ -257,6 +395,7 @@ public final class SkillTreeRenderer {
             }
         }
     }
+
     private static void drawThickLine(
             GuiGraphics gui,
             int x1, int y1,
@@ -289,109 +428,119 @@ public final class SkillTreeRenderer {
                     px + thickness/2 + 1, py + thickness/2 + 1, color);
         }
     }
-    // ------ INPUT: drag & drop всего дерева ------
+
+    // ------ INPUT: обработка для активного дерева ------
     public static boolean mousePressed(int mouseX, int mouseY, int button, int panelScreenX, int panelScreenY) {
+        SkillTreeData currentTree = getCurrentTree();
+
         int areaX = panelScreenX + PANEL_DRAW_OFFSET_X_IN_PANEL;
         int areaY = panelScreenY + PANEL_DRAW_OFFSET_Y_IN_PANEL;
 
-        // Проверяем, кликнули ли внутри области дерева
         if (mouseX >= areaX && mouseX <= areaX + AREA_WIDTH &&
                 mouseY >= areaY && mouseY <= areaY + AREA_HEIGHT) {
-            isDragging = true;
-            dragStartX = mouseX;
-            dragStartY = mouseY;
-            dragStartOffsetX = offsetX;
-            dragStartOffsetY = offsetY;
+            currentTree.isDragging = true;
+            currentTree.dragStartX = mouseX;
+            currentTree.dragStartY = mouseY;
+            currentTree.dragStartOffsetX = currentTree.offsetX;
+            currentTree.dragStartOffsetY = currentTree.offsetY;
             return true;
         }
         return false;
     }
 
     public static boolean mouseReleased(int mouseX, int mouseY, int button) {
-        if (isDragging) {
-            isDragging = false;
+        SkillTreeData currentTree = getCurrentTree();
+        if (currentTree.isDragging) {
+            currentTree.isDragging = false;
             return true;
         }
         return false;
     }
 
     public static boolean mouseDragged(int mouseX, int mouseY, int button, int panelScreenX, int panelScreenY) {
-        if (!isDragging || button != 0) return false;
+        SkillTreeData currentTree = getCurrentTree();
+        if (!currentTree.isDragging || button != 0) return false;
 
-        // Вычисляем дельту перемещения мыши
-        int deltaX = mouseX - dragStartX;
-        int deltaY = mouseY - dragStartY;
+        int deltaX = mouseX - currentTree.dragStartX;
+        int deltaY = mouseY - currentTree.dragStartY;
 
         if (deltaX == 0 && deltaY == 0) return false;
 
-        offsetX = dragStartOffsetX + deltaX;
-        offsetY = dragStartOffsetY + deltaY;
+        currentTree.offsetX = currentTree.dragStartOffsetX + deltaX;
+        currentTree.offsetY = currentTree.dragStartOffsetY + deltaY;
 
-        // Пересчитываем позиции при перетаскивании
-        calculateAndUpdatePositions(panelScreenX, panelScreenY);
-        limitOffset(panelScreenX, panelScreenY);
+        calculateAndUpdatePositions(currentTree, panelScreenX, panelScreenY);
+        limitOffset(currentTree, panelScreenX, panelScreenY);
 
         return true;
     }
 
-    private static void limitOffset(int panelScreenX, int panelScreenY) {
-        if (nodes.isEmpty()) return;
+    public static boolean mouseScrolled(int mouseX, int mouseY, double delta, int panelScreenX, int panelScreenY) {
+        SkillTreeData currentTree = getCurrentTree();
 
-        int areaX = panelScreenX + PANEL_DRAW_OFFSET_X_IN_PANEL;
-        int areaY = panelScreenY + PANEL_DRAW_OFFSET_Y_IN_PANEL;
+        float oldScale = currentTree.scale;
+        currentTree.scale = currentTree.scale + (delta > 0 ? ZOOM_STEP : -ZOOM_STEP);
+        currentTree.scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, currentTree.scale));
 
-        int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE;
-        int minY = Integer.MAX_VALUE, maxY = Integer.MIN_VALUE;
-
-        for (SkillTreeNode n : nodes.values()) {
-            int nodeScreenX = n.x;
-            int nodeScreenY = n.y;
-            int frameSize = (int)(SkillTreeNode.FRAME_SIZE * scale);
-
-            minX = Math.min(minX, nodeScreenX);
-            maxX = Math.max(maxX, nodeScreenX + frameSize);
-            minY = Math.min(minY, nodeScreenY);
-            maxY = Math.max(maxY, nodeScreenY + frameSize);
+        if (!currentTree.nodes.isEmpty()) {
+            calculateAndUpdatePositions(currentTree, panelScreenX, panelScreenY);
         }
 
-        int padding = 20;
-
-        int minOffsetX = -(minX - areaX - padding);
-        int maxOffsetX = areaX + AREA_WIDTH - maxX - padding;
-        int minOffsetY = -(minY - areaY - padding);
-        int maxOffsetY = areaY + AREA_HEIGHT - maxY - padding;
-
-        if (minOffsetX < maxOffsetX) {
-            offsetX = Math.max(minOffsetX, Math.min(maxOffsetX, offsetX));
-        } else {
-            offsetX = (minOffsetX + maxOffsetX) / 2;
-        }
-
-        if (minOffsetY < maxOffsetY) {
-            offsetY = Math.max(minOffsetY, Math.min(maxOffsetY, offsetY));
-        } else {
-            offsetY = (minOffsetY + maxOffsetY) / 2;
-        }
+        return true;
     }
 
-    // Метод для сброса позиции дерева и масштаба
+    public static List<Integer> getAvailableTabIds() {
+        return new ArrayList<>(trees.keySet());
+    }
+
+    // Получить максимальный ID вкладки с деревом
+    public static int getMaxTabId() {
+        return trees.keySet().stream().max(Integer::compareTo).orElse(-1);
+    }
+
+    // Получить минимальный ID вкладки с деревом
+    public static int getMinTabId() {
+        return trees.keySet().stream().min(Integer::compareTo).orElse(-1);
+    }
+
+    // Проверить, существует ли дерево для вкладки
+    public static boolean hasTreeForTab(int tabId) {
+        return trees.containsKey(tabId);
+    }
+
+    // Сброс позиции для активного дерева
     public static void resetTreePosition() {
-        offsetX = 0;
-        offsetY = 0;
-        scale = 1.0f;
+        SkillTreeData currentTree = getCurrentTree();
+        currentTree.offsetX = 0;
+        currentTree.offsetY = 0;
+        currentTree.scale = 1.0f;
     }
 
+    // Проверка, есть ли узлы в активном дереве
     public static boolean isEmpty() {
-        return nodes.isEmpty();
+        SkillTreeData currentTree = trees.get(activeTreeId);
+        return currentTree == null || currentTree.nodes.isEmpty();
     }
-    // Геттеры для масштаба и смещения
+
+    // Геттеры
     public static float getScale() {
-        return scale;
+        return getCurrentTree().scale;
     }
+
     public static int getOffsetX() {
-        return offsetX;
+        return getCurrentTree().offsetX;
     }
+
     public static int getOffsetY() {
-        return offsetY;
+        return getCurrentTree().offsetY;
+    }
+
+    public static int getTotalTrees() {
+        return trees.size();
+    }
+
+    // Получить отсортированный список имен файлов
+    public static List<String> getSortedFileNames() {
+        return new ArrayList<>(sortedFileNames);
     }
 }

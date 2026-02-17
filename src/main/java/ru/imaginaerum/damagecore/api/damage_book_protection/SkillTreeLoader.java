@@ -20,10 +20,7 @@ public final class SkillTreeLoader {
 
     private static final Gson GSON = new Gson();
 
-    /**
-     * Загружает ноды из assets/damagecore/{pathInNamespace}.
-     * Пример pathInNamespace: "skill_tree/skill_tree.json"
-     */
+
     public static List<SkillTreeNode> loadFromResource(String pathInNamespace) {
         List<SkillTreeNode> result = new ArrayList<>();
 
