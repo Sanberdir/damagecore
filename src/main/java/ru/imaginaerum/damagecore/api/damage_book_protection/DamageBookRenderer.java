@@ -333,16 +333,4 @@ public final class DamageBookRenderer {
 
         gui.renderItem(icon, ix, iy);
     }
-    // ---------- утилиты ----------
-    public static List<Integer> getVisibleGlobalIdsOnCurrentPage() {
-        List<Integer> r = new ArrayList<>();
-        int total = SkillTreeRenderer.getTotalTrees();
-        for (int slot = 0; slot < PAGE_SIZE; slot++) {
-            int gid = currentPage * PAGE_SIZE + slot;
-            if (gid >= total) break;
-            r.add(gid);
-        }
-        return r;
-    }
-
 }
