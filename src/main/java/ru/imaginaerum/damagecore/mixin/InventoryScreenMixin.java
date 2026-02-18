@@ -78,6 +78,12 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
         int bottomY = panelTop + 163;
         int topY = panelTop - 25;
 
+        // ---- стрелки (проверяем первым — чтобы клики по стрелкам НЕ попадали в табы) ----
+        if (DamageBookRenderer.handleArrowClick(mouseX, mouseY, panelLeft, panelTop, PANEL_W)) {
+            cir.setReturnValue(true);
+            return;
+        }
+
         // ---- нижний ряд ----
         if (handleRowClick(mouseX, mouseY, panelLeft, PANEL_W, TAB_W, bottomY, true)) {
             cir.setReturnValue(true);
@@ -89,42 +95,49 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
             cir.setReturnValue(true);
         }
     }
-
     @Unique
-    private boolean handleRowClick(double mx, double my, int panelLeft, int panelW, int tabW, int y, boolean bottom) {
-
-        int rowBase = bottom ? 0 : DamageBookRenderer.TABS_PER_ROW;
-
-        // левая
-        if (clickTab(mx, my, panelLeft, y, tabW, rowBase)) return true;
-
-        // средние
-        for (int i = 0; i < DamageBookRenderer.MIDDLE_TABS; i++) {
-            int id = rowBase + 1 + i;
-            if (!SkillTreeRenderer.hasTreeForTab(id)) continue;
-
-            int x = DamageBookRenderer.calcMiddleX(i, panelLeft, panelW, tabW);
-            if (clickTab(mx, my, x, y, tabW, id)) return true;
-        }
-
-        // правая
-        int rightId = rowBase + DamageBookRenderer.TABS_PER_ROW - 1;
-        return clickTab(mx, my, panelLeft + panelW - tabW, y, tabW, rightId);
-    }
-
-    @Unique
-    private boolean clickTab(double mx, double my, int x, int y, int w, int id) {
+    private boolean clickTab(double mx, double my, int x, int y, int w, int globalId) {
         if (!inside(mx, my, x, y - 3, w, 32)) return false;
 
-        if (DamageBookRenderer.selectedBottomTab != id) {
-            DamageBookRenderer.setBottomTab(id);
-            SkillTreeRenderer.setActiveTree(id);
+        // globalId уже глобальный (с учётом страницы)
+        if (DamageBookRenderer.selectedBottomTab != globalId) {
+            DamageBookRenderer.setBottomTab(globalId);
+            SkillTreeRenderer.setActiveTree(globalId);
             Minecraft.getInstance().getSoundManager().play(
                     SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F)
             );
         }
         return true;
     }
+
+    @Unique
+    private boolean handleRowClick(double mx, double my, int panelLeft, int panelW, int tabW, int y, boolean bottom) {
+        int rowBase = bottom ? 0 : DamageBookRenderer.TABS_PER_ROW;
+
+        // левая
+        int slotLeft = rowBase;
+        int globalLeft = DamageBookRenderer.globalIdForSlot(slotLeft);
+        if (SkillTreeRenderer.hasTreeForTab(globalLeft)) {
+            if (clickTab(mx, my, panelLeft, y, tabW, globalLeft)) return true;
+        }
+
+        // средние
+        for (int i = 0; i < DamageBookRenderer.MIDDLE_TABS; i++) {
+            int slotId = rowBase + 1 + i;
+            int globalId = DamageBookRenderer.globalIdForSlot(slotId);
+            if (!SkillTreeRenderer.hasTreeForTab(globalId)) continue;
+
+            int x = DamageBookRenderer.calcMiddleX(i, panelLeft, panelW, tabW);
+            if (clickTab(mx, my, x, y, tabW, globalId)) return true;
+        }
+
+        // правая
+        int slotRight = rowBase + DamageBookRenderer.TABS_PER_ROW - 1;
+        int globalRight = DamageBookRenderer.globalIdForSlot(slotRight);
+        return SkillTreeRenderer.hasTreeForTab(globalRight) && clickTab(mx, my, panelLeft + panelW - tabW, y, tabW, globalRight);
+    }
+
+
 
 
     @Unique

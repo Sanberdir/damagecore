@@ -4,9 +4,13 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.*;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.alchemy.PotionUtils;
 import net.minecraft.world.item.alchemy.Potions;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public final class DamageBookRenderer {
 
@@ -16,6 +20,8 @@ public final class DamageBookRenderer {
     public static final int MIDDLE_TABS = 8;
     public static final int SIDE_TABS = 2;
     public static final int TABS_PER_ROW = MIDDLE_TABS + SIDE_TABS;
+    public static final int ROWS = 2;
+    public static final int PAGE_SIZE = TABS_PER_ROW * ROWS;
 
     public static int bottomLeft()  { return 0; }
     public static int bottomRight() { return TABS_PER_ROW - 1; }
@@ -25,6 +31,7 @@ public final class DamageBookRenderer {
     public static int topRight() { return TABS_PER_ROW * 2 - 1; }
     public static int topMiddle(int i) { return TABS_PER_ROW + 1 + i; }
 
+    // selectedBottomTab теперь хранит глобальный ID (index среди всех загруженных деревьев)
     public static int selectedBottomTab = 0;
 
     private static final ResourceLocation DAMAGE_BOOK_TAB =
@@ -33,10 +40,12 @@ public final class DamageBookRenderer {
     private static final ResourceLocation DAMAGE_CORE_INTERFACE =
             new ResourceLocation("damagecore", "textures/gui/container/creative_inventory/damage_core_interface.png");
 
+    // paging
+    private static int currentPage = 0;
+
     private DamageBookRenderer() {}
 
     // ---------- вычисление позиций ----------
-
     public static int calcMiddleGap(int panelLeft, int panelWidth, int tabW) {
         int startX = panelLeft + tabW;
         int endX = panelLeft + panelWidth - tabW;
@@ -50,7 +59,6 @@ public final class DamageBookRenderer {
     }
 
     // ---------- левая книга ----------
-
     public static void renderMainTab(GuiGraphics gui, InventoryScreen screen, int tabX, int tabY) {
         gui.blit(DAMAGE_BOOK_TAB, tabX, tabY - 1, 0, 0, TAB_WIDTH,
                 ((ru.imaginaerum.damagecore.mixin.AbstractContainerScreenAccessor) screen).damagecore$getImageHeight());
@@ -83,7 +91,6 @@ public final class DamageBookRenderer {
     }
 
     // ---------- правая панель ----------
-
     public static void renderRightInterface(
             GuiGraphics gui,
             InventoryScreen screen,
@@ -103,28 +110,72 @@ public final class DamageBookRenderer {
         int TAB_Y = panelTop + 163;
         int TOP_Y = panelTop - 25;
 
+        // Отрисовываем вкладки, но теперь с учётом страницы
         // ===== НИЖНИЙ РЯД =====
-
-        drawSideTab(gui, panelLeft, TAB_Y, TAB_W, bottomLeft(), true, 0, 0);
-        drawMiddleRow(gui, panelLeft, PANEL_W, TAB_Y, TAB_W, true);
-        drawSideTab(gui, panelLeft + PANEL_W - TAB_W, TAB_Y, TAB_W, bottomRight(), true, 56, 1);
+        drawSideTab(gui, panelLeft, TAB_Y, TAB_W, globalIdForSlot(bottomLeft()), true, 0, 0, mouseX, mouseY);
+        drawMiddleRow(gui, panelLeft, PANEL_W, TAB_Y, TAB_W, true, mouseX, mouseY);
+        drawSideTab(gui, panelLeft + PANEL_W - TAB_W, TAB_Y, TAB_W, globalIdForSlot(bottomRight()), true, 56, 1, mouseX, mouseY);
 
         // ===== ВЕРХНИЙ РЯД =====
+        drawSideTab(gui, panelLeft, TOP_Y, TAB_W, globalIdForSlot(topLeft()), false, 89, 1, mouseX, mouseY);
+        drawMiddleRow(gui, panelLeft, PANEL_W, TOP_Y, TAB_W, false, mouseX, mouseY);
+        drawSideTab(gui, panelLeft + PANEL_W - TAB_W, TOP_Y, TAB_W, globalIdForSlot(topRight()), false, 145, 1, mouseX, mouseY);
 
-        drawSideTab(gui, panelLeft, TOP_Y, TAB_W, topLeft(), false, 89, 1);
-        drawMiddleRow(gui, panelLeft, PANEL_W, TOP_Y, TAB_W, false);
-        drawSideTab(gui, panelLeft + PANEL_W - TAB_W, TOP_Y, TAB_W, topRight(), false, 145, 1);
+        // стрелочки и индикатор страниц (если нужно)
+        int totalTrees = SkillTreeRenderer.getTotalTrees();
+        int pageCount = Math.max(1, (totalTrees + PAGE_SIZE - 1) / PAGE_SIZE);
 
+        if (totalTrees > PAGE_SIZE) {
+            // размеры и координаты стрелок в текстуре
+            final int ARROW_U_RIGHT = 180;
+            final int ARROW_U_LEFT = 194;
+            final int ARROW_V = 176;
+            final int ARROW_HOVER_V = 194;
+            final int ARROW_W = 12;
+            final int ARROW_H = 18;
+
+            // левее левой вкладки (нижней) на 2 пикселя: вычисляем x
+            int leftArrowX = panelLeft - 2 - ARROW_W;
+            int leftArrowY = TAB_Y + 3; // небольшая вертикальная центровка
+
+            // правее правой вкладки (нижней) на 2 пикселя
+            int rightArrowX = panelLeft + PANEL_W + 2;
+            int rightArrowY = TAB_Y + 3;
+
+            boolean hoverLeft = inside(mouseX, mouseY, leftArrowX, leftArrowY, ARROW_W, ARROW_H);
+            boolean hoverRight = inside(mouseX, mouseY, rightArrowX, rightArrowY, ARROW_W, ARROW_H);
+
+            // draw left arrow (only if previous page exists)
+            if (currentPage > 0) {
+                int v = hoverLeft ? ARROW_HOVER_V : ARROW_V;
+                gui.blit(DAMAGE_CORE_INTERFACE, leftArrowX, leftArrowY, ARROW_U_LEFT, v, ARROW_W, ARROW_H, 512, 512);
+            }
+
+            // draw right arrow (only if next page exists)
+            if (currentPage < pageCount - 1) {
+                int v = hoverRight ? ARROW_HOVER_V : ARROW_V;
+                gui.blit(DAMAGE_CORE_INTERFACE, rightArrowX, rightArrowY, ARROW_U_RIGHT, v, ARROW_W, ARROW_H, 512, 512);
+            }
+
+            // draw page text
+            String pageText = String.format("Page %d/%d", currentPage + 1, pageCount);
+            int textX = panelLeft + (PANEL_W / 2) - (Minecraft.getInstance().font.width(pageText) / 2);
+            int textY = panelTop + PANEL_H - 6;
+            gui.drawString(Minecraft.getInstance().font, pageText, textX, textY, 0xFFCCCCCC, false);
+        }
+
+        // рисуем дерево (внутри SkillTreeRenderer учтёт global selectedBottomTab)
         SkillTreeRenderer.render(gui, screen, panelLeft, panelTop, mouseX, mouseY);
     }
 
-    private static void drawMiddleRow(GuiGraphics gui, int panelLeft, int panelW, int y, int tabW, boolean bottom) {
+    private static void drawMiddleRow(GuiGraphics gui, int panelLeft, int panelW, int y, int tabW, boolean bottom, int mouseX, int mouseY) {
         for (int i = 0; i < MIDDLE_TABS; i++) {
-            int id = bottom ? bottomMiddle(i) : topMiddle(i);
-            if (!SkillTreeRenderer.hasTreeForTab(id)) continue;
+            int slotId = bottom ? bottomMiddle(i) : topMiddle(i);
+            int globalId = globalIdForSlot(slotId);
+            if (!SkillTreeRenderer.hasTreeForTab(globalId)) continue;
 
             int x = calcMiddleX(i, panelLeft, panelW, tabW);
-            boolean active = selectedBottomTab == id;
+            boolean active = selectedBottomTab == globalId;
 
             int v = active ? (bottom ? 204 : 203) : 175;
             int h = active ? 32 : 25;
@@ -133,25 +184,30 @@ public final class DamageBookRenderer {
             int yOffset;
 
             if (active) {
-                // активные уже были подправлены ранее
                 yOffset = bottom ? -1 : -3;
             } else {
-                // idle:
-                // нижние как были
-                // верхние — на 1px выше
                 yOffset = bottom ? 2 : 1;
             }
 
             gui.blit(DAMAGE_CORE_INTERFACE, x, y + yOffset, u, v, tabW, h, 512, 512);
+            drawRootIconCentered(gui, x, y + yOffset, tabW, h, globalId);
         }
     }
 
+    private static void drawSideTab(
+            GuiGraphics gui,
+            int x, int y,
+            int tabW,
+            int globalId,
+            boolean bottom,
+            int u,
+            int idleYOffset,
+            int mouseX,
+            int mouseY
+    ) {
+        if (!SkillTreeRenderer.hasTreeForTab(globalId)) return;
 
-
-    private static void drawSideTab(GuiGraphics gui, int x, int y, int tabW, int id, boolean bottom, int u, int idleYOffset) {
-        if (!SkillTreeRenderer.hasTreeForTab(id)) return;
-
-        boolean active = selectedBottomTab == id;
+        boolean active = selectedBottomTab == globalId;
 
         int v = active
                 ? (bottom ? 204 : 203)
@@ -159,18 +215,134 @@ public final class DamageBookRenderer {
 
         int h = active ? 32 : 27;
 
-        int yOffset;
-        if (active) {
-            yOffset = bottom ? -1 : -3;   // ↓ нижние ниже, верхние выше
-        } else {
-            yOffset = idleYOffset;
-        }
+        int yOffset = active
+                ? (bottom ? -1 : -3)
+                : idleYOffset;
 
         gui.blit(DAMAGE_CORE_INTERFACE, x, y + yOffset, u, v, tabW, h, 512, 512);
+
+        // ⭐ вот этого не хватало
+        drawRootIconCentered(gui, x, y + yOffset, tabW, h, globalId);
     }
 
 
-    public static void setBottomTab(int tab) {
-        selectedBottomTab = tab;
+    public static void setBottomTab(int globalTabId) {
+        selectedBottomTab = globalTabId;
     }
+
+    // ---------- paging API ----------
+
+    public static int globalIdForSlot(int slotId) {
+        return currentPage * PAGE_SIZE + slotId;
+    }
+
+    public static int getCurrentPage() {
+        return currentPage;
+    }
+
+    public static void setCurrentPage(int page) {
+        int total = SkillTreeRenderer.getTotalTrees();
+        int pages = Math.max(1, (total + PAGE_SIZE - 1) / PAGE_SIZE);
+        if (page < 0) page = 0;
+        if (page >= pages) page = pages - 1;
+        currentPage = page;
+    }
+
+    public static void nextPage() {
+        setCurrentPage(currentPage + 1);
+        // при смене страницы, если текущий selectedBottomTab вне видимой страницы — переключаем на первый доступный там
+        selectFirstVisibleOnPage();
+    }
+
+    public static void prevPage() {
+        setCurrentPage(currentPage - 1);
+        selectFirstVisibleOnPage();
+    }
+
+    private static void selectFirstVisibleOnPage() {
+        // Найдём первый существующий глобальный ID на странице и выберем его
+        for (int slot = 0; slot < PAGE_SIZE; slot++) {
+            int gid = currentPage * PAGE_SIZE + slot;
+            if (SkillTreeRenderer.hasTreeForTab(gid)) {
+                setBottomTab(gid);
+                SkillTreeRenderer.setActiveTree(gid);
+                return;
+            }
+        }
+        // если там нет деревьев (маловероятно), оставим как было
+    }
+
+    // проверка попадания мыши в прямоугольник
+    private static boolean inside(double mx, double my, int x, int y, int w, int h) {
+        return mx >= x && mx < x + w && my >= y && my < y + h;
+    }
+
+    // Обработчик клика по стрелкам — вызывается извне (InventoryScreenMixin) при клике
+    public static boolean handleArrowClick(double mouseX, double mouseY, int panelLeft, int panelTop, int panelW) {
+        int totalTrees = SkillTreeRenderer.getTotalTrees();
+        if (totalTrees <= PAGE_SIZE) return false;
+
+        final int ARROW_W = 12;
+        final int ARROW_H = 18;
+
+        int TAB_Y = panelTop + 163;
+        int leftArrowX = panelLeft - 2 - ARROW_W;
+        int leftArrowY = TAB_Y + 3;
+        int rightArrowX = panelLeft + panelW + 2;
+        int rightArrowY = TAB_Y + 3;
+
+        int pageCount = Math.max(1, (totalTrees + PAGE_SIZE - 1) / PAGE_SIZE);
+
+        if (inside(mouseX, mouseY, leftArrowX, leftArrowY, ARROW_W, ARROW_H)) {
+            if (currentPage > 0) {
+                prevPage();
+                Minecraft.getInstance().getSoundManager().play(
+                        net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK, 1.0F)
+                );
+                return true;
+            }
+            return false;
+        }
+
+        if (inside(mouseX, mouseY, rightArrowX, rightArrowY, ARROW_W, ARROW_H)) {
+            if (currentPage < pageCount - 1) {
+                nextPage();
+                Minecraft.getInstance().getSoundManager().play(
+                        net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK, 1.0F)
+                );
+                return true;
+            }
+            return false;
+        }
+
+        return false;
+    }
+    private static void drawRootIconCentered(
+            GuiGraphics gui,
+            int tabX,
+            int tabY,
+            int tabW,
+            int tabH,
+            int globalId
+    ) {
+        ItemStack icon = SkillTreeRenderer.getRootIcon(globalId);
+        if (icon == null || icon.isEmpty()) return;
+
+        int ix = tabX + (tabW - 16) / 2;
+        int iy = tabY + (tabH - 16) / 2;
+
+        gui.renderItem(icon, ix, iy);
+    }
+    // ---------- утилиты ----------
+    public static List<Integer> getVisibleGlobalIdsOnCurrentPage() {
+        List<Integer> r = new ArrayList<>();
+        int total = SkillTreeRenderer.getTotalTrees();
+        for (int slot = 0; slot < PAGE_SIZE; slot++) {
+            int gid = currentPage * PAGE_SIZE + slot;
+            if (gid >= total) break;
+            r.add(gid);
+        }
+        return r;
+    }
+
 }

@@ -6,6 +6,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.gui.Font;
 import net.minecraft.server.packs.resources.Resource;
+import net.minecraft.world.item.ItemStack;
 
 import java.io.InputStream;
 import java.util.*;
@@ -588,6 +589,21 @@ public final class SkillTreeRenderer {
         currentTree.offsetY = 0;
         currentTree.scale = 1.0f;
     }
+    public static ItemStack getRootIcon(int treeId) {
+        SkillTreeData data = trees.get(treeId);
+        if (data == null || data.nodes == null) {
+            return ItemStack.EMPTY;
+        }
+
+        for (SkillTreeNode n : data.nodes.values()) {
+            if ("start".equals(n.parentId)) {
+                return n.itemStack;
+            }
+        }
+
+        return ItemStack.EMPTY;
+    }
+
 
     // Проверка, есть ли узлы в активном дереве
     public static boolean isEmpty() {
