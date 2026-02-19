@@ -15,6 +15,11 @@ public final class SkillTreeNode {
     public int x;
     public int y;
 
+    // Координаты на grid (целые)
+    public boolean hasGridPos = false;
+    public int gridX = 0;
+    public int gridY = 0;
+
     public static final int FRAME_SIZE = 24; // размер квадрата рамки (в пикселях)
     public static final int FRAME_PADDING = 2; // внутренняя рамка/отступ при рисовании
 
@@ -26,6 +31,16 @@ public final class SkillTreeNode {
         this.side = side;
         this.x = 0;
         this.y = 0;
+        this.hasGridPos = false;
+        this.gridX = 0;
+        this.gridY = 0;
+    }
+
+    // Удобный сеттер для grid-координат (используется Loader если в JSON указаны gridX/gridY)
+    public void setGridPos(int gx, int gy) {
+        this.hasGridPos = true;
+        this.gridX = gx;
+        this.gridY = gy;
     }
 
     public int centerX() {

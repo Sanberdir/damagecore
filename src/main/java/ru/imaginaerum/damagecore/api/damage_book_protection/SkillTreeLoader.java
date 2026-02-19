@@ -67,6 +67,16 @@ public final class SkillTreeLoader {
                     }
 
                     SkillTreeNode node = new SkillTreeNode(id, new ItemStack(item), lock, parent, side);
+
+                    // optional grid positions: gridX / gridY (integers)
+                    if (obj.has("gridX") && obj.has("gridY")) {
+                        try {
+                            int gx = obj.get("gridX").getAsInt();
+                            int gy = obj.get("gridY").getAsInt();
+                            node.setGridPos(gx, gy);
+                        } catch (Exception ignored) {}
+                    }
+
                     result.add(node);
                 }
             }

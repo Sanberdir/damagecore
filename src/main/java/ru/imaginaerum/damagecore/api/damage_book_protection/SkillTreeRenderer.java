@@ -28,7 +28,11 @@ public final class SkillTreeRenderer {
     public static final int PANEL_DRAW_OFFSET_Y_IN_PANEL = AREA_TEX_Y0 - PANEL_TEXTURE_V; // 8
 
     private static final int GAP = 6;
+    // spacing used for old relative layout (kept for compatibility)
     private static final int SPACING = SkillTreeNode.FRAME_SIZE + GAP;
+
+    // grid step: FRAME_SIZE + 1 pixel gap => nodes не слипнутся и не пересекутся
+    private static final int GRID_STEP = SkillTreeNode.FRAME_SIZE + 1;
 
     // Карта деревьев: ключ - ID вкладки, значение - дерево
     private static final Map<Integer, SkillTreeData> trees = new ConcurrentHashMap<>();
@@ -54,7 +58,7 @@ public final class SkillTreeRenderer {
         int dragStartOffsetX = 0;
         int dragStartOffsetY = 0;
 
-        // Текущее смещение дерева
+        // Текущее смещение дерева (пан/приближение)
         int offsetX = 0;
         int offsetY = 0;
 
@@ -104,32 +108,19 @@ public final class SkillTreeRenderer {
         sortedFileNames.clear();
 
         try {
-            // Формируем правильный путь к папке
             String path = folderPath;
-
-            // Убираем ведущие и завершающие слеши
-            if (path.startsWith("/")) {
-                path = path.substring(1);
-            }
-            if (path.endsWith("/")) {
-                path = path.substring(0, path.length() - 1);
-            }
-
-            // Создаем effectively final копию для использования в лямбде
+            if (path.startsWith("/")) path = path.substring(1);
+            if (path.endsWith("/")) path = path.substring(0, path.length() - 1);
             final String finalPath = path;
 
-            // Получаем все ресурсы из папки
             var resourceManager = Minecraft.getInstance().getResourceManager();
 
-            // Ищем все JSON файлы в указанной папке
             var resources = resourceManager.listResources(finalPath,
                     location -> {
                         String fullPath = location.getPath();
-                        // Проверяем, что файл находится в нужной папке и имеет расширение .json
                         return fullPath.startsWith(finalPath + "/") && fullPath.endsWith(".json");
                     });
 
-            // Собираем имена файлов
             sortedFileNames = new ArrayList<>();
             for (var location : resources.keySet()) {
                 String fullPath = location.getPath();
@@ -138,7 +129,6 @@ public final class SkillTreeRenderer {
                 System.out.println("Found skill tree file: " + fileName);
             }
 
-            // Сортируем по алфавиту (без учета регистра)
             Collections.sort(sortedFileNames, String.CASE_INSENSITIVE_ORDER);
 
             System.out.println("Total files found: " + sortedFileNames.size());
@@ -146,7 +136,6 @@ public final class SkillTreeRenderer {
                 System.out.println("Files in alphabetical order: " + String.join(", ", sortedFileNames));
             }
 
-            // Загружаем деревья в алфавитном порядке
             int tabId = 0;
             for (String fileName : sortedFileNames) {
                 String resourcePath = finalPath + "/" + fileName;
@@ -184,10 +173,8 @@ public final class SkillTreeRenderer {
         }
     }
 
-    // Запасной метод загрузки
     private static void loadTreesFallback(String folderPath) {
         try {
-            // Пробуем загрузить по известным именам файлов (0-23 как запасной вариант)
             for (int i = 0; i <= 23; i++) {
                 String resourcePath = folderPath + "/skill_tree_" + i + ".json";
                 List<SkillTreeNode> list = SkillTreeLoader.loadFromResource(resourcePath);
@@ -225,18 +212,15 @@ public final class SkillTreeRenderer {
         }
     }
 
-    // Получить ID вкладки по имени файла
     public static Integer getTabIdByFileName(String fileName) {
         return fileNameToTabId.get(fileName);
     }
 
-    // Получить имя файла по ID вкладки
     public static String getFileNameByTabId(int tabId) {
         SkillTreeData tree = trees.get(tabId);
         return tree != null ? tree.fileName : null;
     }
 
-    // Получить отображаемое имя по ID вкладки
     public static String getDisplayNameByTabId(int tabId) {
         SkillTreeData tree = trees.get(tabId);
         return tree != null ? tree.displayName : "Tab " + tabId;
@@ -251,8 +235,12 @@ public final class SkillTreeRenderer {
         }
     }
 
-    // Вычисляет базовые позиции узлов (без смещения)
-    private static void calculateAndUpdatePositions(SkillTreeData tree, int panelScreenX, int panelScreenY) {
+    // Новая логика: grid-based placement
+    // Если у узла указана grid-позиция -> используем её (жёстко).
+    // Иначе: BFS от root, выставляем integer grid координаты (gx, gy) с шагом GRID_STEP.
+    private static void calculateAndUpdatePositions(SkillTreeData tree,
+                                                    int panelScreenX,
+                                                    int panelScreenY) {
         if (tree.nodes.isEmpty()) return;
 
         int areaX = panelScreenX + PANEL_DRAW_OFFSET_X_IN_PANEL;
@@ -261,6 +249,7 @@ public final class SkillTreeRenderer {
         int centerX = areaX + AREA_WIDTH / 2 + tree.offsetX;
         int centerY = areaY + AREA_HEIGHT / 2 + tree.offsetY;
 
+        // --- поиск стартового узла ---
         SkillTreeNode start = tree.nodes.values().stream()
                 .filter(n -> n.parentId == null || "start".equalsIgnoreCase(n.parentId))
                 .findFirst().orElse(null);
@@ -268,58 +257,76 @@ public final class SkillTreeRenderer {
         if (start == null && !tree.nodes.isEmpty())
             start = tree.nodes.values().iterator().next();
 
-        if (start == null) return;
+        Set<Long> occupied = new HashSet<>();
+        final var keyOf = (java.util.function.BiFunction<Integer,Integer,Long>)
+                (gx, gy) -> (((long)gx) << 32) | (gy & 0xffffffffL);
 
-        start.x = centerX - SkillTreeNode.FRAME_SIZE / 2;
-        start.y = centerY - SkillTreeNode.FRAME_SIZE / 2;
+        if (!start.hasGridPos) {
+            start.setGridPos(0, 0);
+        }
+        occupied.add(keyOf.apply(start.gridX, start.gridY));
 
-        Queue<SkillTreeNode> queue = new ArrayDeque<>();
-        queue.add(start);
+        Queue<SkillTreeNode> q = new ArrayDeque<>();
+        q.add(start);
 
-        Set<String> placed = new HashSet<>();
-        placed.add(start.id);
+        // резервируем заранее заданные grid-позиции
+        for (SkillTreeNode n : tree.nodes.values()) {
+            if (n.hasGridPos) {
+                occupied.add(keyOf.apply(n.gridX, n.gridY));
+            }
+        }
 
-        while (!queue.isEmpty()) {
-            SkillTreeNode parent = queue.poll();
+        // --- BFS размещение ---
+        while (!q.isEmpty()) {
+            SkillTreeNode parent = q.poll();
+            List<SkillTreeNode> children =
+                    tree.childrenMap.getOrDefault(parent.id, Collections.emptyList());
 
-            for (SkillTreeNode child : tree.childrenMap.getOrDefault(parent.id, Collections.emptyList())) {
-                if (placed.contains(child.id)) continue;
+            for (SkillTreeNode child : children) {
+                if (child == parent) continue;
 
-                switch (child.side) {
-                    case RIGHT -> {
-                        child.x = parent.x + SPACING;
-                        child.y = parent.y;
-                    }
-                    case LEFT -> {
-                        child.x = parent.x - SPACING;
-                        child.y = parent.y;
-                    }
-                    case TOP -> {
-                        child.x = parent.x;
-                        child.y = parent.y - SPACING;
-                    }
-                    case BOTTOM -> {
-                        child.x = parent.x;
-                        child.y = parent.y + SPACING;
-                    }
-                    default -> {
-                        child.x = parent.x + SPACING;
-                        child.y = parent.y;
-                    }
+                if (child.hasGridPos) {
+                    q.add(child);
+                    continue;
                 }
 
-                placed.add(child.id);
-                queue.add(child);
+                int gx = parent.gridX;
+                int gy = parent.gridY;
+
+                switch (child.side) {
+                    case RIGHT -> gx = parent.gridX + 1;
+                    case LEFT  -> gx = parent.gridX - 1;
+                    case TOP   -> gy = parent.gridY - 1;  // -Y вверх
+                    case BOTTOM-> gy = parent.gridY + 1;  // +Y вниз
+                    default    -> gx = parent.gridX + 1;
+                }
+
+                while (occupied.contains(keyOf.apply(gx, gy))) {
+                    gx++;
+                }
+
+                child.gridX = gx;
+                child.gridY = gy;
+                child.hasGridPos = true;
+
+                occupied.add(keyOf.apply(gx, gy));
+                q.add(child);
             }
         }
 
+        // --- перевод grid → экран ---
         for (SkillTreeNode n : tree.nodes.values()) {
-            if (!placed.contains(n.id)) {
-                n.x = centerX + SPACING;
-                n.y = centerY + SPACING;
-            }
+            int nodeScreenX =
+                    centerX + n.gridX * GRID_STEP - SkillTreeNode.FRAME_SIZE / 2;
+
+            int nodeScreenY =
+                    centerY + n.gridY * GRID_STEP - SkillTreeNode.FRAME_SIZE / 2;
+
+            n.x = nodeScreenX;
+            n.y = nodeScreenY;
         }
     }
+
 
     private static void limitOffset(SkillTreeData tree, int panelScreenX, int panelScreenY) {
         if (tree.nodes.isEmpty()) return;
@@ -406,6 +413,7 @@ public final class SkillTreeRenderer {
             SkillTreeNode parent = currentTree.nodes.get(child.parentId);
             if (parent == null) continue;
 
+            // рисуем линию только если у child и у parent выставлены позиции (они есть после calculate...)
             drawThickLine(gui,
                     parent.centerX(),
                     parent.centerY(),
@@ -503,7 +511,7 @@ public final class SkillTreeRenderer {
         }
     }
 
-    // ------ INPUT: обработка для активного дерева ------
+    // ------ INPUT: обработка для активного дерева (без изменений) ------
     public static boolean mousePressed(int mouseX, int mouseY, int button, int panelScreenX, int panelScreenY) {
         SkillTreeData currentTree = getCurrentTree();
 
@@ -563,26 +571,22 @@ public final class SkillTreeRenderer {
         return true;
     }
 
-    public static List<Integer> getAvailableTabIds() {
-        return new ArrayList<>(trees.keySet());
+    public static java.util.List<Integer> getAvailableTabIds() {
+        return new java.util.ArrayList<>(trees.keySet());
     }
 
-    // Получить максимальный ID вкладки с деревом
     public static int getMaxTabId() {
         return trees.keySet().stream().max(Integer::compareTo).orElse(-1);
     }
 
-    // Получить минимальный ID вкладки с деревом
     public static int getMinTabId() {
         return trees.keySet().stream().min(Integer::compareTo).orElse(-1);
     }
 
-    // Проверить, существует ли дерево для вкладки
     public static boolean hasTreeForTab(int tabId) {
         return trees.containsKey(tabId);
     }
 
-    // Сброс позиции для активного дерева
     public static void resetTreePosition() {
         SkillTreeData currentTree = getCurrentTree();
         currentTree.offsetX = 0;
@@ -604,14 +608,11 @@ public final class SkillTreeRenderer {
         return ItemStack.EMPTY;
     }
 
-
-    // Проверка, есть ли узлы в активном дереве
     public static boolean isEmpty() {
         SkillTreeData currentTree = trees.get(activeTreeId);
         return currentTree == null || currentTree.nodes.isEmpty();
     }
 
-    // Геттеры
     public static float getScale() {
         return getCurrentTree().scale;
     }
@@ -628,8 +629,7 @@ public final class SkillTreeRenderer {
         return trees.size();
     }
 
-    // Получить отсортированный список имен файлов
-    public static List<String> getSortedFileNames() {
-        return new ArrayList<>(sortedFileNames);
+    public static java.util.List<String> getSortedFileNames() {
+        return new java.util.ArrayList<>(sortedFileNames);
     }
 }

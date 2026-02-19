@@ -1,10 +1,24 @@
 [
-  {"id":"root","item":"minecraft:netherite_helmet","lock":false,"parent":"start"},
-  {"id":"a","item":"minecraft:bread","lock":false,"parent":"root","side":"right"},
-  {"id":"b","item":"minecraft:diamond","lock":true,"parent":"root","side":"left"},
-  {"id":"d","item":"minecraft:iron_sword","lock":true,"parent":"root","side":"top"},
-  {"id":"c","item":"minecraft:iron_sword","lock":true,"parent":"a","side":"bottom"},
-  {"id":"e","item":"minecraft:iron_sword","lock":true,"parent":"c","side":"right"},
-  {"id":"f","item":"minecraft:iron_sword","lock":true,"parent":"e","side":"right"},
-  {"id":"g","item":"minecraft:iron_sword","lock":true,"parent":"f","side":"right"}
+  {
+    "id": "root",
+    "item": "minecraft:diamond",
+    "lock": false,
+    "parent": "start",
+    "side": "RIGHT"
+  },
+  {
+    "id": "branch1",
+    "item": "minecraft:iron_ingot",
+    "parent": "root",
+    "lock": true,
+    "gridX": 4,
+    "gridY": -2
+  },
+  {
+    "id": "branch2",
+    "item": "minecraft:gold_ingot",
+    "lock": true,
+    "gridX": -2,
+    "gridY": 0
+  }
 ]

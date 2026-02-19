@@ -137,9 +137,6 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
         return SkillTreeRenderer.hasTreeForTab(globalRight) && clickTab(mx, my, panelLeft + panelW - tabW, y, tabW, globalRight);
     }
 
-
-
-
     @Unique
     private void selectTab(int id) {
         if (DamageBookRenderer.selectedBottomTab == id) return;
