@@ -122,15 +122,9 @@ public final class SkillTreeRenderer {
                 String fullPath = location.getPath();
                 String fileName = fullPath.substring(fullPath.lastIndexOf('/') + 1);
                 sortedFileNames.add(fileName);
-                System.out.println("Found skill tree file: " + fileName);
             }
 
             Collections.sort(sortedFileNames, String.CASE_INSENSITIVE_ORDER);
-
-            System.out.println("Total files found: " + sortedFileNames.size());
-            if (!sortedFileNames.isEmpty()) {
-                System.out.println("Files in alphabetical order: " + String.join(", ", sortedFileNames));
-            }
 
             int tabId = 0;
             for (String fileName : sortedFileNames) {
@@ -167,83 +161,15 @@ public final class SkillTreeRenderer {
 
                     trees.put(tabId, tree);
                     fileNameToTabId.put(fileName, tabId);
-                    System.out.println("Loaded skill tree: " + fileName + " as tab ID " + tabId);
                     tabId++;
-                } else {
-                    System.out.println("Failed to load skill tree from: " + resourcePath + " (empty or invalid)");
                 }
             }
 
-            System.out.println("Successfully loaded " + trees.size() + " skill trees");
 
         } catch (Exception e) {
             System.err.println("Error loading skill trees:");
             e.printStackTrace();
         }
-    }
-
-    private static void loadTreesFallback(String folderPath) {
-        try {
-            for (int i = 0; i <= 23; i++) {
-                String resourcePath = folderPath + "/skill_tree_" + i + ".json";
-                Object[] loaderResult = SkillTreeLoader.loadFromResource(resourcePath);
-
-                List<SkillTreeNode> list = Collections.emptyList();
-                ItemStack tabIcon = ItemStack.EMPTY;
-                if (loaderResult != null) {
-                    if (loaderResult[1] instanceof List) list = (List<SkillTreeNode>) loaderResult[1];
-                    if (loaderResult[0] instanceof ItemStack) tabIcon = (ItemStack) loaderResult[0];
-                }
-
-                if (!list.isEmpty()) {
-                    String fileName = "skill_tree_" + i + ".json";
-                    String displayName = "Tree " + i;
-
-                    SkillTreeData tree = new SkillTreeData(fileName, displayName);
-
-                    for (SkillTreeNode n : list) {
-                        tree.nodes.put(n.id, n);
-                    }
-                    rebuildChildrenMap(tree);
-
-                    tree.offsetX = 0;
-                    tree.offsetY = 0;
-                    tree.scale = 1.0f;
-                    tree.isDragging = false;
-
-                    if (tabIcon != null && !tabIcon.isEmpty()) {
-                        tree.tabIcon = tabIcon;
-                    }
-
-                    int tabId = trees.size();
-                    trees.put(tabId, tree);
-                    fileNameToTabId.put(fileName, tabId);
-                    sortedFileNames.add(fileName);
-                    System.out.println("Fallback: Loaded " + fileName + " as tab ID " + tabId);
-                }
-            }
-
-            Collections.sort(sortedFileNames, String.CASE_INSENSITIVE_ORDER);
-            System.out.println("Fallback loaded " + trees.size() + " trees");
-
-        } catch (Exception e) {
-            System.err.println("Fallback loading also failed:");
-            e.printStackTrace();
-        }
-    }
-
-    public static Integer getTabIdByFileName(String fileName) {
-        return fileNameToTabId.get(fileName);
-    }
-
-    public static String getFileNameByTabId(int tabId) {
-        SkillTreeData tree = trees.get(tabId);
-        return tree != null ? tree.fileName : null;
-    }
-
-    public static String getDisplayNameByTabId(int tabId) {
-        SkillTreeData tree = trees.get(tabId);
-        return tree != null ? tree.displayName : "Tab " + tabId;
     }
 
     private static void rebuildChildrenMap(SkillTreeData tree) {
@@ -565,18 +491,6 @@ public final class SkillTreeRenderer {
         }
 
         return true;
-    }
-
-    public static java.util.List<Integer> getAvailableTabIds() {
-        return new java.util.ArrayList<>(trees.keySet());
-    }
-
-    public static int getMaxTabId() {
-        return trees.keySet().stream().max(Integer::compareTo).orElse(-1);
-    }
-
-    public static int getMinTabId() {
-        return trees.keySet().stream().min(Integer::compareTo).orElse(-1);
     }
 
     public static boolean hasTreeForTab(int tabId) {
