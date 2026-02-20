@@ -45,6 +45,14 @@
   "death.attack.bleeding_3.player": "Вы сильно истекли кровью",
   "death.attack.poison.player": "You bled a lot",
 
+  "damagecore.skilltree.node.root": "Root",
+  "damagecore.skilltree.node.slash_1": "Slash 1",
+  "damagecore.skilltree.node.slash_2": "Slash 2",
+  "damagecore.skilltree.node.precision": "Precision",
+  "damagecore.skilltree.node.heavy_strike": "Heavy strike",
+
+  "damagecore.skilltree.locked": "Locked",
+
 
   "item.damagecore.birch_leaf": "Birch Leaf",
   "item.damagecore.heavy_belt": "Heavy Belt",

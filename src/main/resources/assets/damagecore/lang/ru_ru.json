@@ -47,6 +47,14 @@
   "death.attack.bleeding_2.player": "Вы истекли кровью",
   "death.attack.bleeding_3.player": "Вы сильно истекли кровью",
 
+  "damagecore.skilltree.node.root": "Корень",
+  "damagecore.skilltree.node.slash_1": "Нарезка 1",
+  "damagecore.skilltree.node.slash_2": "Нарезка 2",
+  "damagecore.skilltree.node.precision": "Точность",
+  "damagecore.skilltree.node.heavy_strike": "Тяжёлый выстрел",
+
+  "damagecore.skilltree.locked": "Заблокировано",
+
   "item.damagecore.birch_leaf": "Лист берёзы",
   "item.damagecore.heavy_belt": "Тяжёлый пояс",
   "item.damagecore.chlorophilosynthetic_belt": "Хлорофилосинтезный пояс",

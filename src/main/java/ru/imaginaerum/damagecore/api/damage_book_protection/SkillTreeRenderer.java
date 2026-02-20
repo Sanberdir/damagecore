@@ -28,10 +28,7 @@ public final class SkillTreeRenderer {
     public static final int PANEL_DRAW_OFFSET_Y_IN_PANEL = AREA_TEX_Y0 - PANEL_TEXTURE_V; // 8
 
     private static final int GAP = 6;
-    // spacing used for old relative layout (kept for compatibility)
     private static final int SPACING = SkillTreeNode.FRAME_SIZE + GAP;
-
-    // grid step: FRAME_SIZE + 1 pixel gap => nodes не слипнутся и не пересекутся
     private static final int GRID_STEP = SkillTreeNode.FRAME_SIZE + 1;
 
     // Карта деревьев: ключ - ID вкладки, значение - дерево
@@ -69,6 +66,9 @@ public final class SkillTreeRenderer {
         // Отображаемое имя (без расширения)
         String displayName;
 
+        // Новое поле: иконка вкладки
+        ItemStack tabIcon = ItemStack.EMPTY;
+
         SkillTreeData(String fileName, String displayName) {
             this.fileName = fileName;
             this.displayName = displayName;
@@ -79,22 +79,18 @@ public final class SkillTreeRenderer {
     private static final float MAX_SCALE = 2.0f;
     private static final float ZOOM_STEP = 0.1f;
 
-    // Текущие координаты панели для пересчета позиций
     private static int currentPanelScreenX = 0;
     private static int currentPanelScreenY = 0;
 
-    // Получить текущее активное дерево
     private static SkillTreeData getCurrentTree() {
         SkillTreeData tree = trees.get(activeTreeId);
         if (tree == null) {
-            // Если дерево не найдено, создаем пустое
             tree = new SkillTreeData("empty", "Empty Tree " + (activeTreeId + 1));
             trees.put(activeTreeId, tree);
         }
         return tree;
     }
 
-    // Установить активное дерево по ID вкладки
     public static void setActiveTree(int tabId) {
         if (tabId >= 0 && tabId < trees.size()) {
             activeTreeId = tabId;
@@ -141,7 +137,15 @@ public final class SkillTreeRenderer {
                 String resourcePath = finalPath + "/" + fileName;
                 String displayName = fileName.replace(".json", "");
 
-                List<SkillTreeNode> list = SkillTreeLoader.loadFromResource(resourcePath);
+                // Теперь загрузчик возвращает Object[]{ItemStack, List<SkillTreeNode>}
+                Object[] loaderResult = SkillTreeLoader.loadFromResource(resourcePath);
+                ItemStack tabIcon = ItemStack.EMPTY;
+                List<SkillTreeNode> list = Collections.emptyList();
+                if (loaderResult != null) {
+                    if (loaderResult[0] instanceof ItemStack) tabIcon = (ItemStack) loaderResult[0];
+                    if (loaderResult[1] instanceof List) list = (List<SkillTreeNode>) loaderResult[1];
+                }
+
                 if (!list.isEmpty()) {
                     SkillTreeData tree = new SkillTreeData(fileName, displayName);
 
@@ -155,6 +159,11 @@ public final class SkillTreeRenderer {
                     tree.offsetY = 0;
                     tree.scale = 1.0f;
                     tree.isDragging = false;
+
+                    // Устанавливаем иконку вкладки, если есть
+                    if (tabIcon != null && !tabIcon.isEmpty()) {
+                        tree.tabIcon = tabIcon;
+                    }
 
                     trees.put(tabId, tree);
                     fileNameToTabId.put(fileName, tabId);
@@ -177,7 +186,14 @@ public final class SkillTreeRenderer {
         try {
             for (int i = 0; i <= 23; i++) {
                 String resourcePath = folderPath + "/skill_tree_" + i + ".json";
-                List<SkillTreeNode> list = SkillTreeLoader.loadFromResource(resourcePath);
+                Object[] loaderResult = SkillTreeLoader.loadFromResource(resourcePath);
+
+                List<SkillTreeNode> list = Collections.emptyList();
+                ItemStack tabIcon = ItemStack.EMPTY;
+                if (loaderResult != null) {
+                    if (loaderResult[1] instanceof List) list = (List<SkillTreeNode>) loaderResult[1];
+                    if (loaderResult[0] instanceof ItemStack) tabIcon = (ItemStack) loaderResult[0];
+                }
 
                 if (!list.isEmpty()) {
                     String fileName = "skill_tree_" + i + ".json";
@@ -194,6 +210,10 @@ public final class SkillTreeRenderer {
                     tree.offsetY = 0;
                     tree.scale = 1.0f;
                     tree.isDragging = false;
+
+                    if (tabIcon != null && !tabIcon.isEmpty()) {
+                        tree.tabIcon = tabIcon;
+                    }
 
                     int tabId = trees.size();
                     trees.put(tabId, tree);
@@ -235,9 +255,6 @@ public final class SkillTreeRenderer {
         }
     }
 
-    // Новая логика: grid-based placement
-    // Если у узла указана grid-позиция -> используем её (жёстко).
-    // Иначе: BFS от root, выставляем integer grid координаты (gx, gy) с шагом GRID_STEP.
     private static void calculateAndUpdatePositions(SkillTreeData tree,
                                                     int panelScreenX,
                                                     int panelScreenY) {
@@ -249,7 +266,6 @@ public final class SkillTreeRenderer {
         int centerX = areaX + AREA_WIDTH / 2 + tree.offsetX;
         int centerY = areaY + AREA_HEIGHT / 2 + tree.offsetY;
 
-        // --- поиск стартового узла ---
         SkillTreeNode start = tree.nodes.values().stream()
                 .filter(n -> n.parentId == null || "start".equalsIgnoreCase(n.parentId))
                 .findFirst().orElse(null);
@@ -269,14 +285,12 @@ public final class SkillTreeRenderer {
         Queue<SkillTreeNode> q = new ArrayDeque<>();
         q.add(start);
 
-        // резервируем заранее заданные grid-позиции
         for (SkillTreeNode n : tree.nodes.values()) {
             if (n.hasGridPos) {
                 occupied.add(keyOf.apply(n.gridX, n.gridY));
             }
         }
 
-        // --- BFS размещение ---
         while (!q.isEmpty()) {
             SkillTreeNode parent = q.poll();
             List<SkillTreeNode> children =
@@ -296,8 +310,8 @@ public final class SkillTreeRenderer {
                 switch (child.side) {
                     case RIGHT -> gx = parent.gridX + 1;
                     case LEFT  -> gx = parent.gridX - 1;
-                    case TOP   -> gy = parent.gridY - 1;  // -Y вверх
-                    case BOTTOM-> gy = parent.gridY + 1;  // +Y вниз
+                    case TOP   -> gy = parent.gridY - 1;
+                    case BOTTOM-> gy = parent.gridY + 1;
                     default    -> gx = parent.gridX + 1;
                 }
 
@@ -314,19 +328,17 @@ public final class SkillTreeRenderer {
             }
         }
 
-        // --- перевод grid → экран ---
         for (SkillTreeNode n : tree.nodes.values()) {
             int nodeScreenX =
                     centerX + n.gridX * GRID_STEP - SkillTreeNode.FRAME_SIZE / 2;
 
             int nodeScreenY =
-                    centerY + n.gridY * GRID_STEP - SkillTreeNode.FRAME_SIZE / 2;
+                    centerY - n.gridY * GRID_STEP - SkillTreeNode.FRAME_SIZE / 2;
 
             n.x = nodeScreenX;
             n.y = nodeScreenY;
         }
     }
-
 
     private static void limitOffset(SkillTreeData tree, int panelScreenX, int panelScreenY) {
         if (tree.nodes.isEmpty()) return;
@@ -404,16 +416,15 @@ public final class SkillTreeRenderer {
         pose.scale(currentTree.scale, currentTree.scale, 1f);
         pose.translate(-pivotX, -pivotY, 0);
 
-        // -------- ЛИНИИ --------
         int lineColor = 0xFF000000;
 
+        // линии между нодами
         for (SkillTreeNode child : currentTree.nodes.values()) {
             if (child.parentId == null || "start".equalsIgnoreCase(child.parentId)) continue;
 
             SkillTreeNode parent = currentTree.nodes.get(child.parentId);
             if (parent == null) continue;
 
-            // рисуем линию только если у child и у parent выставлены позиции (они есть после calculate...)
             drawThickLine(gui,
                     parent.centerX(),
                     parent.centerY(),
@@ -423,17 +434,31 @@ public final class SkillTreeRenderer {
                     lineColor);
         }
 
-        // -------- НОДЫ --------
+        // корректируем координаты мыши под scale
+        float scale = currentTree.scale;
+        int unscaledMouseX = (int) ((mouseX - pivotX) / scale + pivotX);
+        int unscaledMouseY = (int) ((mouseY - pivotY) / scale + pivotY);
+
+        // ноды
         for (SkillTreeNode n : currentTree.nodes.values()) {
             int frameSize = SkillTreeNode.FRAME_SIZE;
             int padding = SkillTreeNode.FRAME_PADDING;
 
+            // рамка нода
             gui.fill(n.x, n.y, n.x + frameSize, n.y + frameSize, 0xFF333333);
+
+            // фон нода с подсветкой
+            int innerColor = 0xFF777777; // стандартный цвет
+            if (n.containsPoint(unscaledMouseX, unscaledMouseY, 1.0f)) {
+                innerColor = n.locked ? 0xFF444444 : 0xAAFFFFFF; // серо-чёрный или полупрозрачный бело-серый
+            }
+
             gui.fill(n.x + padding, n.y + padding,
                     n.x + frameSize - padding,
                     n.y + frameSize - padding,
-                    0xFF777777);
+                    innerColor);
 
+            // предмет в центре
             int itemX = n.x + (frameSize - 16) / 2;
             int itemY = n.y + (frameSize - 16) / 2;
 
@@ -447,7 +472,6 @@ public final class SkillTreeRenderer {
             gui.disableScissor();
         }
 
-        // -------- ИНФОРМАЦИЯ О ДЕРЕВЕ --------
         Font font = Minecraft.getInstance().font;
         String scaleText = String.format("%.0f%%", currentTree.scale * 100);
         String treeName = currentTree.displayName + " (Tab " + (activeTreeId + 1) + "/" + trees.size() + ")";
@@ -464,18 +488,29 @@ public final class SkillTreeRenderer {
         gui.drawString(font, treeName, textX, textY, 0xFFFFFFAA, true);
         gui.drawString(font, scaleText, textX, textY + font.lineHeight + 2, 0xFFFFFFFF, true);
 
-        // -------- TOOLTIP --------
+        // тултип
+        PoseStack tooltipPose = gui.pose();
+        tooltipPose.pushPose();
+        tooltipPose.translate(0, 0, 200); // поднимаем над всем
+
         for (SkillTreeNode n : currentTree.nodes.values()) {
-            if (n.containsPoint(mouseX, mouseY, currentTree.scale)) {
-                gui.drawString(font,
-                        n.id + (n.locked ? " (locked)" : ""),
-                        mouseX + 10,
-                        mouseY + 6,
-                        0xFFFFFFFF,
-                        false);
+            if (n.containsPoint(unscaledMouseX, unscaledMouseY, 1.0f)) {
+                // старый вариант:
+                // gui.drawString(font, n.id + (n.locked ? " (locked)" : ""), mouseX + 10, mouseY + 6, 0xFFFFFFFF, false);
+
+                // новый вариант с translatable
+                String key = "damagecore.skilltree.node." + n.id; // ключ для перевода имени ноды
+                String text = net.minecraft.network.chat.Component.translatable(key).getString();
+                if (n.locked) {
+                    text += " (" + net.minecraft.network.chat.Component.translatable("damagecore.skilltree.locked").getString() + ")";
+                }
+
+                gui.drawString(font, text, mouseX + 10, mouseY + 6, 0xFFFFFFFF, false);
                 break;
             }
         }
+
+        tooltipPose.popPose();
     }
 
     private static void drawThickLine(
@@ -593,14 +628,24 @@ public final class SkillTreeRenderer {
         currentTree.offsetY = 0;
         currentTree.scale = 1.0f;
     }
+
+    // Возвращает иконку для вкладки: сначала tabIcon, затем fallback на root-node
     public static ItemStack getRootIcon(int treeId) {
         SkillTreeData data = trees.get(treeId);
-        if (data == null || data.nodes == null) {
+        if (data == null) {
+            return ItemStack.EMPTY;
+        }
+
+        if (data.tabIcon != null && !data.tabIcon.isEmpty()) {
+            return data.tabIcon;
+        }
+
+        if (data.nodes == null) {
             return ItemStack.EMPTY;
         }
 
         for (SkillTreeNode n : data.nodes.values()) {
-            if ("start".equals(n.parentId)) {
+            if ("start".equalsIgnoreCase(n.parentId) || "root".equalsIgnoreCase(n.id)) {
                 return n.itemStack;
             }
         }
