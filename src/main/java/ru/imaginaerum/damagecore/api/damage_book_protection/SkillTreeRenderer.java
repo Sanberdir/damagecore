@@ -340,45 +340,6 @@ public final class SkillTreeRenderer {
         }
     }
 
-    private static void limitOffset(SkillTreeData tree, int panelScreenX, int panelScreenY) {
-        if (tree.nodes.isEmpty()) return;
-
-        int areaX = panelScreenX + PANEL_DRAW_OFFSET_X_IN_PANEL;
-        int areaY = panelScreenY + PANEL_DRAW_OFFSET_Y_IN_PANEL;
-
-        int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE;
-        int minY = Integer.MAX_VALUE, maxY = Integer.MIN_VALUE;
-
-        for (SkillTreeNode n : tree.nodes.values()) {
-            int nodeScreenX = n.x;
-            int nodeScreenY = n.y;
-            int frameSize = (int)(SkillTreeNode.FRAME_SIZE * tree.scale);
-
-            minX = Math.min(minX, nodeScreenX);
-            maxX = Math.max(maxX, nodeScreenX + frameSize);
-            minY = Math.min(minY, nodeScreenY);
-            maxY = Math.max(maxY, nodeScreenY + frameSize);
-        }
-
-        int padding = 20;
-
-        int minOffsetX = -(minX - areaX - padding);
-        int maxOffsetX = areaX + AREA_WIDTH - maxX - padding;
-        int minOffsetY = -(minY - areaY - padding);
-        int maxOffsetY = areaY + AREA_HEIGHT - maxY - padding;
-
-        if (minOffsetX < maxOffsetX) {
-            tree.offsetX = Math.max(minOffsetX, Math.min(maxOffsetX, tree.offsetX));
-        } else {
-            tree.offsetX = (minOffsetX + maxOffsetX) / 2;
-        }
-
-        if (minOffsetY < maxOffsetY) {
-            tree.offsetY = Math.max(minOffsetY, Math.min(maxOffsetY, tree.offsetY));
-        } else {
-            tree.offsetY = (minOffsetY + maxOffsetY) / 2;
-        }
-    }
 
     public static void render(GuiGraphics gui, InventoryScreen screen,
                               int panelScreenX, int panelScreenY,
@@ -391,8 +352,8 @@ public final class SkillTreeRenderer {
         currentPanelScreenY = panelScreenY;
 
         if (currentTree.isDragging) {
-            currentTree.offsetX = currentTree.dragStartOffsetX + (mouseX - currentTree.dragStartX);
-            currentTree.offsetY = currentTree.dragStartOffsetY + (mouseY - currentTree.dragStartY);
+            currentTree.offsetX = currentTree.dragStartOffsetX + (int)((mouseX - currentTree.dragStartX) / currentTree.scale);
+            currentTree.offsetY = currentTree.dragStartOffsetY + (int)((mouseY - currentTree.dragStartY) / currentTree.scale);
         }
 
         calculateAndUpdatePositions(currentTree, panelScreenX, panelScreenY);
@@ -583,11 +544,11 @@ public final class SkillTreeRenderer {
 
         if (deltaX == 0 && deltaY == 0) return false;
 
-        currentTree.offsetX = currentTree.dragStartOffsetX + deltaX;
-        currentTree.offsetY = currentTree.dragStartOffsetY + deltaY;
+        currentTree.offsetX = currentTree.dragStartOffsetX + (int)(deltaX / currentTree.scale);
+        currentTree.offsetY = currentTree.dragStartOffsetY + (int)(deltaY / currentTree.scale);
 
         calculateAndUpdatePositions(currentTree, panelScreenX, panelScreenY);
-        limitOffset(currentTree, panelScreenX, panelScreenY);
+
 
         return true;
     }
