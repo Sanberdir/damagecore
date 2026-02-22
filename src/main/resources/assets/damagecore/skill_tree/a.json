@@ -8,7 +8,6 @@
       "gridX": 0,
       "gridY": 0
     },
-
     {
       "id": "slash_1",
       "item": "minecraft:stone_sword",
@@ -16,7 +15,6 @@
       "gridX": 1,
       "gridY": 2
     },
-
     {
       "id": "slash_2",
       "item": "minecraft:golden_sword",
@@ -24,7 +22,6 @@
       "gridX": -2,
       "gridY": 3
     },
-
     {
       "id": "precision",
       "item": "minecraft:crossbow",
@@ -32,14 +29,18 @@
       "gridX": 2,
       "gridY": -3
     },
-
     {
       "id": "heavy_strike",
       "item": "minecraft:netherite_sword",
       "parent": "root",
       "gridX": 3,
       "gridY": -2,
-      "lock": true
+      "lock": true,
+      "variants": [
+        { "id": "heavy_fire", "item": "minecraft:blaze_powder" },
+        { "id": "heavy_frost", "item": "minecraft:packed_ice" },
+        { "id": "heavy_force", "item": "minecraft:anvil" }
+      ]
     }
   ]
 }

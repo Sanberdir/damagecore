@@ -66,7 +66,7 @@ public final class SkillTreeLoader {
                             if (maybe != null) {
                                 tabIconStack = new ItemStack(maybe);
                             } else {
-                                tabIconStack = new ItemStack(Items.BARRIER); // явный фолбек
+                                tabIconStack = new ItemStack(Items.BARRIER);
                             }
                         }
                     } catch (Exception ignored) {
@@ -106,13 +106,39 @@ public final class SkillTreeLoader {
 
                         SkillTreeNode node = new SkillTreeNode(id, new ItemStack(item), lock, parent, side);
 
-                        // optional grid positions: gridX / gridY (integers)
+                        // optional grid positions: gridX / gridY
                         if (obj.has("gridX") && obj.has("gridY")) {
                             try {
                                 int gx = obj.get("gridX").getAsInt();
                                 int gy = obj.get("gridY").getAsInt();
                                 node.setGridPos(gx, gy);
                             } catch (Exception ignored) {}
+                        }
+
+                        // NEW: parse variants array (опционально)
+                        // NEW: parse variants array (опционально)
+                        // NEW: parse variants array (опционально)
+                        if (obj.has("variants") && obj.get("variants").isJsonArray()) {
+                            JsonArray vars = obj.getAsJsonArray("variants");
+                            for (JsonElement ve : vars) {
+                                if (!ve.isJsonObject()) continue;
+                                JsonObject vo = ve.getAsJsonObject();
+                                if (!vo.has("item")) continue;
+
+                                String variantId = vo.has("id") ? vo.get("id").getAsString() : UUID.randomUUID().toString();
+                                String variantItemStr = vo.get("item").getAsString();
+                                if (variantItemStr == null || variantItemStr.isBlank()) continue;
+
+                                try {
+                                    ResourceLocation itemRL = new ResourceLocation(variantItemStr);
+                                    Item maybe = ForgeRegistries.ITEMS.getValue(itemRL);
+                                    if (maybe != null) {
+                                        SkillTreeNode.Variant variant = new SkillTreeNode.Variant(variantId, new ItemStack(maybe));
+                                        node.variants.add(variant);         // для логики выбора
+                                        node.options.add(variant.stack);     // для рендера круга опций
+                                    }
+                                } catch (Exception ignored) {}
+                            }
                         }
 
                         result.add(node);

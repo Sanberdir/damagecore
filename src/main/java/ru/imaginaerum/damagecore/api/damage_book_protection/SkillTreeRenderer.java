@@ -30,6 +30,9 @@ public final class SkillTreeRenderer {
     private static final int GAP = 6;
     private static final int SPACING = SkillTreeNode.FRAME_SIZE + GAP;
     private static final int GRID_STEP = SkillTreeNode.FRAME_SIZE + 1;
+    private static final int OPTION_SIZE = 18; // размер ячейки опции (внутри масштабирования)
+    private static final int OPTION_BASE_RADIUS = 28; // базовый радиус от центра ноды до центра ячейки опции
+    private static final int OPTION_RADIUS_STEP = 8;  // дополнительный шаг радиуса при росте числа опций
 
     // Карта деревьев: ключ - ID вкладки, значение - дерево
     private static final Map<Integer, SkillTreeData> trees = new ConcurrentHashMap<>();
@@ -48,31 +51,74 @@ public final class SkillTreeRenderer {
         final Map<String, SkillTreeNode> nodes = new LinkedHashMap<>();
         final Map<String, List<SkillTreeNode>> childrenMap = new HashMap<>();
 
-        // Состояние перетаскивания для каждого дерева
         boolean isDragging = false;
         int dragStartX = 0;
         int dragStartY = 0;
         int dragStartOffsetX = 0;
         int dragStartOffsetY = 0;
 
-        // Текущее смещение дерева (пан/приближение)
         int offsetX = 0;
         int offsetY = 0;
 
         float scale = 1.0f;
 
-        // Имя дерева (имя файла)
         String fileName;
-        // Отображаемое имя (без расширения)
         String displayName;
 
-        // Новое поле: иконка вкладки
         ItemStack tabIcon = ItemStack.EMPTY;
+
+        // NEW: активное меню опций: id ноды или null
+        String activeOptionsNodeId = null;
 
         SkillTreeData(String fileName, String displayName) {
             this.fileName = fileName;
             this.displayName = displayName;
         }
+    }
+
+    // Открыть меню опций для ноды (возвращает true если открылось)
+    private static boolean openOptionsForNode(SkillTreeData tree, SkillTreeNode node) {
+        if (node == null || node.options == null || node.options.isEmpty()) return false;
+        tree.activeOptionsNodeId = node.id;
+        return true;
+    }
+
+    private static void closeOptions(SkillTreeData tree) {
+        tree.activeOptionsNodeId = null;
+    }
+
+    // Проверяет и возвращает индекс опции под мышью или -1, если нет
+    private static int optionIndexAtPoint(SkillTreeNode node, int px, int py, int optionSize) {
+        int n = node.options.size();
+        if (n == 0) return -1;
+
+        int radius = OPTION_BASE_RADIUS + Math.max(0, n - 1) * OPTION_RADIUS_STEP;
+
+        for (int i = 0; i < n; i++) {
+            double angle = 2.0 * Math.PI * i / n;
+            int cx = node.centerX() + (int)Math.round(radius * Math.cos(angle));
+            int cy = node.centerY() + (int)Math.round(radius * Math.sin(angle));
+
+            int left = cx - optionSize / 2;
+            int top  = cy - optionSize / 2;
+
+            if (px >= left && px < left + optionSize && py >= top && py < top + optionSize) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    // Возвращает координаты центра i-й опции (в screen coords, уже для рендеринга)
+    private static int[] optionCenterForIndex(SkillTreeNode node, int index) {
+        int n = node.options.size();
+        if (n == 0) return new int[] { node.centerX(), node.centerY() };
+
+        int radius = OPTION_BASE_RADIUS + Math.max(0, n - 1) * OPTION_RADIUS_STEP;
+        double angle = 2.0 * Math.PI * index / n;
+        int cx = node.centerX() + (int)Math.round(radius * Math.cos(angle));
+        int cy = node.centerY() + (int)Math.round(radius * Math.sin(angle));
+        return new int[] { cx, cy };
     }
 
     private static final float MIN_SCALE = 0.5f;
@@ -294,24 +340,22 @@ public final class SkillTreeRenderer {
         }
 
         PoseStack pose = gui.pose();
-        pose.pushPose();
 
         int pivotX = clipX1 + AREA_WIDTH / 2;
         int pivotY = clipY1 + AREA_HEIGHT / 2;
 
+        // --- 1. Линии + все ноды ---
+        pose.pushPose();
         pose.translate(pivotX, pivotY, 0);
         pose.scale(currentTree.scale, currentTree.scale, 1f);
         pose.translate(-pivotX, -pivotY, 0);
 
         int lineColor = 0xFF000000;
 
-        // линии между нодами
         for (SkillTreeNode child : currentTree.nodes.values()) {
             if (child.parentId == null || "start".equalsIgnoreCase(child.parentId)) continue;
-
             SkillTreeNode parent = currentTree.nodes.get(child.parentId);
             if (parent == null) continue;
-
             drawThickLine(gui,
                     parent.centerX(),
                     parent.centerY(),
@@ -321,44 +365,108 @@ public final class SkillTreeRenderer {
                     lineColor);
         }
 
-        // корректируем координаты мыши под scale
+        // Координаты мыши под scale
         float scale = currentTree.scale;
         int unscaledMouseX = (int) ((mouseX - pivotX) / scale + pivotX);
         int unscaledMouseY = (int) ((mouseY - pivotY) / scale + pivotY);
 
-        // ноды
         for (SkillTreeNode n : currentTree.nodes.values()) {
             int frameSize = SkillTreeNode.FRAME_SIZE;
             int padding = SkillTreeNode.FRAME_PADDING;
 
-            // рамка нода
+            // рамка
             gui.fill(n.x, n.y, n.x + frameSize, n.y + frameSize, 0xFF333333);
 
-            // фон нода с подсветкой
-            int innerColor = 0xFF777777; // стандартный цвет
-            if (n.containsPoint(unscaledMouseX, unscaledMouseY, 1.0f)) {
-                innerColor = n.locked ? 0xFF444444 : 0xAAFFFFFF; // серо-чёрный или полупрозрачный бело-серый
+            // фон ноды
+            int innerColor = 0xFF777777;
+            if (n.containsPoint(unscaledMouseX, unscaledMouseY)) {
+                innerColor = n.locked ? 0xFF444444 : 0xAAFFFFFF;
             }
-
             gui.fill(n.x + padding, n.y + padding,
                     n.x + frameSize - padding,
                     n.y + frameSize - padding,
                     innerColor);
 
-            // предмет в центре
+            // предмет
             int itemX = n.x + (frameSize - 16) / 2;
             int itemY = n.y + (frameSize - 16) / 2;
-
             gui.renderItem(n.itemStack, itemX, itemY);
             gui.renderItemDecorations(Minecraft.getInstance().font, n.itemStack, itemX, itemY);
         }
-
         pose.popPose();
+
+        // --- 2. Затемнение всего дерева (без scale) ---
+        if (currentTree.activeOptionsNodeId != null) {
+            gui.fill(clipX1, clipY1, clipX2, clipY2, 0xAA000000);
+        }
+
+        // --- 3. Активная нода + её опции (с scale) ---
+        if (currentTree.activeOptionsNodeId != null) {
+            SkillTreeNode clicked = currentTree.nodes.get(currentTree.activeOptionsNodeId);
+            if (clicked != null) {
+                pose.pushPose();
+                pose.translate(pivotX, pivotY, 0);
+                pose.scale(currentTree.scale, currentTree.scale, 1f);
+                pose.translate(-pivotX, -pivotY, 0);
+
+                int frameSize = SkillTreeNode.FRAME_SIZE;
+                int padding = SkillTreeNode.FRAME_PADDING;
+
+                // рамка
+                gui.fill(clicked.x, clicked.y, clicked.x + frameSize, clicked.y + frameSize, 0xFF333333);
+
+                // яркий фон
+                int brightInner = clicked.locked ? 0xFF444444 : 0xFFFFFFFF;
+                gui.fill(clicked.x + padding, clicked.y + padding,
+                        clicked.x + frameSize - padding,
+                        clicked.y + frameSize - padding,
+                        brightInner);
+
+                // предмет
+                int itemX = clicked.x + (frameSize - 16) / 2;
+                int itemY = clicked.y + (frameSize - 16) / 2;
+                gui.renderItem(clicked.itemStack, itemX, itemY);
+                gui.renderItemDecorations(Minecraft.getInstance().font, clicked.itemStack, itemX, itemY);
+
+                // опции
+                if (!clicked.options.isEmpty()) {
+                    int n = clicked.options.size();
+                    for (int i = 0; i < n; i++) {
+                        int[] center = optionCenterForIndex(clicked, i);
+                        int cx = center[0];
+                        int cy = center[1];
+
+                        int left = cx - OPTION_SIZE / 2;
+                        int top = cy - OPTION_SIZE / 2;
+
+                        boolean hover = (unscaledMouseX >= left && unscaledMouseX < left + OPTION_SIZE
+                                && unscaledMouseY >= top && unscaledMouseY < top + OPTION_SIZE);
+
+                        int bg;
+                        if (clicked.selectedOption >= 0 && clicked.selectedOption == i) {
+                            bg = 0xFFFFFFFF;
+                        } else if (hover) {
+                            bg = 0xAAFFFFFF;
+                        } else {
+                            bg = 0xDD555555;
+                        }
+
+                        gui.fill(left, top, left + OPTION_SIZE, top + OPTION_SIZE, bg);
+
+                        gui.renderItem(clicked.options.get(i), left + (OPTION_SIZE - 16) / 2,
+                                top + (OPTION_SIZE - 16) / 2);
+                    }
+                }
+
+                pose.popPose();
+            }
+        }
 
         if (clipX2 > clipX1 && clipY2 > clipY1) {
             gui.disableScissor();
         }
 
+        // --- текст и тултипы (не изменялось) ---
         Font font = Minecraft.getInstance().font;
         String scaleText = String.format("%.0f%%", currentTree.scale * 100);
         String treeName = currentTree.displayName + " (Tab " + (activeTreeId + 1) + "/" + trees.size() + ")";
@@ -371,32 +479,24 @@ public final class SkillTreeRenderer {
         int maxW = Math.max(w1, w2);
 
         gui.fill(textX - 2, textY - 2, textX + maxW + 2, textY + font.lineHeight * 2 + 4, 0xAA000000);
-
         gui.drawString(font, treeName, textX, textY, 0xFFFFFFAA, true);
         gui.drawString(font, scaleText, textX, textY + font.lineHeight + 2, 0xFFFFFFFF, true);
 
-        // тултип
         PoseStack tooltipPose = gui.pose();
         tooltipPose.pushPose();
-        tooltipPose.translate(0, 0, 200); // поднимаем над всем
+        tooltipPose.translate(0, 0, 200);
 
         for (SkillTreeNode n : currentTree.nodes.values()) {
-            if (n.containsPoint(unscaledMouseX, unscaledMouseY, 1.0f)) {
-                // старый вариант:
-                // gui.drawString(font, n.id + (n.locked ? " (locked)" : ""), mouseX + 10, mouseY + 6, 0xFFFFFFFF, false);
-
-                // новый вариант с translatable
-                String key = "damagecore.skilltree.node." + n.id; // ключ для перевода имени ноды
+            if (n.containsPoint(unscaledMouseX, unscaledMouseY)) {
+                String key = "damagecore.skilltree.node." + n.id;
                 String text = net.minecraft.network.chat.Component.translatable(key).getString();
                 if (n.locked) {
                     text += " (" + net.minecraft.network.chat.Component.translatable("damagecore.skilltree.locked").getString() + ")";
                 }
-
                 gui.drawString(font, text, mouseX + 10, mouseY + 6, 0xFFFFFFFF, false);
                 break;
             }
         }
-
         tooltipPose.popPose();
     }
 
@@ -440,8 +540,72 @@ public final class SkillTreeRenderer {
         int areaX = panelScreenX + PANEL_DRAW_OFFSET_X_IN_PANEL;
         int areaY = panelScreenY + PANEL_DRAW_OFFSET_Y_IN_PANEL;
 
-        if (mouseX >= areaX && mouseX <= areaX + AREA_WIDTH &&
-                mouseY >= areaY && mouseY <= areaY + AREA_HEIGHT) {
+        // если клик вне области дерева, но было открыто меню — закрываем его
+        if (!(mouseX >= areaX && mouseX <= areaX + AREA_WIDTH &&
+                mouseY >= areaY && mouseY <= areaY + AREA_HEIGHT)) {
+            if (currentTree.activeOptionsNodeId != null) {
+                closeOptions(currentTree);
+                return true; // потребляем, чтобы клик не дальше не дошёл
+            }
+            return false;
+        }
+
+        // вычислим unscaled coords (как в render)
+        int clipX1 = panelScreenX + PANEL_DRAW_OFFSET_X_IN_PANEL;
+        int clipY1 = panelScreenY + PANEL_DRAW_OFFSET_Y_IN_PANEL;
+        int pivotX = clipX1 + AREA_WIDTH / 2;
+        int pivotY = clipY1 + AREA_HEIGHT / 2;
+        float scale = currentTree.scale;
+        int unscaledMouseX = (int) ((mouseX - pivotX) / scale + pivotX);
+        int unscaledMouseY = (int) ((mouseY - pivotY) / scale + pivotY);
+
+        // Если меню опций уже открыто, проверяем попал ли клик по одной из опций
+        if (currentTree.activeOptionsNodeId != null) {
+            SkillTreeNode node = currentTree.nodes.get(currentTree.activeOptionsNodeId);
+            if (node != null && !node.options.isEmpty()) {
+                int idx = optionIndexAtPoint(node, unscaledMouseX, unscaledMouseY, OPTION_SIZE);
+                if (idx >= 0) {
+                    // выбрали опцию — сохраняем
+                    node.selectedOption = idx;
+                    // тут можно отправить пакет на сервер, если нужна синхронизация
+                    closeOptions(currentTree);
+                    return true;
+                } else {
+                    // кликнули вне опций внутри области => закрываем меню
+                    closeOptions(currentTree);
+                    return true;
+                }
+            } else {
+                closeOptions(currentTree);
+                return true;
+            }
+        }
+
+        // Если меню не открыто — проверяем клик по ноде
+        for (SkillTreeNode node : currentTree.nodes.values()) {
+            if (node.containsPoint(unscaledMouseX, unscaledMouseY)) {
+                System.out.println("Clicked node: " + node.id + " options: " + node.options.size());
+                // если у ноды есть варианты — открыть меню
+                if (node.options != null && !node.options.isEmpty()) {
+                    openOptionsForNode(currentTree, node);
+                    return true;
+                } else {
+                    // иначе не открываем — начинаем перетаскивание (если левый клик)
+                    if (button == 0) {
+                        currentTree.isDragging = true;
+                        currentTree.dragStartX = mouseX;
+                        currentTree.dragStartY = mouseY;
+                        currentTree.dragStartOffsetX = currentTree.offsetX;
+                        currentTree.dragStartOffsetY = currentTree.offsetY;
+                        return true;
+                    }
+                    return false;
+                }
+            }
+        }
+
+        // Если клик по пустому месту — начинаем перетаскивание (левый клик)
+        if (button == 0) {
             currentTree.isDragging = true;
             currentTree.dragStartX = mouseX;
             currentTree.dragStartY = mouseY;
@@ -449,6 +613,7 @@ public final class SkillTreeRenderer {
             currentTree.dragStartOffsetY = currentTree.offsetY;
             return true;
         }
+
         return false;
     }
 

@@ -2,6 +2,9 @@ package ru.imaginaerum.damagecore.api.damage_book_protection;
 
 import net.minecraft.world.item.ItemStack;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public final class SkillTreeNode {
     public enum Side { START, LEFT, RIGHT, TOP, BOTTOM }
 
@@ -23,6 +26,12 @@ public final class SkillTreeNode {
     public static final int FRAME_SIZE = 24; // размер квадрата рамки (в пикселях)
     public static final int FRAME_PADDING = 2; // внутренняя рамка/отступ при рисовании
 
+    // Новое: варианты для ноды (может быть пусто)
+    public final List<ItemStack> options = new ArrayList<>();
+
+    // Индекс выбранного варианта (-1 = ничего не выбрано)
+    public int selectedOption = -1;
+
     public SkillTreeNode(String id, ItemStack itemStack, boolean locked, String parentId, Side side) {
         this.id = id;
         this.itemStack = itemStack;
@@ -42,7 +51,17 @@ public final class SkillTreeNode {
         this.gridX = gx;
         this.gridY = gy;
     }
+    public static class Variant {
+        public final String id;
+        public final ItemStack stack;
 
+        public Variant(String id, ItemStack stack) {
+            this.id = id;
+            this.stack = stack;
+        }
+    }
+
+    public final List<Variant> variants = new ArrayList<>();
     public int centerX() {
         return x + FRAME_SIZE / 2;
     }
@@ -50,10 +69,8 @@ public final class SkillTreeNode {
     public int centerY() {
         return y + FRAME_SIZE / 2;
     }
-
-    public boolean containsPoint(int px, int py, float scale) {
-        int size = (int)(FRAME_SIZE * scale);
-        return px >= x && px < x + size && py >= y && py < y + size;
+    public boolean containsPoint(int px, int py) {
+        return px >= x && px < x + FRAME_SIZE
+                && py >= y && py < y + FRAME_SIZE;
     }
-
 }
