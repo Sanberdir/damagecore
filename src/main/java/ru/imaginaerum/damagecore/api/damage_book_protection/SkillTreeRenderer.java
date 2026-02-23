@@ -429,8 +429,16 @@ public final class SkillTreeRenderer {
                 gui.renderItemDecorations(Minecraft.getInstance().font, clicked.itemStack, itemX, itemY);
 
                 // опции
+                // опции (варианты) — рисуем выше по Z, чтобы они точно были поверх
                 if (!clicked.options.isEmpty()) {
                     int n = clicked.options.size();
+
+                    // Поднимаем Z — оставляем все трансформации (pivot/scale) нетронутыми,
+                    // чтобы варианты оставались на своих позициях и масштабировались вместе с деревом,
+                    // но рендерились поверх всего остального.
+                    pose.pushPose();
+                    pose.translate(0.0f, 0.0f, 200.0f); // при необходимости увеличить (например 400f)
+
                     for (int i = 0; i < n; i++) {
                         int[] center = optionCenterForIndex(clicked, i);
                         int cx = center[0];
@@ -453,9 +461,14 @@ public final class SkillTreeRenderer {
 
                         gui.fill(left, top, left + OPTION_SIZE, top + OPTION_SIZE, bg);
 
+                        // renderItem уважает текущий PoseStack — поэтому иконки будут на том же "z"
                         gui.renderItem(clicked.options.get(i), left + (OPTION_SIZE - 16) / 2,
                                 top + (OPTION_SIZE - 16) / 2);
+                        gui.renderItemDecorations(Minecraft.getInstance().font, clicked.options.get(i),
+                                left + (OPTION_SIZE - 16) / 2, top + (OPTION_SIZE - 16) / 2);
                     }
+
+                    pose.popPose();
                 }
 
                 pose.popPose();
