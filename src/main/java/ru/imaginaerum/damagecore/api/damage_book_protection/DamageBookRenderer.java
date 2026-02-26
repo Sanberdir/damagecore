@@ -8,6 +8,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.alchemy.PotionUtils;
 import net.minecraft.world.item.alchemy.Potions;
+import ru.imaginaerum.damagecore.api.damage_book_protection.skill_tree_renderer.Render;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -165,7 +166,7 @@ public final class DamageBookRenderer {
         }
 
         // рисуем дерево (внутри SkillTreeRenderer учтёт global selectedBottomTab)
-        SkillTreeRenderer.render(gui, screen, panelLeft, panelTop, mouseX, mouseY);
+        Render.render(gui, screen, panelLeft, panelTop, mouseX, mouseY);
     }
 
     private static void drawMiddleRow(GuiGraphics gui, int panelLeft, int panelW, int y, int tabW, boolean bottom, int mouseX, int mouseY) {
