@@ -115,9 +115,6 @@ public final class SkillTreeLoader {
                             } catch (Exception ignored) {}
                         }
 
-                        // NEW: parse variants array (опционально)
-                        // NEW: parse variants array (опционально)
-                        // NEW: parse variants array (опционально)
                         if (obj.has("variants") && obj.get("variants").isJsonArray()) {
                             JsonArray vars = obj.getAsJsonArray("variants");
                             for (JsonElement ve : vars) {

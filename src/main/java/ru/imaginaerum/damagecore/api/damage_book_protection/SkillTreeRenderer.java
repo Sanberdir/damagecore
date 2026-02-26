@@ -1,14 +1,8 @@
 package ru.imaginaerum.damagecore.api.damage_book_protection;
 
-import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.screens.inventory.InventoryScreen;
-import net.minecraft.client.gui.Font;
-import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.world.item.ItemStack;
 
-import java.io.InputStream;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -107,18 +101,6 @@ public final class SkillTreeRenderer {
             }
         }
         return -1;
-    }
-
-    // Возвращает координаты центра i-й опции (в screen coords, уже для рендеринга)
-    private static int[] optionCenterForIndex(SkillTreeNode node, int index) {
-        int n = node.options.size();
-        if (n == 0) return new int[] { node.centerX(), node.centerY() };
-
-        int radius = OPTION_BASE_RADIUS + Math.max(0, n - 1) * OPTION_RADIUS_STEP;
-        double angle = 2.0 * Math.PI * index / n;
-        int cx = node.centerX() + (int)Math.round(radius * Math.cos(angle));
-        int cy = node.centerY() + (int)Math.round(radius * Math.sin(angle));
-        return new int[] { cx, cy };
     }
 
     private static final float MIN_SCALE = 0.5f;

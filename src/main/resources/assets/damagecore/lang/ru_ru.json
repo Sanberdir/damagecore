@@ -53,6 +53,8 @@
   "damagecore.skilltree.node.precision": "Точность",
   "damagecore.skilltree.node.heavy_strike": "Тяжёлый выстрел",
 
+  "damagecore.skilltree.node.root.desc": "Увеличивает рубящий урон на 5 процентов.Увеличивает рубящий урон на 5 процентов.",
+
   "damagecore.skilltree.locked": "Заблокировано",
 
   "item.damagecore.birch_leaf": "Лист берёзы",

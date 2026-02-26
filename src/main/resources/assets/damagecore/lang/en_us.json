@@ -51,6 +51,8 @@
   "damagecore.skilltree.node.precision": "Precision",
   "damagecore.skilltree.node.heavy_strike": "Heavy strike",
 
+  "damagecore.skilltree.node.root.desc": "Increase slashing damage by 5 percent.Increase slashing damage by 5 percent.",
+
   "damagecore.skilltree.locked": "Locked",
 
 
