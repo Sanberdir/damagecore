@@ -5,6 +5,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeNode;
 
@@ -231,87 +232,6 @@ public class Render {
         }
     }
 
-    /**
-     * Собирает и рисует тултип-полосы (заголовок + описание) для ноды в стиле ванили.
-     * Предполагается, что вызов производится в контексте, где уже выставлен нужный Z (например, pose.translate Z=300).
-     */
-    private static void drawNodeTooltipStriped(GuiGraphics gui, Font font,
-                                               SkillTreeNode n,
-                                               String title,
-                                               String desc) {
-
-        final int TEXT_MAX_PIXELS = 220;
-
-        List<String> titleLines = splitStringToPixelWidth(font, title, TEXT_MAX_PIXELS);
-        List<String> descLines  = splitStringToPixelWidth(font, desc, TEXT_MAX_PIXELS);
-
-        if (titleLines.isEmpty() && descLines.isEmpty()) return;
-
-        int frame = SkillTreeNode.FRAME_SIZE;
-
-        int maxWidth = 0;
-        for (String s : titleLines) maxWidth = Math.max(maxWidth, font.width(s));
-        for (String s : descLines)  maxWidth = Math.max(maxWidth, font.width(s));
-
-        int cellLeft   = n.x;
-        int cellRight  = n.x + frame;
-        int cellCenterY = n.y + frame / 2;
-
-        int stripLeft = cellLeft - 4;
-        int textStartX = cellRight + 4;
-
-        int stripWidth = (textStartX - stripLeft) + maxWidth + TOOLTIP_RIGHT_PAD;
-
-        // --- заголовок ---
-        int titleHeight = Math.max(TOOLTIP_SRC_H,
-                titleLines.size() * font.lineHeight + 6);
-
-        int titleTop = cellCenterY - titleHeight / 2;
-
-        // --- описание ---
-        int descHeight = descLines.isEmpty() ? 0 :
-                Math.max(TOOLTIP_SRC_H,
-                        descLines.size() * font.lineHeight + 6);
-
-        int descTop = titleTop + titleHeight;
-
-        // --- РИСУЕМ ---
-        drawNineSliceTiled(gui, TOOLTIP_TEXTURE,
-                stripLeft, titleTop,
-                stripWidth, titleHeight,
-                TOOLTIP_TITLE_SRC_U, TOOLTIP_TITLE_SRC_V,
-                TOOLTIP_SRC_W, TOOLTIP_SRC_H,
-                TOOLTIP_CAP);
-
-        if (descHeight > 0) {
-            drawNineSliceTiled(gui, TOOLTIP_TEXTURE,
-                    stripLeft, descTop,
-                    stripWidth, descHeight,
-                    TOOLTIP_DESC_SRC_U, TOOLTIP_DESC_SRC_V,
-                    TOOLTIP_SRC_W, TOOLTIP_SRC_H,
-                    TOOLTIP_CAP);
-        }
-
-        // --- текст заголовка ---
-        int titleTextY = titleTop +
-                (titleHeight - titleLines.size() * font.lineHeight) / 2;
-
-        for (String s : titleLines) {
-            gui.drawString(font, s, textStartX, titleTextY, 0xFFFFFFFF, false);
-            titleTextY += font.lineHeight;
-        }
-
-        // --- текст описания ---
-        int descTextY = descTop + 3;
-        for (String s : descLines) {
-            gui.drawString(font, s,
-                    stripLeft + 4,
-                    descTextY,
-                    0xFFE0E0E0,
-                    false);
-            descTextY += font.lineHeight;
-        }
-    }
     private static void drawScaledTooltip(GuiGraphics gui, Font font, SkillTreeNode n,
                                           String title, String desc, int pivotX, int pivotY, float scale) {
         final int TEXT_MAX_PIXELS = 220;
@@ -388,6 +308,7 @@ public class Render {
 
         pose.popPose();
     }
+
     @SuppressWarnings({"unchecked", "rawtypes"})
     public static void render(GuiGraphics gui, InventoryScreen screen,
                               int panelScreenX, int panelScreenY,
@@ -396,18 +317,17 @@ public class Render {
             Object treeObj = invokePrivateGetCurrentTree();
             if (treeObj == null) return;
 
-            Map<String, SkillTreeNode> nodes = (Map<String, SkillTreeNode>) getFieldValue(treeObj, "nodes");
+            Map<String, SkillTreeNode> nodes =
+                    (Map<String, SkillTreeNode>) getFieldValue(treeObj, "nodes");
             if (nodes == null || nodes.isEmpty()) return;
 
             currentPanelScreenX = panelScreenX;
             currentPanelScreenY = panelScreenY;
 
-            // --- Перетаскивание ---
-            boolean isDragging = Boolean.TRUE.equals(getFieldValue(treeObj, "isDragging"));
             float scale = ((Number) getFieldValue(treeObj, "scale")).floatValue();
-            int unscaledMouseX = mouseX;
-            int unscaledMouseY = mouseY;
+            boolean isDragging = Boolean.TRUE.equals(getFieldValue(treeObj, "isDragging"));
 
+            // --- drag ---
             if (isDragging) {
                 int dragStartOffsetX = ((Number) getFieldValue(treeObj, "dragStartOffsetX")).intValue();
                 int dragStartOffsetY = ((Number) getFieldValue(treeObj, "dragStartOffsetY")).intValue();
@@ -423,143 +343,231 @@ public class Render {
 
             invokePrivateCalculateAndUpdatePositions(treeObj, panelScreenX, panelScreenY);
 
+            // --- clip area ---
             int clipX1 = panelScreenX + PANEL_DRAW_OFFSET_X_IN_PANEL;
             int clipY1 = panelScreenY + PANEL_DRAW_OFFSET_Y_IN_PANEL;
             int clipX2 = clipX1 + AREA_WIDTH;
             int clipY2 = clipY1 + AREA_HEIGHT;
 
-            if (clipX2 > clipX1 && clipY2 > clipY1) gui.enableScissor(clipX1, clipY1, clipX2, clipY2);
+            if (clipX2 > clipX1 && clipY2 > clipY1)
+                gui.enableScissor(clipX1, clipY1, clipX2, clipY2);
 
             PoseStack pose = gui.pose();
             int pivotX = clipX1 + AREA_WIDTH / 2;
             int pivotY = clipY1 + AREA_HEIGHT / 2;
 
-            // --- 1. Линии ---
+            // Получаем ID активного узла с опциями ДО отрисовки
+            String activeOptionsNodeId = (String) getFieldValue(treeObj, "activeOptionsNodeId");
+
+            // =============================
+            // 1) ЛИНИИ (низ)
+            // =============================
             pose.pushPose();
             pose.translate(pivotX, pivotY, 0);
             pose.scale(scale, scale, 1f);
             pose.translate(-pivotX, -pivotY, 0);
 
-            int lineColor = 0xFF000000;
             for (SkillTreeNode child : nodes.values()) {
                 if (child.parentId == null || "start".equalsIgnoreCase(child.parentId)) continue;
                 SkillTreeNode parent = nodes.get(child.parentId);
                 if (parent == null) continue;
-                drawThickLine(gui, parent.centerX(), parent.centerY(), child.centerX(), child.centerY(), 2, lineColor);
+
+                drawThickLine(gui,
+                        parent.centerX(), parent.centerY(),
+                        child.centerX(), child.centerY(),
+                        2, 0xFF000000);
             }
-
-            // пересчитываем координаты мыши с учетом масштаба
-            unscaledMouseX = (int) ((mouseX - pivotX) / scale + pivotX);
-            unscaledMouseY = (int) ((mouseY - pivotY) / scale + pivotY);
-
             pose.popPose();
 
-            // --- 2. Затемнение активных опций ---
-            String activeOptionsNodeId = (String) getFieldValue(treeObj, "activeOptionsNodeId");
-            if (activeOptionsNodeId != null) gui.fill(clipX1, clipY1, clipX2, clipY2, 0xAA000000);
+            int unscaledMouseX = (int) ((mouseX - pivotX) / scale + pivotX);
+            int unscaledMouseY = (int) ((mouseY - pivotY) / scale + pivotY);
 
-            // --- 3. HUD текст (название дерева + масштаб) ---
-            Font font = Minecraft.getInstance().font;
-            String scaleText = String.format("%.0f%%", scale * 100);
-            int totalTrees = getTotalTreesReflect();
-            int activeTreeId = getActiveTreeIdReflect();
-            String displayName = (String) getFieldValue(treeObj, "displayName");
-            if (displayName == null) displayName = "Tree";
-            String treeName = displayName + " (Tab " + (activeTreeId + 1) + "/" + Math.max(1, totalTrees) + ")";
+            // --- найти hovered ---
+            SkillTreeNode hoveredNode = null;
+            for (SkillTreeNode n : nodes.values()) {
+                if (n.containsPoint(unscaledMouseX, unscaledMouseY)) {
+                    hoveredNode = n;
+                    break;
+                }
+            }
 
-            int textX = clipX1 + 5;
-            int textY = clipY1 + 5;
-            int maxW = Math.max(font.width(scaleText), font.width(treeName));
-
-            gui.fill(textX - 2, textY - 2, textX + maxW + 2, textY + font.lineHeight * 2 + 4, 0xAA000000);
-            gui.drawString(font, treeName, textX, textY, 0xFFFFFFAA, true);
-            gui.drawString(font, scaleText, textX, textY + font.lineHeight + 2, 0xFFFFFFFF, true);
-
-            // --- 4. Рамка, фон, предметы, радиальные опции ---
+            // =============================
+            // 2) ВСЕ НОДЫ (кроме hovered)
+            // =============================
             pose.pushPose();
-            pose.translate(pivotX, pivotY, 500); // Z=500 для предметов и рамок
+            pose.translate(pivotX, pivotY, 200);
             pose.scale(scale, scale, 1f);
             pose.translate(-pivotX, -pivotY, 0);
 
             final int ITEM_SIZE = 16;
 
             for (SkillTreeNode n : nodes.values()) {
-                int frameSize = SkillTreeNode.FRAME_SIZE;
-                int padding = SkillTreeNode.FRAME_PADDING;
+                if (n == hoveredNode) continue;
 
-                gui.fill(n.x, n.y, n.x + frameSize, n.y + frameSize, 0xFF333333); // рамка
+                // Рисуем базовую ноду
+                drawNode(gui, n, unscaledMouseX, unscaledMouseY);
 
-                boolean nodeHovered = n.containsPoint(unscaledMouseX, unscaledMouseY);
-                int innerColor = nodeHovered ? (n.locked ? 0xFF444444 : 0xAAFFFFFF) : 0xFF777777;
-                gui.fill(n.x + padding, n.y + padding, n.x + frameSize - padding, n.y + frameSize - padding, innerColor);
-
-                int itemX = Math.round(n.x + (frameSize - ITEM_SIZE) / 2.0f);
-                int itemY = Math.round(n.y + (frameSize - ITEM_SIZE) / 2.0f);
-                gui.renderItem(n.itemStack, itemX, itemY);
-                gui.renderItemDecorations(Minecraft.getInstance().font, n.itemStack, itemX, itemY);
-
-                List<?> opts = (List<?>) getFieldValue(n, "options");
-                if (opts != null && !opts.isEmpty() && activeOptionsNodeId != null && activeOptionsNodeId.equals(n.id)) {
-                    for (int i = 0; i < opts.size(); i++) {
-                        int[] pos = optionCenterForIndex(n, i);
-                        int ox = pos[0], oy = pos[1];
-
-                        boolean hover = (unscaledMouseX >= ox - OPTION_SIZE / 2 && unscaledMouseX < ox + OPTION_SIZE / 2
-                                && unscaledMouseY >= oy - OPTION_SIZE / 2 && unscaledMouseY < oy + OPTION_SIZE / 2);
-
-                        int selectedOption = -1;
-                        try {
-                            Object so = getFieldValue(n, "selectedOption");
-                            if (so instanceof Number) selectedOption = ((Number) so).intValue();
-                        } catch (Throwable ignored) {}
-
-                        int bgColor = (selectedOption >= 0 && selectedOption == i) ? 0xFFFFFFFF :
-                                hover ? 0xAAFFFFFF : 0xDD555555;
-
-                        int left = Math.round(ox - OPTION_SIZE / 2.0f);
-                        int top  = Math.round(oy - OPTION_SIZE / 2.0f);
-                        gui.fill(left, top, left + OPTION_SIZE, top + OPTION_SIZE, bgColor);
-
-                        Object opt = opts.get(i);
-                        if (opt instanceof net.minecraft.world.item.ItemStack item) {
-                            int itemOX = Math.round(ox - ITEM_SIZE / 2.0f);
-                            int itemOY = Math.round(oy - ITEM_SIZE / 2.0f);
-                            gui.renderItem(item, itemOX, itemOY);
-                            gui.renderItemDecorations(Minecraft.getInstance().font, item, itemOX, itemOY);
-                        }
-                    }
+                // Рисуем опции, если это активный узел
+                if (activeOptionsNodeId != null && activeOptionsNodeId.equals(n.id)) {
+                    drawOptions(gui, n, treeObj, unscaledMouseX, unscaledMouseY);
                 }
             }
 
             pose.popPose();
 
-            // --- 5. Тултипы при наведении (ПОВЕРХ всего) ---
-            // Рисуем после всего, с самым высоким Z-индексом
-            pose.pushPose();
-            pose.translate(0, 0, 10); // Z выше всего (предметы на 500)
-            for (SkillTreeNode n : nodes.values()) {
-                if (!n.containsPoint(unscaledMouseX, unscaledMouseY)) continue;
+            // =============================
+            // 3) ТУЛТИП (Z=500)
+            // =============================
+            if (hoveredNode != null) {
+                pose.pushPose();
+                pose.translate(0, 0, 500);
 
-                String baseKey = "damagecore.skilltree.node." + n.id;
-                String title = net.minecraft.network.chat.Component.translatable(baseKey).getString();
+                Font font = Minecraft.getInstance().font;
+                String baseKey = "damagecore.skilltree.node." + hoveredNode.id;
+                String title = Component.translatable(baseKey).getString();
                 String descKey = baseKey + ".desc";
-                String desc = net.minecraft.network.chat.Component.translatable(descKey).getString();
+                String desc = Component.translatable(descKey).getString();
                 if (desc.equals(descKey)) desc = "";
 
-                drawScaledTooltip(gui, font, n, title, desc, pivotX, pivotY, scale);
-                break;
-            }
-            pose.popPose();
+                drawScaledTooltip(gui, font, hoveredNode,
+                        title, desc, pivotX, pivotY, scale);
 
-            if (clipX2 > clipX1 && clipY2 > clipY1) gui.disableScissor();
+                pose.popPose();
+            }
+
+            // =============================
+            // 4) КОПИЯ HOVERED НОДЫ (САМЫЙ ВЕРХ, Z=1000)
+            // =============================
+            if (hoveredNode != null) {
+                pose.pushPose();
+                pose.translate(pivotX, pivotY, 1000);
+                pose.scale(scale, scale, 1f);
+                pose.translate(-pivotX, -pivotY, 0);
+
+                // Рисуем hovered ноду
+                drawNode(gui, hoveredNode, unscaledMouseX, unscaledMouseY);
+
+                // Если hovered нода - это активный узел с опциями, рисуем их поверх
+                if (activeOptionsNodeId != null && activeOptionsNodeId.equals(hoveredNode.id)) {
+                    drawOptions(gui, hoveredNode, treeObj, unscaledMouseX, unscaledMouseY);
+                }
+
+                pose.popPose();
+            }
+
+            // =============================
+            // 5) ЗАТЕМНЕНИЕ, ЕСЛИ ОТКРЫТЫ ОПЦИИ (опционально)
+            // =============================
+            // =============================
+            if (activeOptionsNodeId != null) {
+                gui.fill(0, 0, screen.width, screen.height, 0x88000000); // полупрозрачный черный оверлей
+            }
+            if (clipX2 > clipX1 && clipY2 > clipY1)
+                gui.disableScissor();
 
         } catch (Throwable t) {
             t.printStackTrace();
         }
     }
 
-    // ----------------- Рефлексия / вспомогательные методы -----------------
+    /**
+     * Рисует опции узла по кругу
+     */
+    private static void drawOptions(GuiGraphics gui,
+                                    SkillTreeNode node,
+                                    Object treeObj,
+                                    int mouseX,
+                                    int mouseY) {
+        try {
+            List<?> opts = (List<?>) getFieldValue(node, "options");
+            if (opts == null || opts.isEmpty()) return;
 
+            final int ITEM_SIZE = 16;
+
+            PoseStack pose = gui.pose();
+            pose.pushPose();
+            pose.translate(0, 0, 250); // Z выше, чем предметы ноды
+
+            for (int i = 0; i < opts.size(); i++) {
+                int[] pos = optionCenterForIndex(node, i);
+                int ox = pos[0], oy = pos[1];
+
+                // Проверяем hover для опции
+                boolean optionHovered = (mouseX >= ox - OPTION_SIZE / 2 &&
+                        mouseX < ox + OPTION_SIZE / 2 &&
+                        mouseY >= oy - OPTION_SIZE / 2 &&
+                        mouseY < oy + OPTION_SIZE / 2);
+
+                int selectedOption = -1;
+                try {
+                    Object so = getFieldValue(node, "selectedOption");
+                    if (so instanceof Number) selectedOption = ((Number) so).intValue();
+                } catch (Throwable ignored) {}
+
+                int bgColor;
+                if (selectedOption >= 0 && selectedOption == i) {
+                    bgColor = 0xFFFFFFFF;
+                } else if (optionHovered) {
+                    bgColor = 0xAAFFFFFF;
+                } else {
+                    bgColor = 0xDD555555;
+                }
+
+                int left = Math.round(ox - OPTION_SIZE / 2.0f);
+                int top = Math.round(oy - OPTION_SIZE / 2.0f);
+                gui.fill(left, top, left + OPTION_SIZE, top + OPTION_SIZE, bgColor);
+
+                Object opt = opts.get(i);
+                if (opt instanceof net.minecraft.world.item.ItemStack item) {
+                    int itemOX = Math.round(ox - ITEM_SIZE / 2.0f);
+                    int itemOY = Math.round(oy - ITEM_SIZE / 2.0f);
+                    gui.renderItem(item, itemOX, itemOY);
+                    gui.renderItemDecorations(Minecraft.getInstance().font, item, itemOX, itemOY);
+                }
+            }
+
+            pose.popPose();
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+    }
+
+    /**
+     * Рисует отдельный узел
+     */
+    private static void drawNode(GuiGraphics gui,
+                                 SkillTreeNode n,
+                                 int mouseX,
+                                 int mouseY) {
+
+        int frameSize = SkillTreeNode.FRAME_SIZE;
+        int padding = SkillTreeNode.FRAME_PADDING;
+        int ITEM_SIZE = 16;
+
+        // Рамка узла
+        gui.fill(n.x, n.y, n.x + frameSize, n.y + frameSize, 0xFF333333);
+
+        boolean hovered = n.containsPoint(mouseX, mouseY);
+        int innerColor = hovered
+                ? (n.locked ? 0xFF444444 : 0xAAFFFFFF)
+                : 0xFF777777;
+
+        // Внутренняя заливка
+        gui.fill(n.x + padding,
+                n.y + padding,
+                n.x + frameSize - padding,
+                n.y + frameSize - padding,
+                innerColor);
+
+        // Иконка предмета
+        int itemX = Math.round(n.x + (frameSize - ITEM_SIZE) / 2f);
+        int itemY = Math.round(n.y + (frameSize - ITEM_SIZE) / 2f);
+
+        gui.renderItem(n.itemStack, itemX, itemY);
+        gui.renderItemDecorations(Minecraft.getInstance().font,
+                n.itemStack, itemX, itemY);
+    }
+    // ----------------- Рефлексия / вспомогательные методы -----------------
     private static Object invokePrivateGetCurrentTree() {
         try {
             Class<?> cls = Class.forName("ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeRenderer");

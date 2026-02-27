@@ -7,7 +7,7 @@ import java.util.List;
 
 public final class SkillTreeNode {
     public enum Side { START, LEFT, RIGHT, TOP, BOTTOM }
-
+    public boolean optionsVisible = false;
     public final String id;
     public final ItemStack itemStack; // отображаемый предмет (может быть Items.AIR)
     public final boolean locked;
