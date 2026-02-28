@@ -3,7 +3,7 @@
   "nodes": [
     {
       "id": "root",
-      "item": "minecraft:iron_sword",
+      "item": "minecraft:diamond",
       "parent": "start",
       "gridX": 0,
       "gridY": 0
