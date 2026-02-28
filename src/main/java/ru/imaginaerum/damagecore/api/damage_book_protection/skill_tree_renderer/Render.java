@@ -7,6 +7,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.FormattedCharSequence;
 import ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeNode;
 
 import java.lang.reflect.Field;
@@ -251,7 +252,7 @@ public class Render {
         int cellRight  = n.x + frame;
         int cellCenterY = n.y + frame / 2;
 
-        int stripLeft = cellLeft - 4;
+        int stripLeft = cellLeft - TOOLTIP_LEFT_OVERHANG;
         int textStartX = cellRight + 4;
 
         int stripWidth = (textStartX - stripLeft) + maxWidth + TOOLTIP_RIGHT_PAD;
@@ -259,23 +260,41 @@ public class Render {
         int titleHeight = Math.max(TOOLTIP_SRC_H,
                 titleLines.size() * font.lineHeight + 6);
 
-        int titleTop = cellCenterY - titleHeight / 2;
-
+        // описание растянуто на 4px
         int descHeight = descLines.isEmpty() ? 0 :
                 Math.max(TOOLTIP_SRC_H,
-                        descLines.size() * font.lineHeight + 6);
+                        descLines.size() * font.lineHeight + 4);
 
-        int descTop = titleTop + titleHeight;
+        int titleTop = cellCenterY - titleHeight / 2;
+
+        // подтянуть описание под заголовок
+        int descTop = titleTop + titleHeight - 4;
 
         PoseStack pose = gui.pose();
-        pose.pushPose();
 
-        // масштабируем тултип вместе с деревом
-        pose.translate(pivotX, pivotY, 450); // Z=450 (между линиями и предметами)
+        // --- Рисуем фон описания (НИЖЕ по Z) ---
+        if (descHeight > 0) {
+            pose.pushPose();
+            pose.translate(pivotX, pivotY, 440);
+            pose.scale(scale, scale, 1f);
+            pose.translate(-pivotX, -pivotY, 0);
+
+            drawNineSliceTiled(gui, TOOLTIP_TEXTURE,
+                    stripLeft, descTop,
+                    stripWidth, descHeight + 6, // растянули фон на 4 пикселя
+                    TOOLTIP_DESC_SRC_U, TOOLTIP_DESC_SRC_V,
+                    TOOLTIP_SRC_W, TOOLTIP_SRC_H,
+                    TOOLTIP_CAP);
+
+            pose.popPose();
+        }
+
+        // --- Рисуем фон заголовка (ВЫШЕ по Z) ---
+        pose.pushPose();
+        pose.translate(pivotX, pivotY, 460);
         pose.scale(scale, scale, 1f);
         pose.translate(-pivotX, -pivotY, 0);
 
-        // --- Рисуем полоски ---
         drawNineSliceTiled(gui, TOOLTIP_TEXTURE,
                 stripLeft, titleTop,
                 stripWidth, titleHeight,
@@ -283,27 +302,34 @@ public class Render {
                 TOOLTIP_SRC_W, TOOLTIP_SRC_H,
                 TOOLTIP_CAP);
 
-        if (descHeight > 0) {
-            drawNineSliceTiled(gui, TOOLTIP_TEXTURE,
-                    stripLeft, descTop,
-                    stripWidth, descHeight,
-                    TOOLTIP_DESC_SRC_U, TOOLTIP_DESC_SRC_V,
-                    TOOLTIP_SRC_W, TOOLTIP_SRC_H,
-                    TOOLTIP_CAP);
+        pose.popPose();
+
+        // --- Текст описания (тот же Z, что и фон описания) ---
+        if (!descLines.isEmpty()) {
+            pose.pushPose();
+            pose.translate(pivotX, pivotY, 445);
+            pose.scale(scale, scale, 1f);
+            pose.translate(-pivotX, -pivotY, 0);
+
+            int descTextY = descTop + DESC_PADDING + 4; // смещаем текст на 2 пикселя
+            for (String s : descLines) {
+                gui.drawString(font, s, stripLeft + 4, descTextY, 0xFFE0E0E0, false);
+                descTextY += font.lineHeight;
+            }
+
+            pose.popPose();
         }
 
-        // --- Текст заголовка ---
+        // --- Текст заголовка (тот же Z, что и фон заголовка) ---
+        pose.pushPose();
+        pose.translate(pivotX, pivotY, 470);
+        pose.scale(scale, scale, 1f);
+        pose.translate(-pivotX, -pivotY, 0);
+
         int titleTextY = titleTop + (titleHeight - titleLines.size() * font.lineHeight) / 2;
         for (String s : titleLines) {
             gui.drawString(font, s, textStartX, titleTextY, 0xFFFFFFFF, false);
             titleTextY += font.lineHeight;
-        }
-
-        // --- Текст описания ---
-        int descTextY = descTop + 3;
-        for (String s : descLines) {
-            gui.drawString(font, s, stripLeft + 4, descTextY, 0xFFE0E0E0, false);
-            descTextY += font.lineHeight;
         }
 
         pose.popPose();
@@ -415,26 +441,34 @@ public class Render {
 
             pose.popPose();
 
-            // =============================
-            // 3) ТУЛТИП (Z=500)
-            // =============================
+// =============================
+// 3) ТУЛТИП (Z=500)
+// =============================
             if (hoveredNode != null) {
-                pose.pushPose();
-                pose.translate(0, 0, 500);
 
                 Font font = Minecraft.getInstance().font;
+
                 String baseKey = "damagecore.skilltree.node." + hoveredNode.id;
+
                 String title = Component.translatable(baseKey).getString();
-                String descKey = baseKey + ".desc";
-                String desc = Component.translatable(descKey).getString();
-                if (desc.equals(descKey)) desc = "";
+                String desc  = Component.translatable(baseKey + ".desc").getString();
 
-                drawScaledTooltip(gui, font, hoveredNode,
-                        title, desc, pivotX, pivotY, scale);
+                // если описание не существует — не показываем его
+                if (desc.equals(baseKey + ".desc")) {
+                    desc = "";
+                }
 
-                pose.popPose();
+                drawScaledTooltip(
+                        gui,
+                        font,
+                        hoveredNode,
+                        title,
+                        desc,
+                        pivotX,
+                        pivotY,
+                        scale
+                );
             }
-
             // =============================
             // 4) КОПИЯ HOVERED НОДЫ (САМЫЙ ВЕРХ, Z=1000)
             // =============================
