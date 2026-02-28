@@ -57,21 +57,8 @@ public class Render {
     private static final int TOOLTIP_CAP = 4; // непроходимые края (px), которые не растягиваются
     private static final int TOOLTIP_LEFT_OVERHANG = 4; // полоска выступает влево от ячейки на 4px
     private static final int TOOLTIP_RIGHT_PAD = 4;    // справа полоска заканчивается на 4px правее текста
-    private static final int TITLE_TEXT_MAX_CHARS = 30;
     private static final int DESC_PADDING = 3; // отступ текста внутри полоски для описания
-    /**
-     * Главный метод render — адаптирован для работы через рефлексию.
-     */
 
-    /** Простейший перенос текста: пытается разбить строку на слова с ограничением на число символов в строке.
-     *  Возвращает список строк, каждая длина <= maxChars (по символам). */
-
-    // --- добавляем эти методы в класс Render ---
-
-    /**
-     * Разбивает строку на строки так, чтобы каждая поместилась по пиксельной ширине (font.width).
-     * Пытается не ломать слова, но если одно слово длиннее maxWidth, разрезает его по символам.
-     */
     private static List<String> splitStringToPixelWidth(Font font, String text, int maxWidth) {
         List<String> lines = new ArrayList<>();
         if (text == null) return lines;
@@ -151,9 +138,6 @@ public class Render {
 
         int innerSrcW = srcW - cap * 2;
         int innerSrcH = srcH - cap * 2;
-
-        int innerDestW = destW - cap * 2;
-        int innerDestH = destH - cap * 2;
 
         // --- УГЛЫ ---
         // TL
@@ -492,7 +476,6 @@ public class Render {
             // =============================
             // 5) ЗАТЕМНЕНИЕ, ЕСЛИ ОТКРЫТЫ ОПЦИИ (опционально)
             // =============================
-            // =============================
             if (activeOptionsNodeId != null) {
                 gui.fill(0, 0, screen.width, screen.height, 0x88000000); // полупрозрачный черный оверлей
             }
@@ -688,33 +671,6 @@ public class Render {
         } catch (Throwable t) {
             t.printStackTrace();
         }
-    }
-
-    private static int getTotalTreesReflect() {
-        try {
-            Class<?> cls = Class.forName("ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeRenderer");
-            Field f = cls.getDeclaredField("trees");
-            f.setAccessible(true);
-            Object treesObj = f.get(null);
-            if (treesObj instanceof java.util.Map) {
-                return ((java.util.Map<?, ?>) treesObj).size();
-            }
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
-        return 0;
-    }
-
-    private static int getActiveTreeIdReflect() {
-        try {
-            Class<?> cls = Class.forName("ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeRenderer");
-            Field f = cls.getDeclaredField("activeTreeId");
-            f.setAccessible(true);
-            return f.getInt(null);
-        } catch (Throwable t) {
-            // ignore
-        }
-        return 0;
     }
 
     private static int[] optionCenterForIndex(SkillTreeNode node, int index) {
