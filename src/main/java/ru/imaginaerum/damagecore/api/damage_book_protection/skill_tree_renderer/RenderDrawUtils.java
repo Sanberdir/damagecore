@@ -16,9 +16,7 @@ import java.util.List;
  * Реализация методов скопирована точно.
  */
 public class RenderDrawUtils {
-    private static final int OPTION_BASE_RADIUS = 28; // базовый радиус от центра ноды до центра ячейки опции
-    private static final int OPTION_RADIUS_STEP = 8;  // дополнительный шаг радиуса при росте числа опций
-
+    private static final int OPTION_BASE_RADIUS = 36; // базовый радиус от центра ноды до центра ячейки опции
     private static final ResourceLocation TOOLTIP_TEXTURE = new ResourceLocation("damagecore", "textures/gui/container/creative_inventory/damage_core_interface.png");
     // координаты в текстуре (по условию)
     private static final int TOOLTIP_TITLE_SRC_U = 0;
@@ -31,9 +29,43 @@ public class RenderDrawUtils {
     private static final int TOOLTIP_LEFT_OVERHANG = 4; // полоска выступает влево от ячейки на 4px
     private static final int TOOLTIP_RIGHT_PAD = 4;    // справа полоска заканчивается на 4px правее текста
     private static final int DESC_PADDING = 3; // отступ текста внутри полоски для описания
+
+    private static final float Z_NODE_TOP = 450f;  // копия ноды при вариантах — ниже тултипов, но выше опций
+
+    private static final float Z_LINES        = 100f; // линии связей
+    private static final float Z_OPTIONS_BG   = 330f; // круглая подложка вариантов
+    private static final float Z_NODE         = 50f;  // основная нода (под опциями)
+    private static final float Z_OPTIONS      = 400f; // ячейки вариантов (под копией ноды)
+    // Тултипы — ВСЕ части рисуются выше Z_NODE_TOP
+    private static final float Z_TOOLTIP_DESC_BG   = 460f;  // фон описания (нижний слой тултипа)
+    private static final float Z_TOOLTIP_DESC_TEXT = 470f;  // текст описания
+    private static final float Z_TOOLTIP_TITLE_BG  = 480f;  // фон заголовка тултипа
+    private static final float Z_TOOLTIP_TITLE_TEXT= 490f;  // текст заголовка тултипа
     // --- вспомогательные упрощения, не трогающие логику ---
     public static void blitTex(GuiGraphics gui, ResourceLocation tex, int x, int y, int u, int v, int w, int h) {
         gui.blit(tex, x, y, u, v, w, h, 512, 512);
+    }
+    public static void drawNodeDimmed(GuiGraphics gui, SkillTreeNode n) {
+        int frameSize = SkillTreeNode.FRAME_SIZE;
+        int padding   = SkillTreeNode.FRAME_PADDING;
+        int ITEM_SIZE = 16;
+
+        PoseStack pose = gui.pose();
+        pose.pushPose();
+        pose.translate(0, 0, Z_NODE);
+
+        // рамка
+        gui.fill(n.x, n.y, n.x + frameSize, n.y + frameSize, 0xFF222222);
+
+        // внутренняя часть затемнена
+        gui.fill(n.x + padding, n.y + padding, n.x + frameSize - padding, n.y + frameSize - padding, 0xAA444444);
+
+        int itemX = n.x + (frameSize - ITEM_SIZE) / 2;
+        int itemY = n.y + (frameSize - ITEM_SIZE) / 2;
+        gui.renderItem(n.itemStack, itemX, itemY);
+        gui.renderItemDecorations(Minecraft.getInstance().font, n.itemStack, itemX, itemY);
+
+        pose.popPose();
     }
     public static void drawScaledTooltipAt(GuiGraphics gui,
                                            Font font,
@@ -82,7 +114,7 @@ public class RenderDrawUtils {
         // --- ФОН ОПИСАНИЯ ---
         if (descHeight > 0) {
             pose.pushPose();
-            pose.translate(pivotX, pivotY, 50);
+            pose.translate(pivotX, pivotY, Z_TOOLTIP_DESC_BG);
             pose.scale(scale, scale, 1f);
             pose.translate(-pivotX, -pivotY, 0);
 
@@ -98,7 +130,7 @@ public class RenderDrawUtils {
 
         // --- ФОН ЗАГОЛОВКА ---
         pose.pushPose();
-        pose.translate(pivotX, pivotY, 460);
+        pose.translate(pivotX, pivotY, Z_TOOLTIP_TITLE_BG);
         pose.scale(scale, scale, 1f);
         pose.translate(-pivotX, -pivotY, 0);
 
@@ -114,7 +146,7 @@ public class RenderDrawUtils {
         // --- ТЕКСТ ОПИСАНИЯ ---
         if (!descLines.isEmpty()) {
             pose.pushPose();
-            pose.translate(pivotX, pivotY, 445);
+            pose.translate(pivotX, pivotY, Z_TOOLTIP_DESC_TEXT);
             pose.scale(scale, scale, 1f);
             pose.translate(-pivotX, -pivotY, 0);
 
@@ -129,7 +161,7 @@ public class RenderDrawUtils {
 
         // --- ТЕКСТ ЗАГОЛОВКА ---
         pose.pushPose();
-        pose.translate(pivotX, pivotY, 470);
+        pose.translate(pivotX, pivotY, Z_TOOLTIP_TITLE_TEXT);
         pose.scale(scale, scale, 1f);
         pose.translate(-pivotX, -pivotY, 0);
 
@@ -172,95 +204,112 @@ public class RenderDrawUtils {
             List<?> opts = (List<?>) getFieldValue(node, "options");
             if (opts == null || opts.isEmpty()) return null;
 
-            final int OPTION_SIZE = 18; // внешняя ячейка для опции
-            final int ITEM_SIZE = 16;   // размер рендера предмета внутри ячейки
+            final int OPTION_SIZE = 18;
+            final int ITEM_SIZE = 16;
 
             OptionHoverInfo hoveredInfo = null;
 
             int selectedOption = -1;
             try {
                 Object so = getFieldValue(node, "selectedOption");
-                if (so instanceof Number) selectedOption = ((Number) so).intValue();
+                if (so instanceof Number n) selectedOption = n.intValue();
             } catch (Throwable ignored) {}
 
+            PoseStack pose = gui.pose();
+
+            // ===============================
+            // КРУГЛАЯ ПОДЛОЖКА (ниже ноды)
+            // ===============================
+            final int BG_U = 224;
+            final int BG_V = 176;
+            final int BG_SIZE = 80;
+
+            int bgLeft = node.centerX() - BG_SIZE / 2;
+            int bgTop  = node.centerY() - BG_SIZE / 2;
+
+            pose.pushPose();
+            pose.translate(0, 0, Z_OPTIONS_BG);
+            blitTex(gui, TOOLTIP_TEXTURE, bgLeft, bgTop, BG_U, BG_V, BG_SIZE, BG_SIZE);
+            pose.popPose();
+
+            // ===============================
+            // ОПЦИИ (выше ноды)
+            // ===============================
             for (int i = 0; i < opts.size(); i++) {
+
                 int[] pos = optionCenterForIndex(node, i);
                 int ox = pos[0], oy = pos[1];
 
-                boolean optionHovered = (mouseX >= ox - OPTION_SIZE / 2 &&
-                        mouseX < ox + OPTION_SIZE / 2 &&
-                        mouseY >= oy - OPTION_SIZE / 2 &&
-                        mouseY < oy + OPTION_SIZE / 2);
+                boolean hovered =
+                        mouseX >= ox - OPTION_SIZE / 2 &&
+                                mouseX <  ox + OPTION_SIZE / 2 &&
+                                mouseY >= oy - OPTION_SIZE / 2 &&
+                                mouseY <  oy + OPTION_SIZE / 2;
 
-                int left = Math.round(ox - OPTION_SIZE / 2f);
-                int top  = Math.round(oy - OPTION_SIZE / 2f);
+                int left = ox - OPTION_SIZE / 2;
+                int top  = oy - OPTION_SIZE / 2;
 
-                PoseStack pose = gui.pose();
-
-                // --- ТЁМНАЯ РАМКА ---
                 pose.pushPose();
-                pose.translate(0, 0, 500);
+                pose.translate(0, 0, Z_OPTIONS);
+
+                // рамка
                 gui.fill(left, top, left + OPTION_SIZE, top + OPTION_SIZE, 0xFF333333);
-                pose.popPose();
 
-                // --- ВНУТРЕННЯЯ ЗАЛИВКА ---
                 int innerColor;
-                if (selectedOption >= 0 && selectedOption == i) {
-                    innerColor = 0xFFFFFFFF; // выделена — белая
-                } else if (optionHovered) {
-                    innerColor = 0xAAFFFFFF; // hover — полупрозрачная белая
-                } else {
-                    innerColor = 0xFF777777; // обычное состояние — серое
-                }
-                pose.pushPose();
-                pose.translate(0, 0, 500);
-                gui.fill(left + 1, top + 1, left + OPTION_SIZE - 1, top + OPTION_SIZE - 1, innerColor);
-                pose.popPose();
+                if (selectedOption == i) innerColor = 0xFFFFFFFF;
+                else if (hovered) innerColor = 0xAAFFFFFF;
+                else innerColor = 0xFF777777;
 
-                // --- Белая тонкая рамка ---
-                int borderColor = 0x88FFFFFF;
-                pose.pushPose();
-                pose.translate(0, 0, 500);
-                gui.fill(left, top, left + OPTION_SIZE, top + 1, borderColor); // top
-                gui.fill(left, top + OPTION_SIZE - 1, left + OPTION_SIZE, top + OPTION_SIZE, borderColor); // bottom
-                gui.fill(left, top, left + 1, top + OPTION_SIZE, borderColor); // left
-                gui.fill(left + OPTION_SIZE - 1, top, left + OPTION_SIZE, top + OPTION_SIZE, borderColor); // right
-                pose.popPose();
+                gui.fill(left + 1, top + 1,
+                        left + OPTION_SIZE - 1,
+                        top + OPTION_SIZE - 1,
+                        innerColor);
 
-                // --- Предмет ---
+                // белая рамка
+                int border = 0x88FFFFFF;
+                gui.fill(left, top, left + OPTION_SIZE, top + 1, border);
+                gui.fill(left, top + OPTION_SIZE - 1, left + OPTION_SIZE, top + OPTION_SIZE, border);
+                gui.fill(left, top, left + 1, top + OPTION_SIZE, border);
+                gui.fill(left + OPTION_SIZE - 1, top, left + OPTION_SIZE, top + OPTION_SIZE, border);
+
+                // предмет
                 Object opt = opts.get(i);
-                if (opt instanceof net.minecraft.world.item.ItemStack item) {
-                    int itemX = left + Math.round((OPTION_SIZE - ITEM_SIZE) / 2f);
-                    int itemY = top  + Math.round((OPTION_SIZE - ITEM_SIZE) / 2f);
-
-                    pose.pushPose();
-                    pose.translate(0, 0, 500);
-                    gui.renderItem(item, itemX, itemY);
-                    gui.renderItemDecorations(Minecraft.getInstance().font, item, itemX, itemY);
-                    pose.popPose();
+                if (opt instanceof net.minecraft.world.item.ItemStack stack) {
+                    int itemX = left + (OPTION_SIZE - ITEM_SIZE) / 2;
+                    int itemY = top  + (OPTION_SIZE - ITEM_SIZE) / 2;
+                    gui.renderItem(stack, itemX, itemY);
+                    gui.renderItemDecorations(Minecraft.getInstance().font, stack, itemX, itemY);
                 }
 
-                // --- Hover overlay ---
-                if (optionHovered) {
-                    pose.pushPose();
-                    pose.translate(0, 0, 500);
-                    gui.fill(left + 1, top + 1, left + OPTION_SIZE - 1, top + OPTION_SIZE - 1, 0x33FFFFFF);
-                    pose.popPose();
+                if (hovered) {
+                    gui.fill(left + 1, top + 1,
+                            left + OPTION_SIZE - 1,
+                            top + OPTION_SIZE - 1,
+                            0x33FFFFFF);
                 }
 
-                // --- Сохраняем info для тултипа ---
-                if (optionHovered && hoveredInfo == null) {
-                    SkillTreeNode.Variant foundVariant = null;
-                    try {
-                        if (node.variants != null && i >= 0 && i < node.variants.size()) {
-                            foundVariant = node.variants.get(i);
-                        }
-                    } catch (Throwable ignored) {}
-                    hoveredInfo = new OptionHoverInfo(node, foundVariant, i, ox, oy);
+                pose.popPose();
+// ===============================
+// ПЕРЕРИСОВКА ГЛАВНОЙ НОДЫ ПОВЕРХ ВСЕГО
+// ===============================
+                pose.pushPose();
+                pose.translate(0, 0, Z_NODE_TOP);
+
+// вызываем ту же функцию, что рисует обычную ноду
+                drawNode(gui, node, mouseX, mouseY);
+
+                pose.popPose();
+                if (hovered && hoveredInfo == null) {
+                    SkillTreeNode.Variant variant = null;
+                    if (node.variants != null && i < node.variants.size()) {
+                        variant = node.variants.get(i);
+                    }
+                    hoveredInfo = new OptionHoverInfo(node, variant, i, ox, oy);
                 }
             }
 
             return hoveredInfo;
+
         } catch (Throwable t) {
             t.printStackTrace();
             return null;
@@ -427,7 +476,7 @@ public class RenderDrawUtils {
         // --- Рисуем фон описания (НИЖЕ по Z) ---
         if (descHeight > 0) {
             pose.pushPose();
-            pose.translate(pivotX, pivotY, 440);
+            pose.translate(pivotX, pivotY, Z_TOOLTIP_DESC_BG);
             pose.scale(scale, scale, 1f);
             pose.translate(-pivotX, -pivotY, 0);
 
@@ -443,7 +492,7 @@ public class RenderDrawUtils {
 
         // --- Рисуем фон заголовка (ВЫШЕ по Z) ---
         pose.pushPose();
-        pose.translate(pivotX, pivotY, 460);
+        pose.translate(pivotX, pivotY, Z_TOOLTIP_TITLE_BG);
         pose.scale(scale, scale, 1f);
         pose.translate(-pivotX, -pivotY, 0);
 
@@ -459,7 +508,7 @@ public class RenderDrawUtils {
         // --- Текст описания (тот же З, что и фон описания) ---
         if (!descLines.isEmpty()) {
             pose.pushPose();
-            pose.translate(pivotX, pivotY, 445);
+            pose.translate(pivotX, pivotY, Z_TOOLTIP_DESC_TEXT);
             pose.scale(scale, scale, 1f);
             pose.translate(-pivotX, -pivotY, 0);
 
@@ -474,7 +523,7 @@ public class RenderDrawUtils {
 
         // --- Текст заголовка (тот же Z, что и фон заголовка) ---
         pose.pushPose();
-        pose.translate(pivotX, pivotY, 470);
+        pose.translate(pivotX, pivotY, Z_TOOLTIP_TITLE_TEXT);
         pose.scale(scale, scale, 1f);
         pose.translate(-pivotX, -pivotY, 0);
 
@@ -501,31 +550,38 @@ public class RenderDrawUtils {
                                 int mouseY) {
 
         int frameSize = SkillTreeNode.FRAME_SIZE;
-        int padding = SkillTreeNode.FRAME_PADDING;
+        int padding   = SkillTreeNode.FRAME_PADDING;
         int ITEM_SIZE = 16;
 
-        // Рамка узла
-        gui.fill(n.x, n.y, n.x + frameSize, n.y + frameSize, 0xFF333333);
+        PoseStack pose = gui.pose();
+        pose.pushPose();
+        pose.translate(0, 0, Z_NODE);
+
+        // рамка
+        gui.fill(n.x, n.y,
+                n.x + frameSize,
+                n.y + frameSize,
+                0xFF333333);
 
         boolean hovered = n.containsPoint(mouseX, mouseY);
         int innerColor = hovered
                 ? (n.locked ? 0xFF444444 : 0xAAFFFFFF)
                 : 0xFF777777;
 
-        // Внутренняя заливка
         gui.fill(n.x + padding,
                 n.y + padding,
                 n.x + frameSize - padding,
                 n.y + frameSize - padding,
                 innerColor);
 
-        // Иконка предмета
-        int itemX = Math.round(n.x + (frameSize - ITEM_SIZE) / 2f);
-        int itemY = Math.round(n.y + (frameSize - ITEM_SIZE) / 2f);
+        int itemX = n.x + (frameSize - ITEM_SIZE) / 2;
+        int itemY = n.y + (frameSize - ITEM_SIZE) / 2;
 
         gui.renderItem(n.itemStack, itemX, itemY);
         gui.renderItemDecorations(Minecraft.getInstance().font,
                 n.itemStack, itemX, itemY);
+
+        pose.popPose();
     }
 
     private static Object getFieldValue(Object obj, String fieldName) {
@@ -558,7 +614,7 @@ public class RenderDrawUtils {
             int n = (opts == null) ? 0 : opts.size();
             if (n == 0) return new int[]{node.centerX(), node.centerY()};
 
-            int radius = OPTION_BASE_RADIUS + Math.max(0, n - 1) * OPTION_RADIUS_STEP;
+            int radius = OPTION_BASE_RADIUS;
             double angle = 2.0 * Math.PI * index / n;
             int cx = node.centerX() + (int) Math.round(radius * Math.cos(angle));
             int cy = node.centerY() + (int) Math.round(radius * Math.sin(angle));

@@ -39,6 +39,8 @@
       "variants": [
         { "id": "heavy_fire", "item": "minecraft:blaze_powder" },
         { "id": "heavy_frost", "item": "minecraft:packed_ice" },
+        { "id": "heavy_dirt", "item": "minecraft:packed_ice" },
+        { "id": "heavy_gold", "item": "minecraft:packed_ice" },
         { "id": "heavy_force", "item": "minecraft:anvil" }
       ]
     }

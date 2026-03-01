@@ -43,7 +43,6 @@ public class Render {
     private static int currentPanelScreenY = 0;
 
     // --- вспомогательные упрощения, не трогающие логику ---
-    @SuppressWarnings({"unchecked", "rawtypes"})
     public static void render(GuiGraphics gui, InventoryScreen screen,
                               int panelScreenX, int panelScreenY,
                               int mouseX, int mouseY) {
@@ -90,11 +89,14 @@ public class Render {
             int pivotX = clipX1 + AREA_WIDTH / 2;
             int pivotY = clipY1 + AREA_HEIGHT / 2;
 
-            // Получаем ID активного узла с опциями ДО отрисовки
             String activeOptionsNodeId = (String) getFieldValue(treeObj, "activeOptionsNodeId");
+            boolean optionsOpen = activeOptionsNodeId != null;
+
+            int unscaledMouseX = (int) ((mouseX - pivotX) / scale + pivotX);
+            int unscaledMouseY = (int) ((mouseY - pivotY) / scale + pivotY);
 
             // =============================
-            // 1) ЛИНИИ (низ)
+            // 1) ЛИНИИ (всегда рисуются)
             // =============================
             pose.pushPose();
             pose.translate(pivotX, pivotY, 0);
@@ -113,135 +115,110 @@ public class Render {
             }
             pose.popPose();
 
-            int unscaledMouseX = (int) ((mouseX - pivotX) / scale + pivotX);
-            int unscaledMouseY = (int) ((mouseY - pivotY) / scale + pivotY);
-
-            // --- найти hovered ---
+            // =============================
+            // 2) ПОИСК HOVERed (только если варианты НЕ открыты)
+            // =============================
             SkillTreeNode hoveredNode = null;
             RenderDrawUtils.OptionHoverInfo hoveredOption = null;
-            for (SkillTreeNode n : nodes.values()) {
-                if (n.containsPoint(unscaledMouseX, unscaledMouseY)) {
-                    hoveredNode = n;
-                    break;
+
+            if (!optionsOpen) {
+                // Ищем наведенный узел только если варианты закрыты
+                for (SkillTreeNode n : nodes.values()) {
+                    if (n.containsPoint(unscaledMouseX, unscaledMouseY)) {
+                        hoveredNode = n;
+                        break;
+                    }
                 }
             }
 
             // =============================
-            // 2) ВСЕ НОДЫ (кроме hovered)
+            // 3) ОТРИСОВКА УЗЛОВ (кроме hovered)
             // =============================
             pose.pushPose();
-            pose.translate(pivotX, pivotY, 200);
+            pose.translate(pivotX, pivotY, 100);
             pose.scale(scale, scale, 1f);
             pose.translate(-pivotX, -pivotY, 0);
 
             for (SkillTreeNode n : nodes.values()) {
-                if (n == hoveredNode) continue;
+                // Пропускаем hovered узел (если он есть и варианты закрыты)
+                if (!optionsOpen && n == hoveredNode) continue;
 
-                // Рисуем базовую ноду
-                RenderDrawUtils.drawNode(gui, n, unscaledMouseX, unscaledMouseY);
+                if (optionsOpen) {
+                    // При открытых вариантах все узлы рисуются затемненными
+                    RenderDrawUtils.drawNodeDimmed(gui, n);
+                } else {
+                    // При закрытых вариантах - обычная отрисовка
+                    RenderDrawUtils.drawNode(gui, n, unscaledMouseX, unscaledMouseY);
+                }
 
-                // Рисуем опции, если это активный узел
-                if (activeOptionsNodeId != null && activeOptionsNodeId.equals(n.id)) {
+                // Рисуем опции для активного узла (если они открыты)
+                if (optionsOpen && activeOptionsNodeId.equals(n.id)) {
                     RenderDrawUtils.OptionHoverInfo hi = RenderDrawUtils.drawOptions(gui, n, treeObj, unscaledMouseX, unscaledMouseY);
                     if (hi != null) hoveredOption = hi;
                 }
             }
-
             pose.popPose();
 
-
             // =============================
-            // 4) КОПИЯ HOVERED НОДЫ (САМЫЙ ВЕРХ, Z=1000)
+            // 4) hovered узел поверх остальных (только если варианты закрыты)
             // =============================
-            if (hoveredNode != null) {
+            if (!optionsOpen && hoveredNode != null) {
                 pose.pushPose();
                 pose.translate(pivotX, pivotY, 1000);
                 pose.scale(scale, scale, 1f);
                 pose.translate(-pivotX, -pivotY, 0);
 
-                // Рисуем hovered ноду
                 RenderDrawUtils.drawNode(gui, hoveredNode, unscaledMouseX, unscaledMouseY);
-
-                // Если hovered нода - это активный узел с опциями, рисуем их поверх
-                if (activeOptionsNodeId != null && activeOptionsNodeId.equals(hoveredNode.id)) {
-                    RenderDrawUtils.OptionHoverInfo hi = RenderDrawUtils.drawOptions(gui, hoveredNode, treeObj, unscaledMouseX, unscaledMouseY);
-                    if (hi != null) hoveredOption = hi;
-                }
-
                 pose.popPose();
             }
 
             // =============================
-            // 5) ЗАТЕМНЕНИЕ, ЕСЛИ ОТКРЫТЫ ОПЦИИ (опционально)
+            // 5) ДОПОЛНИТЕЛЬНОЕ ЗАТЕМНЕНИЕ (только если варианты открыты)
             // =============================
-            if (activeOptionsNodeId != null) {
-                gui.fill(0, 0, screen.width, screen.height, 0x88000000); // полупрозрачный черный оверлей
+            if (optionsOpen) {
+                // Затемняем весь экран поверх всего (кроме опций)
+                gui.fill(0, 0, screen.width, screen.height, 0x88000000);
             }
+
             if (clipX2 > clipX1 && clipY2 > clipY1)
                 gui.disableScissor();
-            // =============================
-// 3A) ТУЛТИП ДЛЯ OPTION
-// =============================
-            if (hoveredOption != null) {
 
+            // =============================
+            // 6) ТУЛТИП ДЛЯ ОПЦИИ (всегда, если есть наведенная опция)
+            // =============================
+            if (hoveredOption != null) {
                 Font font = Minecraft.getInstance().font;
 
-                String baseKey =
-                        "damagecore.skilltree.variant."
-                                + hoveredOption.variant.id;
-
+                String baseKey = "damagecore.skilltree.variant." + hoveredOption.variant.id;
                 String title = Component.translatable(baseKey).getString();
                 String desc  = Component.translatable(baseKey + ".desc").getString();
+                if (desc.equals(baseKey + ".desc")) desc = "";
 
-                if (desc.equals(baseKey + ".desc")) {
-                    desc = "";
-                }
-
-                RenderDrawUtils.drawScaledTooltipAt(
-                        gui,
-                        font,
-                        hoveredOption.centerX,
-                        hoveredOption.centerY,
-                        title,
-                        desc,
-                        pivotX,
-                        pivotY,
-                        scale
-                );
+                RenderDrawUtils.drawScaledTooltipAt(gui, font,
+                        hoveredOption.centerX, hoveredOption.centerY,
+                        title, desc, pivotX, pivotY, scale);
             }
-            // =============================
-            // 3) ТУЛТИП (Z=500)
-            // =============================
-            if (hoveredNode != null) {
 
+            // =============================
+            // 7) ТУЛТИП ДЛЯ УЗЛА (только если варианты закрыты)
+            // =============================
+            if (!optionsOpen && hoveredNode != null) {
                 Font font = Minecraft.getInstance().font;
 
                 String baseKey = "damagecore.skilltree.node." + hoveredNode.id;
-
                 String title = Component.translatable(baseKey).getString();
                 String desc  = Component.translatable(baseKey + ".desc").getString();
+                if (desc.equals(baseKey + ".desc")) desc = "";
 
-                // если описание не существует — не показываем его
-                if (desc.equals(baseKey + ".desc")) {
-                    desc = "";
-                }
-
-                RenderDrawUtils.drawScaledTooltip(
-                        gui,
-                        font,
-                        hoveredNode,
-                        title,
-                        desc,
-                        pivotX,
-                        pivotY,
-                        scale
-                );
+                RenderDrawUtils.drawScaledTooltip(gui, font,
+                        hoveredNode, title, desc, pivotX, pivotY, scale);
             }
 
         } catch (Throwable t) {
             t.printStackTrace();
         }
     }
+
 
     // ----------------- Рефлексия / вспомогательные методы -----------------
     private static Object invokePrivateGetCurrentTree() {
