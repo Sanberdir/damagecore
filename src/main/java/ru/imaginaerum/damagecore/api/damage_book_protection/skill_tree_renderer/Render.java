@@ -92,6 +92,19 @@ public class Render {
             String activeOptionsNodeId = (String) getFieldValue(treeObj, "activeOptionsNodeId");
             boolean optionsOpen = activeOptionsNodeId != null;
 
+            // NEW: если activeOptionsNodeId указывает на заблокированную ноду — закрываем варианты
+            if (optionsOpen) {
+                try {
+                    SkillTreeNode activeNode = nodes.get(activeOptionsNodeId);
+                    if (activeNode != null && activeNode.locked) {
+                        // сбрасываем активный id — варианты не могут быть открыты для заблокированной ноды
+                        setFieldValue(treeObj, "activeOptionsNodeId", null);
+                        activeOptionsNodeId = null;
+                        optionsOpen = false;
+                    }
+                } catch (Throwable ignored) {}
+            }
+
             int unscaledMouseX = (int) ((mouseX - pivotX) / scale + pivotX);
             int unscaledMouseY = (int) ((mouseY - pivotY) / scale + pivotY);
 

@@ -201,6 +201,9 @@ public class RenderDrawUtils {
                                               int mouseX,
                                               int mouseY) {
         try {
+            // NEW: не рисуем опции для заблокированной ноды
+            if (node == null || node.locked) return null;
+
             List<?> opts = (List<?>) getFieldValue(node, "options");
             if (opts == null || opts.isEmpty()) return null;
 

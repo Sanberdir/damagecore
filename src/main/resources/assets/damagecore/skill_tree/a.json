@@ -35,7 +35,7 @@
       "parent": "root",
       "gridX": 3,
       "gridY": -2,
-      "lock": true,
+      "lock": false,
       "variants": [
         { "id": "heavy_fire", "item": "minecraft:blaze_powder" },
         { "id": "heavy_frost", "item": "minecraft:packed_ice" },
