@@ -39,13 +39,107 @@ public class Render {
     public static final int PANEL_DRAW_OFFSET_X_IN_PANEL = AREA_TEX_X0 - PANEL_TEXTURE_U; // 8
     public static final int PANEL_DRAW_OFFSET_Y_IN_PANEL = AREA_TEX_Y0 - PANEL_TEXTURE_V; // 8
 
-    private static int currentPanelScreenX = 0;
-    private static int currentPanelScreenY = 0;
+    public static int currentPanelScreenX = 0;
+    public static int currentPanelScreenY = 0;
 
+    public static SkillTreeNode currentHoveredNode = null;
+    public static long mousePressTime = 0L;
+    /**
+     * Рисует полупрозрачный зелёный прогресс удержания над нодой.
+     * ВЫЗЫВАЙ после того, как нарисовал(а) ноды (чтобы заливка была поверх).
+     *
+     * Использует GuiGraphics.fill(...) — корректно для Minecraft 1.20.1 (Forge).
+     */
+
+    public static SkillTreeNode getHoveredNodeUnderMouse(int mouseX, int mouseY) {
+        Object treeObj = invokePrivateGetCurrentTree();
+        if (treeObj == null) return null;
+
+        Map<String, SkillTreeNode> nodes = (Map<String, SkillTreeNode>) getFieldValue(treeObj, "nodes");
+        if (nodes == null || nodes.isEmpty()) return null;
+
+        float scale = ((Number) getFieldValue(treeObj, "scale")).floatValue();
+        int offsetX = ((Number) getFieldValue(treeObj, "offsetX")).intValue();
+        int offsetY = ((Number) getFieldValue(treeObj, "offsetY")).intValue();
+
+        int pivotX = offsetX + AREA_WIDTH / 2;
+        int pivotY = offsetY + AREA_HEIGHT / 2;
+
+        int unscaledMouseX = (int) ((mouseX - pivotX) / scale + pivotX);
+        int unscaledMouseY = (int) ((mouseY - pivotY) / scale + pivotY);
+
+        for (SkillTreeNode n : nodes.values()) {
+            if (n.containsPoint(unscaledMouseX, unscaledMouseY)) return n;
+        }
+        return null;
+    }
+    public static void renderHoldProgressOverlay(GuiGraphics gui) {
+        if (currentHoveredNode == null || mousePressTime <= 0L) return;
+
+        // Если нода уже изучена — ничего не делаем
+        if (currentHoveredNode.learned) return;
+
+        long now = System.currentTimeMillis();
+        final long HOLD_MS = 1500L;
+        float progress = Math.min(1f, (float)(now - mousePressTime) / HOLD_MS);
+        if (progress <= 0f) return;
+
+        Object treeObj = invokePrivateGetCurrentTree();
+        if (treeObj == null) return;
+
+        float scale = ((Number) getFieldValue(treeObj, "scale")).floatValue();
+        int pivotX = currentPanelScreenX + AREA_WIDTH / 2;
+        int pivotY = currentPanelScreenY + AREA_HEIGHT / 2;
+
+        int nodeX = currentHoveredNode.x;
+        int nodeY = currentHoveredNode.y;
+
+        int frameSize = SkillTreeNode.FRAME_SIZE;
+        int padding = SkillTreeNode.FRAME_PADDING;
+
+        int left = nodeX + padding;
+        int top = nodeY + padding;
+        int width = frameSize - 2 * padding;
+        int height = frameSize - 2 * padding;
+
+        int color = 0x8800FF00;
+
+        PoseStack pose = gui.pose();
+        pose.pushPose();
+        pose.translate(pivotX, pivotY, 2000f);
+        pose.scale(scale, scale, 1f);
+        pose.translate(-pivotX, -pivotY, 0);
+
+        gui.fill(left, top, left + Math.round(width * progress), top + height, color);
+        pose.popPose();
+
+        // После заполнения — проверяем уровни и отмечаем ноду изученной
+        if (progress >= 1f) {
+            Minecraft mc = Minecraft.getInstance();
+            int REQUIRED_LEVELS = 5;
+            if (mc.player.experienceLevel >= REQUIRED_LEVELS) {
+                mc.player.giveExperienceLevels(-REQUIRED_LEVELS);
+                currentHoveredNode.learned = true; // отмечаем ноду изученной
+                mc.player.playNotifySound(
+                        net.minecraft.sounds.SoundEvents.UI_TOAST_CHALLENGE_COMPLETE,
+                        net.minecraft.sounds.SoundSource.PLAYERS,
+                        1.0f, 1.0f
+                );
+            } else {
+                mc.player.playNotifySound(
+                        net.minecraft.sounds.SoundEvents.UI_TOAST_IN,
+                        net.minecraft.sounds.SoundSource.PLAYERS,
+                        1.0f, 1.0f
+                );
+            }
+            mousePressTime = 0L; // сброс прогресса
+        }
+    }
     // --- вспомогательные упрощения, не трогающие логику ---
     public static void render(GuiGraphics gui, InventoryScreen screen,
                               int panelScreenX, int panelScreenY,
                               int mouseX, int mouseY) {
+
         try {
             Object treeObj = invokePrivateGetCurrentTree();
             if (treeObj == null) return;
@@ -142,6 +236,7 @@ public class Render {
                         break;
                     }
                 }
+                currentHoveredNode = hoveredNode; // hoveredNode = node под мышью
             }
 
             // =============================
@@ -184,7 +279,9 @@ public class Render {
                 RenderDrawUtils.drawNode(gui, hoveredNode, unscaledMouseX, unscaledMouseY);
                 pose.popPose();
             }
-
+            if (!optionsOpen && hoveredNode != null) {
+                renderHoldProgressOverlay(gui);
+            }
             // =============================
             // 5) ДОПОЛНИТЕЛЬНОЕ ЗАТЕМНЕНИЕ (только если варианты открыты)
             // =============================
@@ -234,7 +331,7 @@ public class Render {
 
 
     // ----------------- Рефлексия / вспомогательные методы -----------------
-    private static Object invokePrivateGetCurrentTree() {
+    public static Object invokePrivateGetCurrentTree() {
         try {
             Class<?> cls = Class.forName("ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeRenderer");
             Method m = cls.getDeclaredMethod("getCurrentTree");
@@ -276,7 +373,7 @@ public class Render {
         }
     }
 
-    private static Object getFieldValue(Object obj, String fieldName) {
+    public static Object getFieldValue(Object obj, String fieldName) {
         if (obj == null) return null;
         try {
             Field f = obj.getClass().getDeclaredField(fieldName);
@@ -300,7 +397,7 @@ public class Render {
         }
     }
 
-    private static void setFieldValue(Object obj, String fieldName, Object value) {
+    public static void setFieldValue(Object obj, String fieldName, Object value) {
         if (obj == null) return;
         try {
             Field f = obj.getClass().getDeclaredField(fieldName);

@@ -10,7 +10,8 @@ public final class SkillTreeNode {
     public boolean optionsVisible = false;
     public final String id;
     public final ItemStack itemStack; // отображаемый предмет (может быть Items.AIR)
-    public final boolean locked;
+    public boolean locked;
+    public boolean learned = false; // новое поле: изучена или нет
     public final String parentId; // "start" или id родителя
     public final Side side;
 
@@ -43,6 +44,7 @@ public final class SkillTreeNode {
         this.hasGridPos = false;
         this.gridX = 0;
         this.gridY = 0;
+        this.learned = false; // явно
     }
 
     // Удобный сеттер для grid-координат (используется Loader если в JSON указаны gridX/gridY)
@@ -51,6 +53,7 @@ public final class SkillTreeNode {
         this.gridX = gx;
         this.gridY = gy;
     }
+
     public static class Variant {
         public final String id;
         public final ItemStack stack;
@@ -62,6 +65,7 @@ public final class SkillTreeNode {
     }
 
     public final List<Variant> variants = new ArrayList<>();
+
     public int centerX() {
         return x + FRAME_SIZE / 2;
     }
@@ -69,6 +73,7 @@ public final class SkillTreeNode {
     public int centerY() {
         return y + FRAME_SIZE / 2;
     }
+
     public boolean containsPoint(int px, int py) {
         return px >= x && px < x + FRAME_SIZE
                 && py >= y && py < y + FRAME_SIZE;

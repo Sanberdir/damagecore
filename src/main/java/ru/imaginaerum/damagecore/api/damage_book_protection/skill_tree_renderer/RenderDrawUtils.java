@@ -30,7 +30,7 @@ public class RenderDrawUtils {
     private static final int TOOLTIP_RIGHT_PAD = 4;    // справа полоска заканчивается на 4px правее текста
     private static final int DESC_PADDING = 3; // отступ текста внутри полоски для описания
 
-    private static final float Z_NODE_TOP = 450f;  // копия ноды при вариантах — ниже тултипов, но выше опций
+    public static final float Z_NODE_TOP = 450f;  // копия ноды при вариантах — ниже тултипов, но выше опций
 
     private static final float Z_LINES        = 100f; // линии связей
     private static final float Z_OPTIONS_BG   = 330f; // круглая подложка вариантов

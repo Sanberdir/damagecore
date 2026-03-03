@@ -17,6 +17,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import ru.imaginaerum.damagecore.api.damage_book_protection.*;
 import ru.imaginaerum.damagecore.api.damage_book_protection.pages_book.RenderActiveEffects;
 import ru.imaginaerum.damagecore.api.damage_book_protection.pages_book.RenderDamageIconsAndTexts;
+import ru.imaginaerum.damagecore.api.damage_book_protection.skill_tree_renderer.Render;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -310,7 +311,21 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
 
         this.selectedSmall = DamageBookInputHandler.handleSmallTabsClick(mouseX, mouseY, screen, this.selectedSmall, tabX, tabY);
     }
+    @Inject(method = "render", at = @At("TAIL"))
+    private void damagecore$renderSkillTreeHold(GuiGraphics gui, int mouseX, int mouseY, float partialTicks, CallbackInfo ci) {
+        if (!this.skillTreeVisible) return;
 
+        int guiLeft = ((AbstractContainerScreenAccessor) (InventoryScreen)(Object)this).getLeftPos();
+        int guiTop = ((AbstractContainerScreenAccessor) (InventoryScreen)(Object)this).getTopPos();
+        int imageWidth = ((AbstractContainerScreenAccessor) (InventoryScreen)(Object)this).damagecore$getImageWidth();
+        int panelScreenX = guiLeft + imageWidth + 2;
+        int panelScreenY = guiTop;
+
+        // Обновляем hovered-ноду каждый кадр (учитывая offset и scale внутри Render)
+        Render.currentHoveredNode = Render.getHoveredNodeUnderMouse(mouseX, mouseY);
+
+    }
+    // --- mousePressed (заменяет текущую реализацию) ---
     @Inject(method = "mouseClicked", at = @At("TAIL"), cancellable = true)
     private void damagecore$skillTree_mousePressed(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
         InventoryScreen screen = (InventoryScreen) (Object) this;
@@ -323,18 +338,50 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
         int panelScreenX = guiLeft + imageWidth + 2;
         int panelScreenY = guiTop;
 
+        // Обрабатываем оригинальную логику (click / start drag) — это важно для перемещения
         boolean consumed = SkillTreeRenderer.mousePressed((int) mouseX, (int) mouseY, button, panelScreenX, panelScreenY);
+
+        if (button == 0) { // левая кнопка
+            // Найдём ноду под мышью через Render
+            SkillTreeNode hovered = Render.getHoveredNodeUnderMouse((int) mouseX, (int) mouseY);
+
+            if (hovered != null) {
+                Render.currentHoveredNode = hovered;
+                Render.mousePressTime = System.currentTimeMillis();
+                System.out.println("[Render] HOLD STARTED hovered=" + hovered.id + " mousePressTime=" + Render.mousePressTime);
+            } else {
+                Render.currentHoveredNode = null;
+                Render.mousePressTime = 0L;
+                System.out.println("[Render] clicked empty — hold reset");
+            }
+        }
+
         if (consumed) {
             cir.setReturnValue(true);
         }
     }
 
+    // --- mouseReleased (заменяет текущую реализацию) ---
     @Inject(method = "mouseReleased", at = @At("HEAD"), cancellable = true)
     private void damagecore$skillTree_mouseReleased(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
         InventoryScreen screen = (InventoryScreen) (Object) this;
         if (!this.skillTreeVisible) return;
 
         boolean consumed = SkillTreeRenderer.mouseReleased((int) mouseX, (int) mouseY, button);
+
+        if (button == 0) {
+            if (Render.currentHoveredNode != null) {
+                long elapsed = System.currentTimeMillis() - Render.mousePressTime;
+                System.out.println("[Render] RELEASED hovered=" + Render.currentHoveredNode.id + " elapsed=" + elapsed + "ms");
+            } else {
+                System.out.println("[Render] RELEASED hovered=null");
+            }
+
+            // Сбрасываем hold
+            Render.currentHoveredNode = null;
+            Render.mousePressTime = 0L;
+        }
+
         if (consumed) {
             cir.setReturnValue(true);
         }
