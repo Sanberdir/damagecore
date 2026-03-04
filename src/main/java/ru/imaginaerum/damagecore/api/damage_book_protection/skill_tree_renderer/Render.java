@@ -6,27 +6,14 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.FormattedCharSequence;
 import ru.imaginaerum.damagecore.api.damage_book_protection.LearnNodePacket;
 import ru.imaginaerum.damagecore.api.damage_book_protection.ModNetwork;
 import ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeNode;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 
-/**
- * Standalone renderer for skill tree UI.
- *
- * This class uses reflection to access the private SkillTreeData instance inside
- * SkillTreeRenderer so we don't have to change SkillTreeRenderer visibility.
- *
- * If you'd rather, you can instead make SkillTreeRenderer.getCurrentTree() and
- * calculateAndUpdatePositions(...) public and remove reflection code.
- */
 public class Render {
     // copy of necessary constants (must match SkillTreeRenderer)
     public static final int AREA_TEX_X0 = 187;
@@ -101,7 +88,6 @@ public class Render {
     /**
      * Рисует полупрозрачный зелёный прогресс удержания над нодой.
      * ВЫЗЫВАЙ после того, как нарисовал(а) ноды (чтобы заливка была поверх).
-     *
      * Использует GuiGraphics.fill(...) — корректно для Minecraft 1.20.1 (Forge).
      */
 
@@ -125,7 +111,11 @@ public class Render {
         int unscaledMouseY = (int)((mouseY - pivotY) / scale + pivotY);
 
         for (SkillTreeNode n : nodes.values()) {
-            if (n.containsPoint(unscaledMouseX, unscaledMouseY)) return n;
+            if (n.containsPoint(unscaledMouseX, unscaledMouseY)) {
+                // НОВОЕ: не возвращаем заблокированные ноды как hovered
+                if (n.locked) return null; // ← игнорируем заблокированные
+                return n;
+            }
         }
 
         return null;
@@ -448,11 +438,29 @@ public class Render {
     public static void invokePrivateCalculateAndUpdatePositions(Object treeObj, int panelScreenX, int panelScreenY) {
         try {
             Class<?> renderClass = Class.forName("ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeRenderer");
-            Method m = renderClass.getDeclaredMethod("calculateAndUpdatePositions", treeObj.getClass(), int.class, int.class);
-            m.setAccessible(true);
-            m.invoke(null, treeObj, panelScreenX, panelScreenY);
-        } catch (NoSuchMethodException e) {
-            // Если приватный метод отсутствует (или подпись изменилась), просто пропускаем.
+
+            // ИСПРАВЛЕНИЕ: проверяем сигнатуру метода - возможно нужна передача scale
+            // Пробуем разные варианты сигнатур
+            try {
+                // Вариант 1: без scale
+                Method m = renderClass.getDeclaredMethod("calculateAndUpdatePositions",
+                        treeObj.getClass(), int.class, int.class);
+                m.setAccessible(true);
+                m.invoke(null, treeObj, panelScreenX, panelScreenY);
+            } catch (NoSuchMethodException e1) {
+                try {
+                    // Вариант 2: с scale
+                    Method m = renderClass.getDeclaredMethod("calculateAndUpdatePositions",
+                            treeObj.getClass(), int.class, int.class, float.class);
+                    m.setAccessible(true);
+
+                    // Получаем текущий scale
+                    float scale = ((Number) getFieldValue(treeObj, "scale")).floatValue();
+                    m.invoke(null, treeObj, panelScreenX, panelScreenY, scale);
+                } catch (NoSuchMethodException e2) {
+                    // Игнорируем
+                }
+            }
         } catch (Throwable ex) {
             ex.printStackTrace();
         }

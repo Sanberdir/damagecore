@@ -3,6 +3,7 @@ package ru.imaginaerum.damagecore.api.damage_book_protection;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraftforge.network.NetworkEvent;
 
+import java.util.Map;
 import java.util.function.Supplier;
 
 import net.minecraft.server.level.ServerPlayer;
@@ -32,9 +33,26 @@ public class LearnNodePacket {
         NetworkEvent.Context ctx = ctxSupplier.get();
         ctx.enqueueWork(() -> {
             ServerPlayer player = ctx.getSender();
-            if (player == null) return; // should not be null for client->server
+            if (player == null) return;
 
-            // Server-side handling (in separate helper)
+            // НОВОЕ: дополнительная проверка на сервере через рефлексию
+            try {
+                Object treeObj = SkillTreeServerHandler.getTreeObject(pkt.treeId);
+                if (treeObj == null) return;
+
+                Map<?, ?> nodes = SkillTreeServerHandler.getNodesMap(treeObj);
+                if (nodes == null) return;
+
+                Object nodeObj = nodes.get(pkt.nodeId);
+                if (nodeObj instanceof SkillTreeNode) {
+                    SkillTreeNode node = (SkillTreeNode) nodeObj;
+                    // Если нода заблокирована - игнорируем запрос
+                    if (node.locked) return;
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
             SkillTreeServerHandler.handleLearnRequest(player, pkt.treeId, pkt.nodeId);
         });
         ctx.setPacketHandled(true);

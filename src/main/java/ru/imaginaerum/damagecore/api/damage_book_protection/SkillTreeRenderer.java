@@ -340,6 +340,11 @@ public final class SkillTreeRenderer {
         // проверка клика по нодам
         for (SkillTreeNode node : currentTree.nodes.values()) {
             if (node.containsPoint(unscaledMouseX, unscaledMouseY)) {
+                // НОВОЕ: если нода заблокирована - не открываем опции и не начинаем drag
+                if (node.locked) {
+                    return false; // игнорируем клик по заблокированной ноде
+                }
+
                 if (node.options != null && !node.options.isEmpty()) {
                     openOptionsForNode(currentTree, node);
                     return true;

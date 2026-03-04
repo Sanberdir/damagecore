@@ -31,6 +31,10 @@ public final class SkillTreeServerHandler {
             Map<?, ?> nodes = getNodesMap(treeObj);
             if (nodes == null || !nodes.containsKey(nodeId)) return;
 
+            // НОВАЯ ПРОВЕРКА: если нода заблокирована - не изучаем
+            SkillTreeNode node = (SkillTreeNode) nodes.get(nodeId);
+            if (node.locked) return; // ← заблокированные ноды нельзя изучить
+
             // Получаем/создаем серверный набор изученных нод
             Set<String> learned = getLearnedSet(player, treeId);
             if (!learned.add(nodeId)) return; // уже изучено
@@ -54,7 +58,7 @@ public final class SkillTreeServerHandler {
     }
 
     /** Получаем объект дерева через рефлексию */
-    private static Object getTreeObject(int treeId) {
+    public static Object getTreeObject(int treeId) {
         try {
             Class<?> cls = Class.forName("ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeRenderer");
             Field treesField = cls.getDeclaredField("trees");
@@ -69,7 +73,7 @@ public final class SkillTreeServerHandler {
     }
 
     /** Получаем Map<String, SkillTreeNode> из дерева */
-    private static Map<String, SkillTreeNode> getNodesMap(Object treeObj) {
+    public static Map<String, SkillTreeNode> getNodesMap(Object treeObj) {
         if (treeObj == null) return null;
         try {
             Field nodesField = treeObj.getClass().getDeclaredField("nodes");

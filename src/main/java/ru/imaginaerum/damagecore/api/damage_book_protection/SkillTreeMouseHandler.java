@@ -1,22 +1,25 @@
 package ru.imaginaerum.damagecore.api.damage_book_protection;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ScreenEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import ru.imaginaerum.damagecore.api.damage_book_protection.skill_tree_renderer.Render;
 
 @Mod.EventBusSubscriber(modid = "damagecore", bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public class SkillTreeMouseHandler {
 
     @SubscribeEvent
     public static void onGuiMouseScroll(ScreenEvent.MouseScrolled event) {
-        System.out.println("!!! GUI SCROLL DETECTED !!! Delta: " + event.getScrollDelta());
+        // ДОБАВИТЬ: проверка что это нужный экран
+        if (!(event.getScreen() instanceof InventoryScreen)) return;
 
         Minecraft mc = Minecraft.getInstance();
-        System.out.println("Current screen: " + mc.screen);
 
-        int panelScreenX = 100;
+        // Получаем актуальные координаты панели из DamageBookRenderer
+        int panelScreenX = 100; // TODO: получить реальные координаты
         int panelScreenY = 100;
 
         boolean used = SkillTreeRenderer.mouseScrolled(
@@ -29,6 +32,9 @@ public class SkillTreeMouseHandler {
 
         if (used) {
             event.setCanceled(true);
+
+            // ДОБАВИТЬ: принудительное обновление рендера
+            // SkillTreeRenderer.forceRecalculate();
         }
     }
 }
