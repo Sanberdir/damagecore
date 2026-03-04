@@ -22,6 +22,7 @@ import ru.imaginaerum.damagecore.effect.DCEffects;
 import ru.imaginaerum.damagecore.item.DCItems;
 import ru.imaginaerum.damagecore.library_damage.WeaponDamageManager;
 import ru.imaginaerum.damagecore.particle.DCParticles;
+import ru.imaginaerum.damagecore.sounds.CustomSoundEvents;
 
 
 // The value here should match an entry in the META-INF/mods.toml file
@@ -53,6 +54,7 @@ public class DamageCore {
         DCEffects.MOB_EFFECTS.register(modEventBus);
         DCParticles.PARTICLE_TYPES.register(modEventBus);
         // Register the commonSetup method for modloading
+        CustomSoundEvents.SOUND_EVENTS.register(modEventBus);
         modEventBus.addListener(this::commonSetup);
         IEventBus forgeEventBus = MinecraftForge.EVENT_BUS;
         forgeEventBus.addListener(this::onAddReloadListeners);

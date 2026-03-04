@@ -4,9 +4,12 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.network.PacketDistributor;
 import ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeRenderer;
+import ru.imaginaerum.damagecore.sounds.CustomSoundEvents;
 
 import java.lang.reflect.Field;
 import java.util.*;
@@ -44,10 +47,7 @@ public final class SkillTreeServerHandler {
                     new SyncLearnedNodesPacket(treeId, new ArrayList<>(learned)));
 
             // Звук изучения
-            player.playNotifySound(
-                    net.minecraft.sounds.SoundEvents.UI_TOAST_CHALLENGE_COMPLETE,
-                    net.minecraft.sounds.SoundSource.PLAYERS, 1f, 1f
-            );
+            player.playNotifySound(CustomSoundEvents.LEARNING_SKILL.get(), SoundSource.PLAYERS, 1.5f, 1f);
         } catch (Throwable t) {
             t.printStackTrace();
         }

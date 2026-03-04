@@ -301,38 +301,33 @@ public final class SkillTreeRenderer {
         int areaX = panelScreenX + PANEL_DRAW_OFFSET_X_IN_PANEL;
         int areaY = panelScreenY + PANEL_DRAW_OFFSET_Y_IN_PANEL;
 
-        // если клик вне области дерева, но было открыто меню — закрываем его
+        // клик вне области дерева — закрываем меню опций
         if (!(mouseX >= areaX && mouseX <= areaX + AREA_WIDTH &&
                 mouseY >= areaY && mouseY <= areaY + AREA_HEIGHT)) {
             if (currentTree.activeOptionsNodeId != null) {
                 closeOptions(currentTree);
-                return true; // потребляем, чтобы клик не дальше не дошёл
+                return true;
             }
             return false;
         }
 
-        // вычислим unscaled coords (как в render)
-        int clipX1 = panelScreenX + PANEL_DRAW_OFFSET_X_IN_PANEL;
-        int clipY1 = panelScreenY + PANEL_DRAW_OFFSET_Y_IN_PANEL;
-        int pivotX = clipX1 + AREA_WIDTH / 2;
-        int pivotY = clipY1 + AREA_HEIGHT / 2;
+        // вычисляем unscaled coords для проверки попадания по нодам/опциям
+        int pivotX = areaX + AREA_WIDTH / 2;
+        int pivotY = areaY + AREA_HEIGHT / 2;
         float scale = currentTree.scale;
-        int unscaledMouseX = (int) ((mouseX - pivotX) / scale + pivotX);
-        int unscaledMouseY = (int) ((mouseY - pivotY) / scale + pivotY);
+        int unscaledMouseX = (int)((mouseX - pivotX) / scale + pivotX);
+        int unscaledMouseY = (int)((mouseY - pivotY) / scale + pivotY);
 
-        // Если меню опций уже открыто, проверяем попал ли клик по одной из опций
+        // если меню опций открыто
         if (currentTree.activeOptionsNodeId != null) {
             SkillTreeNode node = currentTree.nodes.get(currentTree.activeOptionsNodeId);
             if (node != null && !node.options.isEmpty()) {
                 int idx = optionIndexAtPoint(node, unscaledMouseX, unscaledMouseY, OPTION_SIZE);
                 if (idx >= 0) {
-                    // выбрали опцию — сохраняем
                     node.selectedOption = idx;
-                    // тут можно отправить пакет на сервер, если нужна синхронизация
                     closeOptions(currentTree);
                     return true;
                 } else {
-                    // кликнули вне опций внутри области => закрываем меню
                     closeOptions(currentTree);
                     return true;
                 }
@@ -342,30 +337,25 @@ public final class SkillTreeRenderer {
             }
         }
 
-        // Если меню не открыто — проверяем клик по ноде
+        // проверка клика по нодам
         for (SkillTreeNode node : currentTree.nodes.values()) {
             if (node.containsPoint(unscaledMouseX, unscaledMouseY)) {
-                System.out.println("Clicked node: " + node.id + " options: " + node.options.size());
-                // если у ноды есть варианты — открыть меню
                 if (node.options != null && !node.options.isEmpty()) {
                     openOptionsForNode(currentTree, node);
                     return true;
-                } else {
-                    // иначе не открываем — начинаем перетаскивание (если левый клик)
-                    if (button == 0) {
-                        currentTree.isDragging = true;
-                        currentTree.dragStartX = mouseX;
-                        currentTree.dragStartY = mouseY;
-                        currentTree.dragStartOffsetX = currentTree.offsetX;
-                        currentTree.dragStartOffsetY = currentTree.offsetY;
-                        return true;
-                    }
-                    return false;
+                } else if (button == 0) {
+                    currentTree.isDragging = true;
+                    currentTree.dragStartX = mouseX;
+                    currentTree.dragStartY = mouseY;
+                    currentTree.dragStartOffsetX = currentTree.offsetX;
+                    currentTree.dragStartOffsetY = currentTree.offsetY;
+                    return true;
                 }
+                return false;
             }
         }
 
-        // Если клик по пустому месту — начинаем перетаскивание (левый клик)
+        // клик по пустому месту — начинаем drag
         if (button == 0) {
             currentTree.isDragging = true;
             currentTree.dragStartX = mouseX;
@@ -378,6 +368,22 @@ public final class SkillTreeRenderer {
         return false;
     }
 
+    public static boolean mouseDragged(int mouseX, int mouseY, int button, int panelScreenX, int panelScreenY) {
+        SkillTreeData currentTree = getCurrentTree();
+        if (!currentTree.isDragging || button != 0) return false;
+
+        float scale = currentTree.scale;
+
+        // дельта считается в screen-координатах и делится на масштаб
+        int deltaX = (int)((mouseX - currentTree.dragStartX) / scale);
+        int deltaY = (int)((mouseY - currentTree.dragStartY) / scale);
+
+        currentTree.offsetX = currentTree.dragStartOffsetX + deltaX;
+        currentTree.offsetY = currentTree.dragStartOffsetY + deltaY;
+
+        calculateAndUpdatePositions(currentTree, panelScreenX, panelScreenY);
+        return true;
+    }
     public static boolean mouseReleased(int mouseX, int mouseY, int button) {
         SkillTreeData currentTree = getCurrentTree();
         if (currentTree.isDragging) {
@@ -386,39 +392,6 @@ public final class SkillTreeRenderer {
         }
         return false;
     }
-
-    // --- mousePressed с учётом масштаба и pivot ---
-
-
-    // --- mouseDragged с учётом масштаба и pivot ---
-    public static boolean mouseDragged(int mouseX, int mouseY, int button, int panelScreenX, int panelScreenY) {
-        SkillTreeData currentTree = getCurrentTree();
-        if (!currentTree.isDragging || button != 0) return false;
-
-        int areaX = panelScreenX + PANEL_DRAW_OFFSET_X_IN_PANEL;
-        int areaY = panelScreenY + PANEL_DRAW_OFFSET_Y_IN_PANEL;
-
-        int pivotX = areaX + AREA_WIDTH / 2;
-        int pivotY = areaY + AREA_HEIGHT / 2;
-        float scale = currentTree.scale;
-
-        // переводим текущие координаты мыши в unscaled пространство
-        int unscaledMouseX = (int)((mouseX - pivotX) / scale + pivotX);
-        int unscaledMouseY = (int)((mouseY - pivotY) / scale + pivotY);
-
-        int deltaX = unscaledMouseX - currentTree.dragStartX;
-        int deltaY = unscaledMouseY - currentTree.dragStartY;
-
-        if (deltaX == 0 && deltaY == 0) return false;
-
-        currentTree.offsetX = currentTree.dragStartOffsetX + deltaX;
-        currentTree.offsetY = currentTree.dragStartOffsetY + deltaY;
-
-        calculateAndUpdatePositions(currentTree, panelScreenX, panelScreenY);
-
-        return true;
-    }
-
     public static boolean mouseScrolled(int mouseX, int mouseY, double delta, int panelScreenX, int panelScreenY) {
         SkillTreeData currentTree = getCurrentTree();
 

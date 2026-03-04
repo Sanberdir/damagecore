@@ -14,7 +14,7 @@ public final class SkillTreeNode {
     public boolean learned = false; // новое поле: изучена или нет
     public final String parentId; // "start" или id родителя
     public final Side side;
-
+    public long xpFailFlashUntil = 0L;
     // Экранные координаты (верхний левый угол рамки узла)
     public int x;
     public int y;
