@@ -19,10 +19,6 @@ import ru.imaginaerum.damagecore.api.damage_book_protection.pages_book.RenderAct
 import ru.imaginaerum.damagecore.api.damage_book_protection.pages_book.RenderDamageIconsAndTexts;
 import ru.imaginaerum.damagecore.api.damage_book_protection.skill_tree_renderer.Render;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-
 @Mixin(InventoryScreen.class)
 public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
     private static final ResourceLocation DAMAGE_TYPE_BUTTON = new ResourceLocation("damagecore", "textures/gui/damage_type_button.png");
@@ -321,15 +317,22 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
         int panelScreenX = guiLeft + imageWidth + 2;
         int panelScreenY = guiTop;
 
-        // Обновляем hovered-ноду каждый кадр (учитывая offset и scale внутри Render)
+        // 1) Обновляем drag каждый кадр (если isDragging==true внутри SkillTreeData — метод выполнит смещение)
+        //    Это заменяет отсутствие mouseDragged в InventoryScreen — вызывать безопасно всегда.
+        SkillTreeRenderer.mouseDragged((int) mouseX, (int) mouseY, 0, panelScreenX, panelScreenY);
+
+        // 2) После возможного перемещения дерева — обновляем hovered-ноду (учитывает offset/scale внутри Render)
         Render.currentHoveredNode = Render.getHoveredNodeUnderMouse(mouseX, mouseY);
 
+        // 3) (опционально) — если хочешь показывать hold-бар прямо сейчас, можно вызвать
+        // Render.renderHoldProgressOverlay(gui);
     }
     // --- mousePressed (заменяет текущую реализацию) ---
     @Inject(method = "mouseClicked", at = @At("TAIL"), cancellable = true)
     private void damagecore$skillTree_mousePressed(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
-        InventoryScreen screen = (InventoryScreen) (Object) this;
         if (!this.skillTreeVisible) return;
+
+        InventoryScreen screen = (InventoryScreen) (Object) this;
 
         int guiLeft = ((AbstractContainerScreenAccessor) screen).getLeftPos();
         int guiTop  = ((AbstractContainerScreenAccessor) screen).getTopPos();
@@ -338,21 +341,29 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
         int panelScreenX = guiLeft + imageWidth + 2;
         int panelScreenY = guiTop;
 
-        // Обрабатываем оригинальную логику (click / start drag) — это важно для перемещения
-        boolean consumed = SkillTreeRenderer.mousePressed((int) mouseX, (int) mouseY, button, panelScreenX, panelScreenY);
+        boolean consumed = SkillTreeRenderer.mousePressed(
+                (int) mouseX, (int) mouseY, button,
+                panelScreenX, panelScreenY
+        );
 
-        if (button == 0) { // левая кнопка
-            // Найдём ноду под мышью через Render
+        if (button == 0) {
             SkillTreeNode hovered = Render.getHoveredNodeUnderMouse((int) mouseX, (int) mouseY);
-
             if (hovered != null) {
+                if (hovered.learned) {
+                    // игнорируем: уже изучена
+                    Render.currentHoveredNode = null;
+                    Render.mousePressTime = 0L;
+                } else {
+                    Render.currentHoveredNode = hovered;
+                    Render.mousePressTime = System.currentTimeMillis();
+                }
+            }
+            if (hovered != null && !hovered.learned) {
                 Render.currentHoveredNode = hovered;
                 Render.mousePressTime = System.currentTimeMillis();
-                System.out.println("[Render] HOLD STARTED hovered=" + hovered.id + " mousePressTime=" + Render.mousePressTime);
             } else {
                 Render.currentHoveredNode = null;
                 Render.mousePressTime = 0L;
-                System.out.println("[Render] clicked empty — hold reset");
             }
         }
 

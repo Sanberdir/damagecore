@@ -193,7 +193,7 @@ public final class SkillTreeRenderer {
                 }
             }
 
-
+            SkillTreeClientSync.reapplyCachedForAllTrees();
         } catch (Exception e) {
             System.err.println("Error loading skill trees:");
             e.printStackTrace();
@@ -387,20 +387,34 @@ public final class SkillTreeRenderer {
         return false;
     }
 
+    // --- mousePressed с учётом масштаба и pivot ---
+
+
+    // --- mouseDragged с учётом масштаба и pivot ---
     public static boolean mouseDragged(int mouseX, int mouseY, int button, int panelScreenX, int panelScreenY) {
         SkillTreeData currentTree = getCurrentTree();
         if (!currentTree.isDragging || button != 0) return false;
 
-        int deltaX = mouseX - currentTree.dragStartX;
-        int deltaY = mouseY - currentTree.dragStartY;
+        int areaX = panelScreenX + PANEL_DRAW_OFFSET_X_IN_PANEL;
+        int areaY = panelScreenY + PANEL_DRAW_OFFSET_Y_IN_PANEL;
+
+        int pivotX = areaX + AREA_WIDTH / 2;
+        int pivotY = areaY + AREA_HEIGHT / 2;
+        float scale = currentTree.scale;
+
+        // переводим текущие координаты мыши в unscaled пространство
+        int unscaledMouseX = (int)((mouseX - pivotX) / scale + pivotX);
+        int unscaledMouseY = (int)((mouseY - pivotY) / scale + pivotY);
+
+        int deltaX = unscaledMouseX - currentTree.dragStartX;
+        int deltaY = unscaledMouseY - currentTree.dragStartY;
 
         if (deltaX == 0 && deltaY == 0) return false;
 
-        currentTree.offsetX = currentTree.dragStartOffsetX + (int)(deltaX / currentTree.scale);
-        currentTree.offsetY = currentTree.dragStartOffsetY + (int)(deltaY / currentTree.scale);
+        currentTree.offsetX = currentTree.dragStartOffsetX + deltaX;
+        currentTree.offsetY = currentTree.dragStartOffsetY + deltaY;
 
         calculateAndUpdatePositions(currentTree, panelScreenX, panelScreenY);
-
 
         return true;
     }

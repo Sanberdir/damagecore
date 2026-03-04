@@ -15,6 +15,7 @@ import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import org.slf4j.Logger;
+import ru.imaginaerum.damagecore.api.damage_book_protection.ModNetwork;
 import ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeMouseHandler;
 import ru.imaginaerum.damagecore.datagen.DamageTypeProvider;
 import ru.imaginaerum.damagecore.effect.DCEffects;
@@ -70,7 +71,9 @@ public class DamageCore {
 
     }
     private void commonSetup(final FMLCommonSetupEvent event) {
-
+        event.enqueueWork(() -> {
+            ModNetwork.init();
+        });
     }
 
     // Add the example block item to the building blocks tab

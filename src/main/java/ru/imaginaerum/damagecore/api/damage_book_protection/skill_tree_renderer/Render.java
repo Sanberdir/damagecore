@@ -8,6 +8,8 @@ import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FormattedCharSequence;
+import ru.imaginaerum.damagecore.api.damage_book_protection.LearnNodePacket;
+import ru.imaginaerum.damagecore.api.damage_book_protection.ModNetwork;
 import ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeNode;
 
 import java.lang.reflect.Field;
@@ -115,24 +117,29 @@ public class Render {
 
         // После заполнения — проверяем уровни и отмечаем ноду изученной
         if (progress >= 1f) {
-            Minecraft mc = Minecraft.getInstance();
-            int REQUIRED_LEVELS = 5;
-            if (mc.player.experienceLevel >= REQUIRED_LEVELS) {
-                mc.player.giveExperienceLevels(-REQUIRED_LEVELS);
-                currentHoveredNode.learned = true; // отмечаем ноду изученной
-                mc.player.playNotifySound(
-                        net.minecraft.sounds.SoundEvents.UI_TOAST_CHALLENGE_COMPLETE,
-                        net.minecraft.sounds.SoundSource.PLAYERS,
-                        1.0f, 1.0f
-                );
-            } else {
-                mc.player.playNotifySound(
-                        net.minecraft.sounds.SoundEvents.UI_TOAST_IN,
-                        net.minecraft.sounds.SoundSource.PLAYERS,
-                        1.0f, 1.0f
-                );
+            // требуемый ID дерева (используйте activeTreeId из SkillTreeRenderer)
+            int activeTreeId = getActiveTreeIdViaReflection(); // пример ниже
+            String nodeId = currentHoveredNode.id;
+            // посылаем пакет
+            if (progress >= 1f) {
+                if (!currentHoveredNode.learned) {
+                    ModNetwork.CHANNEL.sendToServer(
+                            new LearnNodePacket(activeTreeId, nodeId)
+                    );
+                }
+                mousePressTime = 0L;
             }
-            mousePressTime = 0L; // сброс прогресса
+        }
+    }
+    private static int getActiveTreeIdViaReflection() {
+        try {
+            Class<?> cls = Class.forName("ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeRenderer");
+            java.lang.reflect.Field f = cls.getDeclaredField("activeTreeId");
+            f.setAccessible(true);
+            return f.getInt(null);
+        } catch (Throwable t) {
+            t.printStackTrace();
+            return 0;
         }
     }
     // --- вспомогательные упрощения, не трогающие логику ---
@@ -360,7 +367,7 @@ public class Render {
         return null;
     }
 
-    private static void invokePrivateCalculateAndUpdatePositions(Object treeObj, int panelScreenX, int panelScreenY) {
+    public static void invokePrivateCalculateAndUpdatePositions(Object treeObj, int panelScreenX, int panelScreenY) {
         try {
             Class<?> renderClass = Class.forName("ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeRenderer");
             Method m = renderClass.getDeclaredMethod("calculateAndUpdatePositions", treeObj.getClass(), int.class, int.class);
