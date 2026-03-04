@@ -86,13 +86,4 @@ public final class SkillTreeClientSync {
             t.printStackTrace();
         }
     }
-
-    /** Получить snapshot кэша для отладки */
-    public static Map<Integer, Set<String>> getLearnedCacheSnapshot() {
-        Map<Integer, Set<String>> snapshot = new HashMap<>();
-        for (Map.Entry<Integer, Set<String>> e : learnedCache.entrySet()) {
-            snapshot.put(e.getKey(), new HashSet<>(e.getValue()));
-        }
-        return snapshot;
-    }
 }
