@@ -50,44 +50,53 @@ public class Render {
     public static void triggerXpFailFlash(SkillTreeNode node) {
         node.xpFailFlashUntil = System.currentTimeMillis() + FAIL_FLASH_DURATION;
     }
-    private static void renderXpFailFlash(GuiGraphics gui,
-                                          SkillTreeNode node,
-                                          int pivotX,
-                                          int pivotY,
-                                          float scale) {
+    // Заменить текущее renderXpFailFlash на этот метод
+    private static void renderXpFailFlash(GuiGraphics gui, SkillTreeNode node) {
+        if (node == null) return;
+        try {
+            Object treeObj = invokePrivateGetCurrentTree();
+            if (treeObj == null) return;
 
-        long now = System.currentTimeMillis();
-        if (node.xpFailFlashUntil <= now) return;
+            // проверяем таймер
+            long now = System.currentTimeMillis();
+            if (node.xpFailFlashUntil <= now) return;
 
-        float alpha = (node.xpFailFlashUntil - now) / (float) FAIL_FLASH_DURATION;
-        alpha = Math.max(0f, Math.min(1f, alpha));
+            // альфа и цвет (как было)
+            float alpha = (node.xpFailFlashUntil - now) / (float) FAIL_FLASH_DURATION;
+            alpha = Math.max(0f, Math.min(1f, alpha));
+            int alphaInt = (int)(alpha * 136f) & 0xFF;
+            int color = (alphaInt << 24) | 0x00FF0000;
 
-        int alphaInt = (int)(alpha * 136f) & 0xFF;
-        int color = (alphaInt << 24) | 0x00FF0000;
+            // scale и pivot — берём точно так же, как в renderHoldProgressOverlay
+            float scale = ((Number) getFieldValue(treeObj, "scale")).floatValue();
+            int clipX1 = currentPanelScreenX + PANEL_DRAW_OFFSET_X_IN_PANEL;
+            int clipY1 = currentPanelScreenY + PANEL_DRAW_OFFSET_Y_IN_PANEL;
+            int pivotX = clipX1 + AREA_WIDTH / 2;
+            int pivotY = clipY1 + AREA_HEIGHT / 2;
 
-        PoseStack pose = gui.pose();
-        pose.pushPose();
+            PoseStack pose = gui.pose();
+            pose.pushPose();
 
-        // Абсолютно та же трансформация, что у зелёной заливки
-        pose.translate(pivotX, pivotY, 2000);
-        pose.scale(scale, scale, 1f);
-        pose.translate(-pivotX, -pivotY, 0);
+            // Применяем тот же pivot + scale, как у зелёного прогресса
+            pose.translate(pivotX, pivotY, 2000);
+            pose.scale(scale, scale, 1f);
+            pose.translate(-pivotX, -pivotY, 0);
 
-        int frameSize = SkillTreeNode.FRAME_SIZE;
-        int padding = SkillTreeNode.FRAME_PADDING;
+            int frameSize = SkillTreeNode.FRAME_SIZE;
+            int padding = SkillTreeNode.FRAME_PADDING;
 
-        int left = node.x + padding;
-        int top = node.y + padding;
-        int width = frameSize - 2 * padding;
-        int height = frameSize - 2 * padding;
+            int left = node.x + padding;
+            int top = node.y + padding;
+            int width = frameSize - 2 * padding;
+            int height = frameSize - 2 * padding;
 
-        gui.fill(left,
-                top,
-                left + width,
-                top + height,
-                color);
+            // Красная заливка полностью (в отличие от зелёного прогресса)
+            gui.fill(left, top, left + width, top + height, color);
 
-        pose.popPose();
+            pose.popPose();
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
     }
     /**
      * Рисует полупрозрачный зелёный прогресс удержания над нодой.
@@ -349,8 +358,12 @@ public class Render {
                 pose.translate(-pivotX, -pivotY, 0);
 
                 RenderDrawUtils.drawNode(gui, hoveredNode, unscaledMouseX, unscaledMouseY);
-                renderXpFailFlash(gui, hoveredNode, pivotX, pivotY, scale);
+
                 pose.popPose();
+
+                // рисуем красную мигалку ВНЕ внутреннего трансформ-блока,
+                // точно так же, как рисуется зелёный прогресс ниже.
+                renderXpFailFlash(gui, hoveredNode);
             }
             if (!optionsOpen && hoveredNode != null) {
                 renderHoldProgressOverlay(gui, mouseX, mouseY);
