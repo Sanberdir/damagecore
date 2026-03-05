@@ -31,12 +31,23 @@ public final class SkillTreeServerHandler {
             Map<?, ?> nodes = getNodesMap(treeObj);
             if (nodes == null || !nodes.containsKey(nodeId)) return;
 
-            // НОВАЯ ПРОВЕРКА: если нода заблокирована - не изучаем
             SkillTreeNode node = (SkillTreeNode) nodes.get(nodeId);
-            if (node.locked) return; // ← заблокированные ноды нельзя изучить
+
+            // НОВАЯ ПРОВЕРКА: если нода заблокирована - не изучаем
+            if (node.locked) return; // заблокированные ноды нельзя изучить
 
             // Получаем/создаем серверный набор изученных нод
             Set<String> learned = getLearnedSet(player, treeId);
+
+            // НОВАЯ ПРОВЕРКА: зависимость от родителя — нельзя изучить, если родитель не изучен
+            String parentId = node.parentId;
+            if (parentId != null && !"start".equalsIgnoreCase(parentId)) {
+                if (!learned.contains(parentId)) {
+                    // попытка изучить без изучения родителя — отклоняем
+                    return;
+                }
+            }
+
             if (!learned.add(nodeId)) return; // уже изучено
 
             // Проверка уровней
