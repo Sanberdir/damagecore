@@ -381,13 +381,9 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
         boolean consumed = SkillTreeRenderer.mouseReleased((int) mouseX, (int) mouseY, button);
 
         if (button == 0) {
-            if (Render.currentHoveredNode != null) {
+            if (Render.currentHoveredNode != null && Render.mousePressTime > 0) {
                 long elapsed = System.currentTimeMillis() - Render.mousePressTime;
-                System.out.println("[Render] RELEASED hovered=" + Render.currentHoveredNode.id + " elapsed=" + elapsed + "ms");
-            } else {
-                System.out.println("[Render] RELEASED hovered=null");
             }
-
             // Сбрасываем hold
             Render.currentHoveredNode = null;
             Render.mousePressTime = 0L;

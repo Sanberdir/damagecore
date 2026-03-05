@@ -18,7 +18,6 @@
     {
       "id": "slash_2",
       "item": "minecraft:golden_sword",
-      "parent": "slash_1",
       "gridX": -2,
       "gridY": 3
     },
@@ -26,6 +25,7 @@
       "id": "precision",
       "item": "minecraft:crossbow",
       "parent": "root",
+      "lock": true,
       "gridX": 2,
       "gridY": -3
     },
