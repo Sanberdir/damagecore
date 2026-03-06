@@ -1,0 +1,49 @@
+{
+  "tabIcon": "minecraft:potion",
+  "nodes": [
+    {
+      "id": "alchemy_experience",
+      "item": "minecraft:cauldron",
+      "parent": "start",
+      "gridX": 0,
+      "gridY": 0
+    },
+    {
+      "id": "swift_brewing",
+      "item": "minecraft:brewing_stand",
+      "parent": "alchemy_experience",
+      "lock": true,
+      "gridX": 2,
+      "gridY": 0
+    },
+    {
+      "id": "potion_master",
+      "item": "minecraft:nether_wart",
+      "parent": "swift_brewing",
+      "lock": true,
+      "gridX": 2,
+      "gridY": -2
+    },
+    {
+      "id": "adept_insight",
+      "item": "minecraft:ghast_tear",
+      "parent": "swift_brewing",
+      "lock": true,
+      "variants": [
+        { "id": "healer_student", "item": "minecraft:glistering_melon_slice" },
+        { "id": "witch_student", "item": "minecraft:fermented_spider_eye" },
+        { "id": "chemist_student", "item": "minecraft:sugar" }
+      ],
+      "gridX": 0,
+      "gridY": -2
+    },
+    {
+      "id": "alchemy_belt",
+      "item": "minecraft:gunpowder",
+      "parent": "potion_master",
+      "gridX": 4,
+      "gridY": 0,
+      "lock": true
+    }
+  ]
+}
