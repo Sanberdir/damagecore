@@ -9,7 +9,8 @@ public final class SkillTreeNode {
     public enum Side { START, LEFT, RIGHT, TOP, BOTTOM }
     public boolean optionsVisible = false;
     public final String id;
-    public final ItemStack itemStack; // отображаемый предмет (может быть Items.AIR)
+    public String displayId; // отображаемый id (используется для тултипов). По умолчанию равен id.
+    public ItemStack itemStack; // отображаемый предмет (может быть Items.AIR) — теперь изменяемый
     public boolean locked;
     public boolean learned = false; // новое поле: изучена или нет
     public final String parentId; // "start" или id родителя
@@ -35,6 +36,7 @@ public final class SkillTreeNode {
 
     public SkillTreeNode(String id, ItemStack itemStack, boolean locked, String parentId, Side side) {
         this.id = id;
+        this.displayId = id;
         this.itemStack = itemStack;
         this.locked = locked;
         this.parentId = parentId;
@@ -55,16 +57,40 @@ public final class SkillTreeNode {
     }
 
     public static class Variant {
-        public final String id;
-        public final ItemStack stack;
+        public final String displayId;  // текст/название варианта
+        public final ItemStack stack;   // отображаемый предмет
 
-        public Variant(String id, ItemStack stack) {
-            this.id = id;
+        public Variant(String displayId, ItemStack stack) {
+            this.displayId = displayId;
             this.stack = stack;
+        }
+
+        // геттеры для удобства
+        public ItemStack getItemStack() {
+            return stack;
+        }
+
+        public String getDisplayId() {
+            return displayId;
         }
     }
 
     public final List<Variant> variants = new ArrayList<>();
+
+    /**
+     * Применить вариант (при выборе опции).
+     * Меняет selectedOption, обновляет отображаемый itemStack и displayId (для тултипов).
+     * NOTE: не меняет "id" — он остаётся ключом ноды в дереве.
+     */
+    public void applyVariant(int index) {
+        if (variants == null || index < 0 || index >= variants.size()) return;
+        Variant v = variants.get(index);
+        if (v == null) return;
+
+        this.itemStack = v.stack;   // отображаемый предмет
+        this.displayId = v.displayId;      // текст/ID для тултипа
+        this.selectedOption = index;
+    }
 
     public int centerX() {
         return x + FRAME_SIZE / 2;

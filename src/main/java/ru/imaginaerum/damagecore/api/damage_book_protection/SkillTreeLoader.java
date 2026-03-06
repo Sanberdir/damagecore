@@ -17,7 +17,11 @@ import java.util.*;
 
 public final class SkillTreeLoader {
     private SkillTreeLoader() {}
-
+    public static void loadAllTrees(String folderPath) {
+        System.out.println("SkillTreeLoader.loadAllTrees() called");
+        // Вызываем renderer для загрузки
+        SkillTreeRenderer.loadAllTrees(folderPath);
+    }
     private static final Gson GSON = new Gson();
 
     /**

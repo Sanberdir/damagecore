@@ -9,6 +9,7 @@ import net.minecraft.network.chat.Component;
 import ru.imaginaerum.damagecore.api.damage_book_protection.LearnNodePacket;
 import ru.imaginaerum.damagecore.api.damage_book_protection.ModNetwork;
 import ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeNode;
+import ru.imaginaerum.damagecore.api.damage_book_protection.node_variant.SelectVariantPacket;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -205,6 +206,7 @@ public class Render {
             return 0;
         }
     }
+
     // --- вспомогательные упрощения, не трогающие логику ---
     public static void render(GuiGraphics gui, InventoryScreen screen,
                               int panelScreenX, int panelScreenY,
@@ -374,7 +376,7 @@ public class Render {
             if (hoveredOption != null) {
                 Font font = Minecraft.getInstance().font;
 
-                String baseKey = "damagecore.skilltree.variant." + hoveredOption.variant.id;
+                String baseKey = "damagecore.skilltree.variant." + hoveredOption.variant.displayId;
                 String title = Component.translatable(baseKey).getString();
                 String desc  = Component.translatable(baseKey + ".desc").getString();
                 if (desc.equals(baseKey + ".desc")) desc = "";
@@ -390,7 +392,7 @@ public class Render {
             if (!optionsOpen && hoveredNode != null) {
                 Font font = Minecraft.getInstance().font;
 
-                String baseKey = "damagecore.skilltree.node." + hoveredNode.id;
+                String baseKey = "damagecore.skilltree.node." + (hoveredNode.displayId != null ? hoveredNode.displayId : hoveredNode.id);
                 String title = Component.translatable(baseKey).getString();
                 String desc  = Component.translatable(baseKey + ".desc").getString();
                 if (desc.equals(baseKey + ".desc")) desc = "";

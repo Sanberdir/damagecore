@@ -2,13 +2,14 @@ package ru.imaginaerum.damagecore.api.damage_book_protection;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.item.ItemStack;
+import ru.imaginaerum.damagecore.api.damage_book_protection.node_variant.SelectVariantPacket;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class SkillTreeRenderer {
     private SkillTreeRenderer() {}
-
+    private static boolean treesLoaded = false; // НОВОЕ
     public static final int AREA_TEX_X0 = 187;
     public static final int AREA_TEX_Y0 = 8;
     public static final int AREA_TEX_X1 = 460;
@@ -69,7 +70,10 @@ public final class SkillTreeRenderer {
             this.displayName = displayName;
         }
     }
-
+    // В SkillTreeRenderer
+    public static SkillTreeData getActiveTree() {
+        return getCurrentTree();
+    }
     // Открыть меню опций для ноды (возвращает true если открылось)
     private static boolean openOptionsForNode(SkillTreeData tree, SkillTreeNode node) {
         if (node == null || node.options == null || node.options.isEmpty()) return false;
@@ -124,9 +128,20 @@ public final class SkillTreeRenderer {
             activeTreeId = tabId;
         }
     }
-
+    public static void reloadTrees(String folderPath) {
+        treesLoaded = false;
+        loadAllTrees(folderPath);
+    }
     // Загрузить все деревья из папки assets/damagecore/skill_tree/
     public static void loadAllTrees(String folderPath) {
+        if (treesLoaded) {
+            System.out.println("Trees already loaded, skipping...");
+            return;
+        }
+
+        System.out.println("Loading trees from " + folderPath);
+        treesLoaded = true;
+
         trees.clear();
         fileNameToTabId.clear();
         sortedFileNames.clear();
@@ -192,12 +207,13 @@ public final class SkillTreeRenderer {
                     tabId++;
                 }
             }
-
-            SkillTreeClientSync.reapplyCachedForAllTrees();
         } catch (Exception e) {
             System.err.println("Error loading skill trees:");
             e.printStackTrace();
         }
+        // после загрузки всех деревьев
+        System.out.println("Trees loaded, reapplying cache...");
+        SkillTreeClientSync.reapplyCachedForAllTrees();
     }
 
     private static void rebuildChildrenMap(SkillTreeData tree) {
@@ -324,10 +340,24 @@ public final class SkillTreeRenderer {
             if (node != null && !node.options.isEmpty()) {
                 int idx = optionIndexAtPoint(node, unscaledMouseX, unscaledMouseY, OPTION_SIZE);
                 if (idx >= 0) {
-                    node.selectedOption = idx;
+                    // Применяем вариант к ноде (изменяем отображаемый стек и displayId)
+                    node.applyVariant(idx);
+
+                    // Отправляем на сервер выбор варианта для постоянного сохранения
+                    try {
+                        if (ModNetwork.CHANNEL != null) {
+                            // Используем activeTreeId как treeId
+                            int treeId = activeTreeId;
+                            ModNetwork.CHANNEL.sendToServer(new SelectVariantPacket(treeId, node.id, idx));
+                        }
+                    } catch (Throwable t) {
+                        t.printStackTrace();
+                    }
+
                     closeOptions(currentTree);
                     return true;
                 } else {
+                    // Клик внутри области опций, но не по конкретной опции — просто закрываем
                     closeOptions(currentTree);
                     return true;
                 }

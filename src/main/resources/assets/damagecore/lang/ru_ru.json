@@ -52,10 +52,13 @@
   "damagecore.skilltree.node.slash_2": "Нарезка 2",
   "damagecore.skilltree.node.precision": "Точность",
   "damagecore.skilltree.node.heavy_strike": "Тяжёлый выстрел",
+  "damagecore.skilltree.node.heavy_fire": "Тяжёлый огонь",
+
   "damagecore.skilltree.variant.heavy_fire": "Тяжёлый огонь",
 
   "damagecore.skilltree.node.root.desc": "Увеличивает рубящий урон на 5 процентов. Увеличивает рубящий урон на 5 процентов.",
   "damagecore.skilltree.node.slash_1.desc": "Что-то нарезает",
+  "damagecore.skilltree.node.heavy_fire.desc": "Тяжёлый огонь",
   "damagecore.skilltree.variant.heavy_fire.desc": "Тяжёлый огонь",
 
   "damagecore.skilltree.locked": "Заблокировано",

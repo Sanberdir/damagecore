@@ -4,6 +4,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.network.NetworkDirection;
 import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.simple.SimpleChannel;
+import ru.imaginaerum.damagecore.api.damage_book_protection.node_variant.SelectVariantPacket;
+import ru.imaginaerum.damagecore.api.damage_book_protection.node_variant.SyncNodeVariantsPacket;
 
 import java.util.Optional;
 
@@ -20,6 +22,20 @@ public final class ModNetwork {
                 () -> PROTOCOL,
                 PROTOCOL::equals,
                 PROTOCOL::equals
+
+        );
+        int packetId = 0;
+// сервер → клиент
+        CHANNEL.registerMessage(id++, SyncNodeVariantsPacket.class,
+                SyncNodeVariantsPacket::encode,
+                SyncNodeVariantsPacket::decode,
+                SyncNodeVariantsPacket::handle);
+        CHANNEL.registerMessage(
+                packetId++,
+                SelectVariantPacket.class,
+                SelectVariantPacket::encode,
+                SelectVariantPacket::decode,
+                SelectVariantPacket::handle
         );
 //        ModNetwork.CHANNEL.sendToServer(new RequestFullSyncPacket());
         CHANNEL.registerMessage(id++,

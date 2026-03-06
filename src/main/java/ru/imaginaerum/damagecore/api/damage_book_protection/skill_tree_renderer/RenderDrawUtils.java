@@ -99,80 +99,51 @@ public class RenderDrawUtils {
 
         int stripWidth = (textStartX - stripLeft) + maxWidth + TOOLTIP_RIGHT_PAD;
 
-        int titleHeight = Math.max(TOOLTIP_SRC_H,
-                titleLines.size() * font.lineHeight + 6);
-
-        int descHeight = descLines.isEmpty() ? 0 :
-                Math.max(TOOLTIP_SRC_H,
-                        descLines.size() * font.lineHeight + 4);
+        int titleHeight = Math.max(TOOLTIP_SRC_H, titleLines.size() * font.lineHeight + 6);
+        int descHeight = descLines.isEmpty() ? 0 : Math.max(TOOLTIP_SRC_H, descLines.size() * font.lineHeight + 4);
 
         int titleTop = cellCenterY - titleHeight / 2;
         int descTop = titleTop + titleHeight - 4;
 
         PoseStack pose = gui.pose();
 
-        // --- ФОН ОПИСАНИЯ ---
         if (descHeight > 0) {
             pose.pushPose();
             pose.translate(pivotX, pivotY, Z_TOOLTIP_DESC_BG);
             pose.scale(scale, scale, 1f);
             pose.translate(-pivotX, -pivotY, 0);
-
-            drawNineSliceTiled(gui, TOOLTIP_TEXTURE,
-                    stripLeft, descTop,
-                    stripWidth, descHeight + 6,
-                    TOOLTIP_DESC_SRC_U, TOOLTIP_DESC_SRC_V,
-                    TOOLTIP_SRC_W, TOOLTIP_SRC_H,
-                    TOOLTIP_CAP);
-
+            drawNineSliceTiled(gui, TOOLTIP_TEXTURE, stripLeft, descTop, stripWidth, descHeight + 6,
+                    TOOLTIP_DESC_SRC_U, TOOLTIP_DESC_SRC_V, TOOLTIP_SRC_W, TOOLTIP_SRC_H, TOOLTIP_CAP);
             pose.popPose();
         }
 
-        // --- ФОН ЗАГОЛОВКА ---
         pose.pushPose();
         pose.translate(pivotX, pivotY, Z_TOOLTIP_TITLE_BG);
         pose.scale(scale, scale, 1f);
         pose.translate(-pivotX, -pivotY, 0);
-
-        drawNineSliceTiled(gui, TOOLTIP_TEXTURE,
-                stripLeft, titleTop,
-                stripWidth, titleHeight,
-                TOOLTIP_TITLE_SRC_U, TOOLTIP_TITLE_SRC_V,
-                TOOLTIP_SRC_W, TOOLTIP_SRC_H,
-                TOOLTIP_CAP);
-
+        drawNineSliceTiled(gui, TOOLTIP_TEXTURE, stripLeft, titleTop, stripWidth, titleHeight,
+                TOOLTIP_TITLE_SRC_U, TOOLTIP_TITLE_SRC_V, TOOLTIP_SRC_W, TOOLTIP_SRC_H, TOOLTIP_CAP);
         pose.popPose();
 
-        // --- ТЕКСТ ОПИСАНИЯ ---
         if (!descLines.isEmpty()) {
             pose.pushPose();
             pose.translate(pivotX, pivotY, Z_TOOLTIP_DESC_TEXT);
             pose.scale(scale, scale, 1f);
             pose.translate(-pivotX, -pivotY, 0);
-
             int descTextY = descTop + DESC_PADDING + 4;
-            for (String s : descLines) {
-                gui.drawString(font, s, stripLeft + 4, descTextY, 0xFFE0E0E0, true);
-                descTextY += font.lineHeight;
-            }
-
+            for (String s : descLines) gui.drawString(font, s, stripLeft + 4, descTextY, 0xFFE0E0E0, false);
             pose.popPose();
         }
 
-        // --- ТЕКСТ ЗАГОЛОВКА ---
         pose.pushPose();
         pose.translate(pivotX, pivotY, Z_TOOLTIP_TITLE_TEXT);
         pose.scale(scale, scale, 1f);
         pose.translate(-pivotX, -pivotY, 0);
-
         int titleTextY = titleTop + (titleHeight - titleLines.size() * font.lineHeight) / 2;
-        for (String s : titleLines) {
-            gui.drawString(font, s, textStartX, titleTextY, 0xFFFFFFFF, true);
-            titleTextY += font.lineHeight;
-        }
-
+        for (String s : titleLines) gui.drawString(font, s, textStartX, titleTextY, 0xFFFFFFFF, true);
         pose.popPose();
     }
+
     // --- добавляем вспомогательный класс, положи его в начало RenderDrawUtils после объявления класса ---
     public static class OptionHoverInfo {
         public final SkillTreeNode node;
@@ -201,7 +172,6 @@ public class RenderDrawUtils {
                                               int mouseX,
                                               int mouseY) {
         try {
-            // NEW: не рисуем опции для заблокированной ноды
             if (node == null || node.locked) return null;
 
             List<?> opts = (List<?>) getFieldValue(node, "options");
@@ -220,13 +190,10 @@ public class RenderDrawUtils {
 
             PoseStack pose = gui.pose();
 
-            // ===============================
-            // КРУГЛАЯ ПОДЛОЖКА (ниже ноды)
-            // ===============================
+            // подложка под варианты
             final int BG_U = 224;
             final int BG_V = 176;
             final int BG_SIZE = 80;
-
             int bgLeft = node.centerX() - BG_SIZE / 2;
             int bgTop  = node.centerY() - BG_SIZE / 2;
 
@@ -235,9 +202,7 @@ public class RenderDrawUtils {
             blitTex(gui, TOOLTIP_TEXTURE, bgLeft, bgTop, BG_U, BG_V, BG_SIZE, BG_SIZE);
             pose.popPose();
 
-            // ===============================
-            // ОПЦИИ (выше ноды)
-            // ===============================
+            // варианты
             for (int i = 0; i < opts.size(); i++) {
 
                 int[] pos = optionCenterForIndex(node, i);
@@ -255,7 +220,6 @@ public class RenderDrawUtils {
                 pose.pushPose();
                 pose.translate(0, 0, Z_OPTIONS);
 
-                // рамка
                 gui.fill(left, top, left + OPTION_SIZE, top + OPTION_SIZE, 0xFF333333);
 
                 int innerColor;
@@ -268,14 +232,12 @@ public class RenderDrawUtils {
                         top + OPTION_SIZE - 1,
                         innerColor);
 
-                // белая рамка
                 int border = 0x88FFFFFF;
                 gui.fill(left, top, left + OPTION_SIZE, top + 1, border);
                 gui.fill(left, top + OPTION_SIZE - 1, left + OPTION_SIZE, top + OPTION_SIZE, border);
                 gui.fill(left, top, left + 1, top + OPTION_SIZE, border);
                 gui.fill(left + OPTION_SIZE - 1, top, left + OPTION_SIZE, top + OPTION_SIZE, border);
 
-                // предмет
                 Object opt = opts.get(i);
                 if (opt instanceof net.minecraft.world.item.ItemStack stack) {
                     int itemX = left + (OPTION_SIZE - ITEM_SIZE) / 2;
@@ -285,24 +247,22 @@ public class RenderDrawUtils {
                 }
 
                 if (hovered) {
-                    gui.fill(left + 1, top + 1,
-                            left + OPTION_SIZE - 1,
-                            top + OPTION_SIZE - 1,
-                            0x33FFFFFF);
+                    gui.fill(left + 1, top + 1, left + OPTION_SIZE - 1, top + OPTION_SIZE - 1, 0x33FFFFFF);
                 }
 
                 pose.popPose();
-// ===============================
-// ПЕРЕРИСОВКА ГЛАВНОЙ НОДЫ ПОВЕРХ ВСЕГО
-// ===============================
+
+                // перерисовка ноды поверх
                 pose.pushPose();
                 pose.translate(0, 0, Z_NODE_TOP);
-
-// вызываем ту же функцию, что рисует обычную ноду
                 drawNode(gui, node, mouseX, mouseY);
-
                 pose.popPose();
+
+                // если hover — применяем вариант
                 if (hovered && hoveredInfo == null) {
+                    node.applyVariant(i);
+                    node.optionsVisible = false;
+
                     SkillTreeNode.Variant variant = null;
                     if (node.variants != null && i < node.variants.size()) {
                         variant = node.variants.get(i);
@@ -577,9 +537,9 @@ public class RenderDrawUtils {
                 n.y + frameSize - padding,
                 innerColor);
 
+        // Используем itemStack ноды (уже обновлённый вариант)
         int itemX = n.x + (frameSize - ITEM_SIZE) / 2;
         int itemY = n.y + (frameSize - ITEM_SIZE) / 2;
-
         gui.renderItem(n.itemStack, itemX, itemY);
         gui.renderItemDecorations(Minecraft.getInstance().font,
                 n.itemStack, itemX, itemY);

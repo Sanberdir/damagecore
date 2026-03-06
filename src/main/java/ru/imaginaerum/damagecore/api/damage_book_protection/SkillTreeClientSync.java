@@ -12,6 +12,8 @@ public final class SkillTreeClientSync {
 
     // client-side cache: treeId -> set of learned node ids
     private static final Map<Integer, Set<String>> learnedCache = new ConcurrentHashMap<>();
+    // client-side cache: treeId -> (nodeId -> selectedOption)
+    private static final Map<Integer, Map<String, Integer>> variantCache = new ConcurrentHashMap<>();
 
     private static Field treesField = null;
 
@@ -30,7 +32,7 @@ public final class SkillTreeClientSync {
         return Collections.emptyMap();
     }
 
-    /** Обновляет кэш и сразу применяет к текущим деревьям */
+    /** Обновляет кэш изученных нод и сразу применяет к текущим деревьям */
     public static void applyLearnedNodes(int treeId, List<String> learnedIds) {
         if (learnedIds == null || learnedIds.isEmpty()) return;
         learnedCache.put(treeId, ConcurrentHashMap.newKeySet());
@@ -38,17 +40,49 @@ public final class SkillTreeClientSync {
         applyCacheToTree(treeId);
     }
 
+    /** Обновляет кэш выбранных вариантов и сразу применяет к текущим деревьям */
+    public static void applyVariants(int treeId, Map<String, Integer> variants) {
+        System.out.println("applyVariants called for tree " + treeId + " with variants: " + variants);
+        if (variants == null || variants.isEmpty()) {
+            System.out.println("Variants is null or empty, returning");
+            return;
+        }
+        variantCache.put(treeId, new HashMap<>(variants));
+        System.out.println("Variant cache now: " + variantCache);
+
+        // Проверяем, загружено ли дерево
+        Object treeObj = getTreesMap().get(treeId);
+        if (treeObj != null) {
+            System.out.println("Tree already loaded, applying variants now");
+            applyVariantsToTree(treeId);
+        } else {
+            System.out.println("Tree not loaded yet, variants will be applied when tree loads");
+            // Кэш сохранится, применится при загрузке дерева
+        }
+    }
     /** Применяет кэш ко всем деревьям после loadAllTrees */
     public static void reapplyCachedForAllTrees() {
+        System.out.println("reapplyCachedForAllTrees() called");
         Map<?, ?> trees = getTreesMap();
+        System.out.println("Trees map size: " + trees.size());
+
         for (Object key : trees.keySet()) {
             if (!(key instanceof Integer treeId)) continue;
-            applyCacheToTree(treeId);
+            System.out.println("Applying cache for tree " + treeId);
+
+            if (learnedCache.containsKey(treeId)) {
+                System.out.println("Has learned cache for tree " + treeId);
+                applyCacheToTree(treeId);
+            }
+
+            if (variantCache.containsKey(treeId)) {
+                System.out.println("Has variant cache for tree " + treeId + ": " + variantCache.get(treeId));
+                applyVariantsToTree(treeId);
+            }
         }
     }
 
-    /** Применяет кэш конкретного дерева */
-    /** Применяет кэш конкретного дерева */
+    /** Применяет кэш конкретного дерева: изученные ноды */
     private static void applyCacheToTree(int treeId) {
         Set<String> set = learnedCache.get(treeId);
         if (set == null) return;
@@ -64,16 +98,13 @@ public final class SkillTreeClientSync {
 
             boolean changed = false;
 
-            // 1) Отмечаем изученные ноды
             for (String id : set) {
                 Object n = nodesMap.get(id);
                 if (n instanceof SkillTreeNode node && !node.learned) {
                     node.learned = true;
-                    // если нода изучена — явно разблокируем её
                     node.locked = false;
                     changed = true;
 
-                    // сбрасываем визуальный hover/hold прогресс
                     if (Render.currentHoveredNode == node) {
                         Render.mousePressTime = 0L;
                         Render.currentHoveredNode = null;
@@ -81,29 +112,15 @@ public final class SkillTreeClientSync {
                 }
             }
 
-            // 2) Пересчитываем locked для всех нод: нода разблокирована если:
-            //    - она уже learned, или
-            //    - её parentId == null || "start", или
-            //    - её parentId присутствует в множестве изученных
+            // Пересчёт locked нод
             for (Object entryObj : nodesMap.values()) {
                 if (!(entryObj instanceof SkillTreeNode)) continue;
                 SkillTreeNode node = (SkillTreeNode) entryObj;
 
                 boolean shouldBeLocked = true;
-
-                if (node.learned) {
-                    shouldBeLocked = false;
-                } else if (node.parentId == null) {
-                    shouldBeLocked = false; // корневая?
-                } else if ("start".equalsIgnoreCase(node.parentId)) {
-                    shouldBeLocked = false; // стартовая позиция
-                } else if (set.contains(node.parentId)) {
-                    // родитель изучен -> разблокировать
-                    shouldBeLocked = false;
-                } else {
-                    // если родитель не в множестве — остаётся заблокированной
-                    shouldBeLocked = true;
-                }
+                if (node.learned) shouldBeLocked = false;
+                else if (node.parentId == null || "start".equalsIgnoreCase(node.parentId)) shouldBeLocked = false;
+                else if (set.contains(node.parentId)) shouldBeLocked = false;
 
                 if (node.locked != shouldBeLocked) {
                     node.locked = shouldBeLocked;
@@ -112,7 +129,43 @@ public final class SkillTreeClientSync {
             }
 
             if (changed) {
-                // обновляем позиции и состояния для UI
+                Render.invokePrivateCalculateAndUpdatePositions(treeObj,
+                        Render.currentPanelScreenX,
+                        Render.currentPanelScreenY);
+            }
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+    }
+
+    /** Применяет кэш выбранных вариантов конкретного дерева */
+    /** Применяет кэш выбранных вариантов конкретного дерева */
+    private static void applyVariantsToTree(int treeId) {
+        Map<String, Integer> variants = variantCache.get(treeId);
+        if (variants == null || variants.isEmpty()) return;
+
+        Object treeObj = getTreesMap().get(treeId);
+        if (treeObj == null) return;
+
+        try {
+            Field nodesField = treeObj.getClass().getDeclaredField("nodes");
+            nodesField.setAccessible(true);
+            Object nodesObj = nodesField.get(treeObj);
+            if (!(nodesObj instanceof Map<?, ?> nodesMap)) return;
+
+            boolean changed = false;
+            for (Map.Entry<String, Integer> entry : variants.entrySet()) {
+                Object n = nodesMap.get(entry.getKey());
+                if (n instanceof SkillTreeNode node) {
+                    // ИСПРАВЛЕНИЕ: применяем вариант, чтобы обновить itemStack и displayId
+                    if (node.selectedOption != entry.getValue()) {
+                        node.applyVariant(entry.getValue());
+                        changed = true;
+                    }
+                }
+            }
+
+            if (changed) {
                 Render.invokePrivateCalculateAndUpdatePositions(treeObj,
                         Render.currentPanelScreenX,
                         Render.currentPanelScreenY);

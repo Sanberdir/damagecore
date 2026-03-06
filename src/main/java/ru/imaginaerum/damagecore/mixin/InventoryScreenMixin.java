@@ -23,7 +23,8 @@ import ru.imaginaerum.damagecore.api.damage_book_protection.skill_tree_renderer.
 public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
     private static final ResourceLocation DAMAGE_TYPE_BUTTON = new ResourceLocation("damagecore", "textures/gui/damage_type_button.png");
     private static final ResourceLocation SKILL_TREE_BUTTON = new ResourceLocation("damagecore", "textures/gui/skill_tree_button.png");
-
+    @Unique
+    private static boolean syncRequested = false;
     @Unique
     private ImageButton damagecore$button;
     @Unique
@@ -159,8 +160,8 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
     private void damagecore$init(CallbackInfo ci) {
         InventoryScreen screen = (InventoryScreen) (Object) this;
 
-        // Загружаем все деревья из папки skill_tree (любые имена файлов)
-        SkillTreeRenderer.loadAllTrees("skill_tree");
+        // Загружаем все деревья из папки skill_tree (ТОЛЬКО ОДИН РАЗ)
+        SkillTreeRenderer.loadAllTrees("skill_tree"); // Уже содержит проверку на повторную загрузку
 
         for (var child : screen.children()) {
             if (child instanceof ImageButton btn && btn.getWidth() == BUTTON_WIDTH && btn.getHeight() == BUTTON_HEIGHT) {
@@ -211,6 +212,13 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
 
         ((ScreenInvoker) screen).damagecore$addRenderableWidget(this.damagecore$button);
         ((ScreenInvoker) screen).damagecore$addRenderableWidget(this.damagecore$skillTreeButton);
+
+        // Запрашиваем синхронизацию только один раз
+        if (Minecraft.getInstance().player != null && !syncRequested) {
+            System.out.println("Requesting full sync from server after tree load");
+            ModNetwork.CHANNEL.sendToServer(new RequestFullSyncPacket());
+            syncRequested = true; // Нужно добавить поле
+        }
     }
 
     @Inject(method = "mouseClicked", at = @At("TAIL"))

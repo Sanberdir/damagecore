@@ -49,11 +49,15 @@
   "damagecore.skilltree.node.slash_1": "Slash 1",
   "damagecore.skilltree.node.slash_2": "Slash 2",
   "damagecore.skilltree.node.precision": "Precision",
-  "damagecore.skilltree.node.heavy_strike": "Heavy strike",
-  "damagecore.skilltree.variant.heavy_fire": "Heavy fire",
+  "damagecore.skilltree.node.heavy_strike": "Heavy Strike",
+  "damagecore.skilltree.node.heavy_fire": "Heavy Fire",
+
+  "damagecore.skilltree.variant.heavy_fire": "Heavy Fire",
 
   "damagecore.skilltree.node.root.desc": "Increase slashing damage by 5 percent. Increase slashing damage by 5 percent.",
+  "damagecore.skilltree.node.heavy_fire.desc": "Heavy Fire",
   "damagecore.skilltree.node.slash_1.desc": "Slash 1",
+
   "damagecore.skilltree.variant.heavy_fire.desc": "Heavy fire",
 
 
