@@ -6,6 +6,7 @@ import ru.imaginaerum.damagecore.api.damage_book_protection.node_variant.SelectV
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 public final class SkillTreeRenderer {
     private SkillTreeRenderer() {}
@@ -216,8 +217,11 @@ public final class SkillTreeRenderer {
     private static void rebuildChildrenMap(SkillTreeData tree) {
         tree.childrenMap.clear();
         for (SkillTreeNode n : tree.nodes.values()) {
-            if (n.parentId != null && !"start".equalsIgnoreCase(n.parentId)) {
-                tree.childrenMap.computeIfAbsent(n.parentId, k -> new ArrayList<>()).add(n);
+            // Для каждого родителя добавляем этого ребенка
+            for (String parentId : n.parentIds) {
+                if (parentId != null && !"start".equalsIgnoreCase(parentId)) {
+                    tree.childrenMap.computeIfAbsent(parentId, k -> new ArrayList<>()).add(n);
+                }
             }
         }
     }
@@ -233,31 +237,38 @@ public final class SkillTreeRenderer {
         int centerX = areaX + AREA_WIDTH / 2 + tree.offsetX;
         int centerY = areaY + AREA_HEIGHT / 2 + tree.offsetY;
 
-        SkillTreeNode start = tree.nodes.values().stream()
-                .filter(n -> n.parentId == null || "start".equalsIgnoreCase(n.parentId))
-                .findFirst().orElse(null);
+        // Находим все корневые узлы (те, у кого нет родителей или parent="start")
+        List<SkillTreeNode> roots = tree.nodes.values().stream()
+                .filter(n -> n.isRoot())
+                .collect(Collectors.toList());
 
-        if (start == null && !tree.nodes.isEmpty())
-            start = tree.nodes.values().iterator().next();
+        if (roots.isEmpty() && !tree.nodes.isEmpty())
+            roots.add(tree.nodes.values().iterator().next());
 
         Set<Long> occupied = new HashSet<>();
         final var keyOf = (java.util.function.BiFunction<Integer,Integer,Long>)
                 (gx, gy) -> (((long)gx) << 32) | (gy & 0xffffffffL);
 
-        if (!start.hasGridPos) {
-            start.setGridPos(0, 0);
-        }
-        occupied.add(keyOf.apply(start.gridX, start.gridY));
-
+        // Инициализация корней
         Queue<SkillTreeNode> q = new ArrayDeque<>();
-        q.add(start);
+        int rootX = 0;
+        for (SkillTreeNode root : roots) {
+            if (!root.hasGridPos) {
+                root.setGridPos(rootX, 0);
+                rootX += 2; // Разносим корни по горизонтали
+            }
+            occupied.add(keyOf.apply(root.gridX, root.gridY));
+            q.add(root);
+        }
 
+        // Загружаем уже заданные позиции
         for (SkillTreeNode n : tree.nodes.values()) {
             if (n.hasGridPos) {
                 occupied.add(keyOf.apply(n.gridX, n.gridY));
             }
         }
 
+        // BFS для размещения детей
         while (!q.isEmpty()) {
             SkillTreeNode parent = q.poll();
             List<SkillTreeNode> children =
@@ -271,39 +282,111 @@ public final class SkillTreeRenderer {
                     continue;
                 }
 
-                int gx = parent.gridX;
-                int gy = parent.gridY;
-
-                switch (child.side) {
-                    case RIGHT -> gx = parent.gridX + 1;
-                    case LEFT  -> gx = parent.gridX - 1;
-                    case TOP   -> gy = parent.gridY - 1;
-                    case BOTTOM-> gy = parent.gridY + 1;
-                    default    -> gx = parent.gridX + 1;
+                // Определяем позицию на основе всех родителей
+                if (child.parentIds.size() > 1) {
+                    // Узел с несколькими родителями - размещаем между ними
+                    positionMultiParentNode(child, tree, occupied);
+                } else {
+                    // Обычный узел с одним родителем
+                    positionSingleParentNode(child, parent, occupied);
                 }
 
-                while (occupied.contains(keyOf.apply(gx, gy))) {
-                    gx++;
-                }
-
-                child.gridX = gx;
-                child.gridY = gy;
-                child.hasGridPos = true;
-
-                occupied.add(keyOf.apply(gx, gy));
                 q.add(child);
             }
         }
 
+        // Конвертируем grid-координаты в экранные
         for (SkillTreeNode n : tree.nodes.values()) {
-            int nodeScreenX =
-                    centerX + n.gridX * GRID_STEP - SkillTreeNode.FRAME_SIZE / 2;
-
-            int nodeScreenY =
-                    centerY - n.gridY * GRID_STEP - SkillTreeNode.FRAME_SIZE / 2;
-
+            int nodeScreenX = centerX + n.gridX * GRID_STEP - SkillTreeNode.FRAME_SIZE / 2;
+            int nodeScreenY = centerY - n.gridY * GRID_STEP - SkillTreeNode.FRAME_SIZE / 2;
             n.x = nodeScreenX;
             n.y = nodeScreenY;
+        }
+    }
+    private static void positionSingleParentNode(SkillTreeNode child,
+                                                 SkillTreeNode parent,
+                                                 Set<Long> occupied) {
+        int gx = parent.gridX;
+        int gy = parent.gridY;
+
+        switch (child.side) {
+            case RIGHT -> gx = parent.gridX + 1;
+            case LEFT  -> gx = parent.gridX - 1;
+            case TOP   -> gy = parent.gridY - 1;
+            case BOTTOM-> gy = parent.gridY + 1;
+            default    -> gx = parent.gridX + 1;
+        }
+
+        final var keyOf = (java.util.function.BiFunction<Integer,Integer,Long>)
+                (x, y) -> (((long)x) << 32) | (y & 0xffffffffL);
+
+        while (occupied.contains(keyOf.apply(gx, gy))) {
+            gx++;
+        }
+
+        child.gridX = gx;
+        child.gridY = gy;
+        child.hasGridPos = true;
+        occupied.add(keyOf.apply(gx, gy));
+    }
+
+    private static void positionMultiParentNode(SkillTreeNode child,
+                                                SkillTreeData tree,
+                                                Set<Long> occupied) {
+        // Находим всех родителей
+        List<SkillTreeNode> parents = new ArrayList<>();
+        for (String parentId : child.parentIds) {
+            SkillTreeNode parent = tree.nodes.get(parentId);
+            if (parent != null && parent.hasGridPos) {
+                parents.add(parent);
+            }
+        }
+
+        if (parents.isEmpty()) {
+            // Нет родителей с позициями - размещаем как обычный узел
+            positionSingleParentNode(child, tree.nodes.values().iterator().next(), occupied);
+            return;
+        }
+
+        // Вычисляем среднюю позицию между всеми родителями
+        int sumX = 0, sumY = 0;
+        for (SkillTreeNode p : parents) {
+            sumX += p.gridX;
+            sumY += p.gridY;
+        }
+        int avgX = sumX / parents.size();
+        int avgY = sumY / parents.size();
+
+        // Применяем смещение на основе side
+        switch (child.side) {
+            case RIGHT -> avgX += 1;
+            case LEFT  -> avgX -= 1;
+            case TOP   -> avgY -= 1;
+            case BOTTOM-> avgY += 1;
+        }
+
+        final var keyOf = (java.util.function.BiFunction<Integer,Integer,Long>)
+                (x, y) -> (((long)x) << 32) | (y & 0xffffffffL);
+
+        // Ищем свободную позицию рядом с расчетной
+        int radius = 0;
+        while (true) {
+            for (int dx = -radius; dx <= radius; dx++) {
+                for (int dy = -radius; dy <= radius; dy++) {
+                    if (Math.abs(dx) == radius || Math.abs(dy) == radius) {
+                        int testX = avgX + dx;
+                        int testY = avgY + dy;
+                        if (!occupied.contains(keyOf.apply(testX, testY))) {
+                            child.gridX = testX;
+                            child.gridY = testY;
+                            child.hasGridPos = true;
+                            occupied.add(keyOf.apply(testX, testY));
+                            return;
+                        }
+                    }
+                }
+            }
+            radius++;
         }
     }
 
@@ -469,7 +552,12 @@ public final class SkillTreeRenderer {
         }
 
         for (SkillTreeNode n : data.nodes.values()) {
-            if ("start".equalsIgnoreCase(n.parentId) || "root".equalsIgnoreCase(n.id)) {
+            // Проверяем, является ли узел корневым (нет родителей или только "start")
+            if (n.isRoot()) {
+                return n.itemStack;
+            }
+            // Для обратной совместимости также проверяем id="root"
+            if ("root".equalsIgnoreCase(n.id)) {
                 return n.itemStack;
             }
         }

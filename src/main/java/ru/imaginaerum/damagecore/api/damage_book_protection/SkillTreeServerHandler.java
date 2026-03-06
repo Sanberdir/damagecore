@@ -60,6 +60,8 @@ public final class SkillTreeServerHandler {
     // ------------------------------
     // Изучение ноды
     // ------------------------------
+    // Обновляем метод handleLearnRequest для проверки нескольких родителей
+
     public static void handleLearnRequest(ServerPlayer player, int treeId, String nodeId) {
         try {
             if (!SkillTreeRenderer.hasTreeForTab(treeId)) return;
@@ -67,17 +69,20 @@ public final class SkillTreeServerHandler {
             Object treeObj = getTreeObject(treeId);
             if (treeObj == null) return;
 
-            Map<?, ?> nodes = getNodesMap(treeObj);
+            Map<String, SkillTreeNode> nodes = getNodesMap(treeObj);
             if (nodes == null || !nodes.containsKey(nodeId)) return;
 
-            SkillTreeNode node = (SkillTreeNode) nodes.get(nodeId);
+            SkillTreeNode node = nodes.get(nodeId);
 
             if (node.locked) return;
 
             Set<String> learned = getLearnedSet(player, treeId);
 
-            if (node.parentId != null && !"start".equalsIgnoreCase(node.parentId)) {
-                if (!learned.contains(node.parentId)) return;
+            // Проверяем всех родителей (должны быть изучены все)
+            for (String parentId : node.parentIds) {
+                if (parentId != null && !"start".equalsIgnoreCase(parentId)) {
+                    if (!learned.contains(parentId)) return;
+                }
             }
 
             if (!learned.add(nodeId)) return;
@@ -87,11 +92,9 @@ public final class SkillTreeServerHandler {
 
             saveLearnedSet(player, treeId, learned);
 
-            // Отправка клиенту
             ModNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
                     new SyncLearnedNodesPacket(treeId, new ArrayList<>(learned)));
 
-            // Звук
             player.playNotifySound(CustomSoundEvents.LEARNING_SKILL.get(), SoundSource.PLAYERS, 1.5f, 1f);
         } catch (Throwable t) {
             t.printStackTrace();

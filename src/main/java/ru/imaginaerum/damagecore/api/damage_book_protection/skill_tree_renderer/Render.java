@@ -295,14 +295,19 @@ public class Render {
             pose.translate(-pivotX, -pivotY, 0);
 
             for (SkillTreeNode child : nodes.values()) {
-                if (child.parentId == null || "start".equalsIgnoreCase(child.parentId)) continue;
-                SkillTreeNode parent = nodes.get(child.parentId);
-                if (parent == null) continue;
+                if (child.isRoot()) continue;
 
-                RenderDrawUtils.drawThickLine(gui,
-                        parent.centerX(), parent.centerY(),
-                        child.centerX(), child.centerY(),
-                        2, 0xFF000000);
+                for (String parentId : child.parentIds) {
+                    if ("start".equalsIgnoreCase(parentId)) continue;
+                    SkillTreeNode parent = nodes.get(parentId);
+                    if (parent == null) continue;
+
+                    // Рисуем линию к каждому родителю
+                    RenderDrawUtils.drawThickLine(gui,
+                            parent.centerX(), parent.centerY(),
+                            child.centerX(), child.centerY(),
+                            2, 0xFF000000);
+                }
             }
             pose.popPose();
 

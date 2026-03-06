@@ -128,6 +128,8 @@ public final class SkillTreeClientSync {
     }
     /** Применяет кэш конкретного дерева: изученные ноды */
     /** Применяет кэш конкретного дерева: изученные ноды */
+    // Обновляем метод applyCacheToTree для работы с несколькими родителями
+
     private static void applyCacheToTree(int treeId) {
         Set<String> set = learnedCache.get(treeId);
         if (set == null) return;
@@ -142,8 +144,6 @@ public final class SkillTreeClientSync {
             if (!(nodesObj instanceof Map<?, ?> nodesMap)) return;
 
             boolean changed = false;
-
-            // ИСПРАВЛЕНИЕ: получаем активное меню опций
             String activeOptionsNodeId = (String) getFieldValue(treeObj, "activeOptionsNodeId");
 
             for (String id : set) {
@@ -153,7 +153,6 @@ public final class SkillTreeClientSync {
                     node.locked = false;
                     changed = true;
 
-                    // ИСПРАВЛЕНИЕ: если это та нода, у которой открыто меню опций - закрываем его
                     if (id.equals(activeOptionsNodeId)) {
                         setFieldValue(treeObj, "activeOptionsNodeId", null);
                     }
@@ -165,15 +164,28 @@ public final class SkillTreeClientSync {
                 }
             }
 
-            // Пересчёт locked нод
+            // Пересчёт locked нод с учетом нескольких родителей
             for (Object entryObj : nodesMap.values()) {
                 if (!(entryObj instanceof SkillTreeNode)) continue;
                 SkillTreeNode node = (SkillTreeNode) entryObj;
 
                 boolean shouldBeLocked = true;
-                if (node.learned) shouldBeLocked = false;
-                else if (node.parentId == null || "start".equalsIgnoreCase(node.parentId)) shouldBeLocked = false;
-                else if (set.contains(node.parentId)) shouldBeLocked = false;
+
+                if (node.learned) {
+                    shouldBeLocked = false;
+                } else if (node.isRoot()) {
+                    shouldBeLocked = false;
+                } else {
+                    // Проверяем всех родителей
+                    boolean anyParentLearned = false;
+                    for (String parentId : node.parentIds) {
+                        if (set.contains(parentId)) {
+                            anyParentLearned = true;
+                            break;
+                        }
+                    }
+                    shouldBeLocked = !anyParentLearned;
+                }
 
                 if (node.locked != shouldBeLocked) {
                     node.locked = shouldBeLocked;

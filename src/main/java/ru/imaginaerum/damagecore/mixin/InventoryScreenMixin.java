@@ -134,27 +134,10 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
         int globalRight = DamageBookRenderer.globalIdForSlot(slotRight);
         return SkillTreeRenderer.hasTreeForTab(globalRight) && clickTab(mx, my, panelLeft + panelW - tabW, y, tabW, globalRight);
     }
-
-    @Unique
-    private void selectTab(int id) {
-        if (DamageBookRenderer.selectedBottomTab == id) return;
-
-        DamageBookRenderer.setBottomTab(id);
-        SkillTreeRenderer.setActiveTree(id);
-        Minecraft.getInstance().getSoundManager().play(
-                SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F)
-        );
-    }
-
-
-
     // Проверка попадания мыши в прямоугольник
     private static boolean inside(double mx, double my, int x, int y, int w, int h) {
         return mx >= x && mx < x + w && my >= y && my < y + h;
     }
-
-
-
 
     @Inject(method = "init", at = @At("TAIL"))
     private void damagecore$init(CallbackInfo ci) {

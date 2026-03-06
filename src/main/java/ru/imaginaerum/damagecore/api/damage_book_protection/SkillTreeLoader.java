@@ -17,24 +17,17 @@ import java.util.*;
 
 public final class SkillTreeLoader {
     private SkillTreeLoader() {}
+
     public static void loadAllTrees(String folderPath) {
         System.out.println("SkillTreeLoader.loadAllTrees() called");
-        // Вызываем renderer для загрузки
         SkillTreeRenderer.loadAllTrees(folderPath);
     }
+
     private static final Gson GSON = new Gson();
 
     /**
-     * Загружает JSON-файл дерева по пути внутри namespace (например "skill_tree/foo.json").
-     * Возвращает Object[] где:
-     *  - [0] = ItemStack tabIcon (ItemStack.EMPTY если не указан / не найден)
-     *  - [1] = List<SkillTreeNode> list (список нод, возможно пустой)
-     *
-     * Формат ожидаемого JSON:
-     * {
-     *   "tabIcon": "minecraft:diamond_sword",   // опционально
-     *   "nodes": [ { ... }, { ... } ]
-     * }
+     * Загружает JSON-файл дерева.
+     * Новый формат поддерживает "parents" (массив) на замену "parent".
      */
     @SuppressWarnings("unchecked")
     public static Object[] loadFromResource(String pathInNamespace) {
@@ -60,25 +53,21 @@ public final class SkillTreeLoader {
 
                 JsonObject root = rootEl.getAsJsonObject();
 
-                // --- читаем tabIcon (опционально) ---
+                // Читаем tabIcon
                 if (root.has("tabIcon") && root.get("tabIcon").isJsonPrimitive()) {
                     try {
                         String iconId = root.get("tabIcon").getAsString();
                         if (iconId != null && !iconId.isBlank()) {
                             ResourceLocation iconRL = new ResourceLocation(iconId);
                             Item maybe = ForgeRegistries.ITEMS.getValue(iconRL);
-                            if (maybe != null) {
-                                tabIconStack = new ItemStack(maybe);
-                            } else {
-                                tabIconStack = new ItemStack(Items.BARRIER);
-                            }
+                            tabIconStack = maybe != null ? new ItemStack(maybe) : new ItemStack(Items.BARRIER);
                         }
                     } catch (Exception ignored) {
                         tabIconStack = new ItemStack(Items.BARRIER);
                     }
                 }
 
-                // --- читаем nodes (массив) ---
+                // Читаем nodes
                 if (root.has("nodes") && root.get("nodes").isJsonArray()) {
                     JsonArray arr = root.getAsJsonArray("nodes");
                     for (JsonElement el : arr) {
@@ -88,10 +77,29 @@ public final class SkillTreeLoader {
                         String id = obj.has("id") ? obj.get("id").getAsString() : UUID.randomUUID().toString();
                         String itemStr = obj.has("item") ? obj.get("item").getAsString() : null;
                         boolean lock = obj.has("lock") && obj.get("lock").getAsBoolean();
-                        String parent = obj.has("parent") ? obj.get("parent").getAsString() : "start";
+
+                        // --- Чтение родителей (поддержка множественных) ---
+                        List<String> parentIds = new ArrayList<>();
+
+                        if (obj.has("parents") && obj.get("parents").isJsonArray()) {
+                            // Новый формат: массив родителей
+                            JsonArray parentsArray = obj.getAsJsonArray("parents");
+                            for (JsonElement pEl : parentsArray) {
+                                if (pEl.isJsonPrimitive()) {
+                                    parentIds.add(pEl.getAsString());
+                                }
+                            }
+                        } else if (obj.has("parent") && obj.get("parent").isJsonPrimitive()) {
+                            // Старый формат: один родитель (для обратной совместимости)
+                            parentIds.add(obj.get("parent").getAsString());
+                        } else {
+                            // Нет родителя - корневой узел
+                            parentIds.add("start");
+                        }
+
                         String sideStr = obj.has("side") ? obj.get("side").getAsString().toUpperCase(Locale.ROOT) : "RIGHT";
 
-                        // Получаем Item через ForgeRegistries
+                        // Получаем Item
                         Item item = Items.AIR;
                         if (itemStr != null && !itemStr.isBlank()) {
                             try {
@@ -108,9 +116,10 @@ public final class SkillTreeLoader {
                             side = SkillTreeNode.Side.RIGHT;
                         }
 
-                        SkillTreeNode node = new SkillTreeNode(id, new ItemStack(item), lock, parent, side);
+                        // Создаем узел с несколькими родителями
+                        SkillTreeNode node = new SkillTreeNode(id, new ItemStack(item), lock, parentIds, side);
 
-                        // optional grid positions: gridX / gridY
+                        // grid позиции
                         if (obj.has("gridX") && obj.has("gridY")) {
                             try {
                                 int gx = obj.get("gridX").getAsInt();
@@ -119,6 +128,7 @@ public final class SkillTreeLoader {
                             } catch (Exception ignored) {}
                         }
 
+                        // Варианты
                         if (obj.has("variants") && obj.get("variants").isJsonArray()) {
                             JsonArray vars = obj.getAsJsonArray("variants");
                             for (JsonElement ve : vars) {
@@ -135,8 +145,8 @@ public final class SkillTreeLoader {
                                     Item maybe = ForgeRegistries.ITEMS.getValue(itemRL);
                                     if (maybe != null) {
                                         SkillTreeNode.Variant variant = new SkillTreeNode.Variant(variantId, new ItemStack(maybe));
-                                        node.variants.add(variant);         // для логики выбора
-                                        node.options.add(variant.stack);     // для рендера круга опций
+                                        node.variants.add(variant);
+                                        node.options.add(variant.stack);
                                     }
                                 } catch (Exception ignored) {}
                             }
