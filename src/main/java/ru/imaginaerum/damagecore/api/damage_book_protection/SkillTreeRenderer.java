@@ -76,7 +76,8 @@ public final class SkillTreeRenderer {
     }
     // Открыть меню опций для ноды (возвращает true если открылось)
     private static boolean openOptionsForNode(SkillTreeData tree, SkillTreeNode node) {
-        if (node == null || node.options == null || node.options.isEmpty()) return false;
+        // ИСПРАВЛЕНИЕ: не открываем опции для изученных узлов
+        if (node == null || node.options == null || node.options.isEmpty() || node.learned) return false;
         tree.activeOptionsNodeId = node.id;
         return true;
     }
@@ -127,10 +128,6 @@ public final class SkillTreeRenderer {
         if (tabId >= 0 && tabId < trees.size()) {
             activeTreeId = tabId;
         }
-    }
-    public static void reloadTrees(String folderPath) {
-        treesLoaded = false;
-        loadAllTrees(folderPath);
     }
     // Загрузить все деревья из папки assets/damagecore/skill_tree/
     public static void loadAllTrees(String folderPath) {
@@ -346,7 +343,6 @@ public final class SkillTreeRenderer {
                     // Отправляем на сервер выбор варианта для постоянного сохранения
                     try {
                         if (ModNetwork.CHANNEL != null) {
-                            // Используем activeTreeId как treeId
                             int treeId = activeTreeId;
                             ModNetwork.CHANNEL.sendToServer(new SelectVariantPacket(treeId, node.id, idx));
                         }
@@ -370,9 +366,14 @@ public final class SkillTreeRenderer {
         // проверка клика по нодам
         for (SkillTreeNode node : currentTree.nodes.values()) {
             if (node.containsPoint(unscaledMouseX, unscaledMouseY)) {
-                // НОВОЕ: если нода заблокирована - не открываем опции и не начинаем drag
+                // Если нода заблокирована - игнорируем
                 if (node.locked) {
-                    return false; // игнорируем клик по заблокированной ноде
+                    return false;
+                }
+
+                // ИСПРАВЛЕНИЕ: если нода уже изучена - не открываем опции
+                if (node.learned) {
+                    return false; // Просто игнорируем клик по изученной ноде
                 }
 
                 if (node.options != null && !node.options.isEmpty()) {

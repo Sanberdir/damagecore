@@ -113,8 +113,8 @@ public class Render {
 
         for (SkillTreeNode n : nodes.values()) {
             if (n.containsPoint(unscaledMouseX, unscaledMouseY)) {
-                // НОВОЕ: не возвращаем заблокированные ноды как hovered
-                if (n.locked) return null; // ← игнорируем заблокированные
+                // ИСПРАВЛЕНИЕ: не возвращаем заблокированные ИЛИ изученные ноды как hovered
+                if (n.locked || n.learned) return null;
                 return n;
             }
         }
@@ -125,7 +125,13 @@ public class Render {
                                                  int mouseX, int mouseY) {
 
         if (currentHoveredNode == null || mousePressTime <= 0L) return;
-        if (currentHoveredNode.learned) return;
+
+        // ИСПРАВЛЕНИЕ: дополнительная проверка
+        if (currentHoveredNode.learned || currentHoveredNode.locked) {
+            mousePressTime = 0L;
+            currentHoveredNode = null;
+            return;
+        }
 
         Object treeObj = invokePrivateGetCurrentTree();
         if (treeObj == null) return;
@@ -192,7 +198,12 @@ public class Render {
             ModNetwork.CHANNEL.sendToServer(
                     new LearnNodePacket(activeTreeId, currentHoveredNode.id)
             );
+
+            // ИСПРАВЛЕНИЕ: сразу помечаем ноду как изученную на клиенте
+            currentHoveredNode.learned = true;
+
             mousePressTime = 0L;
+            currentHoveredNode = null;
         }
     }
     private static int getActiveTreeIdViaReflection() {

@@ -81,7 +81,52 @@ public final class SkillTreeClientSync {
             }
         }
     }
+    private static Object getFieldValue(Object obj, String fieldName) {
+        if (obj == null) return null;
+        try {
+            Field f = obj.getClass().getDeclaredField(fieldName);
+            f.setAccessible(true);
+            return f.get(obj);
+        } catch (NoSuchFieldException nsf) {
+            // пробуем у супер-класса
+            Class<?> c = obj.getClass();
+            while ((c = c.getSuperclass()) != null) {
+                try {
+                    Field f = c.getDeclaredField(fieldName);
+                    f.setAccessible(true);
+                    return f.get(obj);
+                } catch (NoSuchFieldException ignored) {}
+                catch (Throwable ex) { ex.printStackTrace(); return null; }
+            }
+            return null;
+        } catch (Throwable t) {
+            t.printStackTrace();
+            return null;
+        }
+    }
 
+    private static void setFieldValue(Object obj, String fieldName, Object value) {
+        if (obj == null) return;
+        try {
+            Field f = obj.getClass().getDeclaredField(fieldName);
+            f.setAccessible(true);
+            f.set(obj, value);
+        } catch (NoSuchFieldException nsf) {
+            Class<?> c = obj.getClass();
+            while ((c = c.getSuperclass()) != null) {
+                try {
+                    Field f = c.getDeclaredField(fieldName);
+                    f.setAccessible(true);
+                    f.set(obj, value);
+                    return;
+                } catch (NoSuchFieldException ignored) {}
+                catch (Throwable ex) { ex.printStackTrace(); return; }
+            }
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+    }
+    /** Применяет кэш конкретного дерева: изученные ноды */
     /** Применяет кэш конкретного дерева: изученные ноды */
     private static void applyCacheToTree(int treeId) {
         Set<String> set = learnedCache.get(treeId);
@@ -98,12 +143,20 @@ public final class SkillTreeClientSync {
 
             boolean changed = false;
 
+            // ИСПРАВЛЕНИЕ: получаем активное меню опций
+            String activeOptionsNodeId = (String) getFieldValue(treeObj, "activeOptionsNodeId");
+
             for (String id : set) {
                 Object n = nodesMap.get(id);
                 if (n instanceof SkillTreeNode node && !node.learned) {
                     node.learned = true;
                     node.locked = false;
                     changed = true;
+
+                    // ИСПРАВЛЕНИЕ: если это та нода, у которой открыто меню опций - закрываем его
+                    if (id.equals(activeOptionsNodeId)) {
+                        setFieldValue(treeObj, "activeOptionsNodeId", null);
+                    }
 
                     if (Render.currentHoveredNode == node) {
                         Render.mousePressTime = 0L;
