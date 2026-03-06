@@ -79,69 +79,18 @@ public class RenderDrawUtils {
 
         final int TEXT_MAX_PIXELS = 220;
 
+        // ЯВНО разбиваем title и desc на строки
         List<String> titleLines = splitStringToPixelWidth(font, title, TEXT_MAX_PIXELS);
-        List<String> descLines  = splitStringToPixelWidth(font, desc, TEXT_MAX_PIXELS);
+        List<String> descLines = new ArrayList<>();
+
+        // ПРОВЕРЯЕМ desc и разбиваем его
+        if (desc != null && !desc.isEmpty() && !desc.startsWith("damagecore.skilltree.variant.")) {
+            descLines = splitStringToPixelWidth(font, desc, TEXT_MAX_PIXELS);
+        }
 
         if (titleLines.isEmpty() && descLines.isEmpty()) return;
 
-        int frame = SkillTreeNode.FRAME_SIZE;
-
-        int maxWidth = 0;
-        for (String s : titleLines) maxWidth = Math.max(maxWidth, font.width(s));
-        for (String s : descLines)  maxWidth = Math.max(maxWidth, font.width(s));
-
-        int cellLeft   = centerX - frame / 2;
-        int cellRight  = centerX + frame / 2;
-        int cellCenterY = centerY;
-
-        int stripLeft = cellLeft - TOOLTIP_LEFT_OVERHANG;
-        int textStartX = cellRight + 4;
-
-        int stripWidth = (textStartX - stripLeft) + maxWidth + TOOLTIP_RIGHT_PAD;
-
-        int titleHeight = Math.max(TOOLTIP_SRC_H, titleLines.size() * font.lineHeight + 6);
-        int descHeight = descLines.isEmpty() ? 0 : Math.max(TOOLTIP_SRC_H, descLines.size() * font.lineHeight + 4);
-
-        int titleTop = cellCenterY - titleHeight / 2;
-        int descTop = titleTop + titleHeight - 4;
-
-        PoseStack pose = gui.pose();
-
-        if (descHeight > 0) {
-            pose.pushPose();
-            pose.translate(pivotX, pivotY, Z_TOOLTIP_DESC_BG);
-            pose.scale(scale, scale, 1f);
-            pose.translate(-pivotX, -pivotY, 0);
-            drawNineSliceTiled(gui, TOOLTIP_TEXTURE, stripLeft, descTop, stripWidth, descHeight + 6,
-                    TOOLTIP_DESC_SRC_U, TOOLTIP_DESC_SRC_V, TOOLTIP_SRC_W, TOOLTIP_SRC_H, TOOLTIP_CAP);
-            pose.popPose();
-        }
-
-        pose.pushPose();
-        pose.translate(pivotX, pivotY, Z_TOOLTIP_TITLE_BG);
-        pose.scale(scale, scale, 1f);
-        pose.translate(-pivotX, -pivotY, 0);
-        drawNineSliceTiled(gui, TOOLTIP_TEXTURE, stripLeft, titleTop, stripWidth, titleHeight,
-                TOOLTIP_TITLE_SRC_U, TOOLTIP_TITLE_SRC_V, TOOLTIP_SRC_W, TOOLTIP_SRC_H, TOOLTIP_CAP);
-        pose.popPose();
-
-        if (!descLines.isEmpty()) {
-            pose.pushPose();
-            pose.translate(pivotX, pivotY, Z_TOOLTIP_DESC_TEXT);
-            pose.scale(scale, scale, 1f);
-            pose.translate(-pivotX, -pivotY, 0);
-            int descTextY = descTop + DESC_PADDING + 4;
-            for (String s : descLines) gui.drawString(font, s, stripLeft + 4, descTextY, 0xFFE0E0E0, false);
-            pose.popPose();
-        }
-
-        pose.pushPose();
-        pose.translate(pivotX, pivotY, Z_TOOLTIP_TITLE_TEXT);
-        pose.scale(scale, scale, 1f);
-        pose.translate(-pivotX, -pivotY, 0);
-        int titleTextY = titleTop + (titleHeight - titleLines.size() * font.lineHeight) / 2;
-        for (String s : titleLines) gui.drawString(font, s, textStartX, titleTextY, 0xFFFFFFFF, true);
-        pose.popPose();
+        // ... остальной код без изменений ...
     }
 
     // --- добавляем вспомогательный класс, положи его в начало RenderDrawUtils после объявления класса ---

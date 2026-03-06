@@ -31,7 +31,9 @@ public final class SkillTreeClientSync {
         }
         return Collections.emptyMap();
     }
-
+    public static Set<String> getLearnedCache(int treeId) {
+        return learnedCache.get(treeId);
+    }
     /** Обновляет кэш изученных нод и сразу применяет к текущим деревьям */
     public static void applyLearnedNodes(int treeId, List<String> learnedIds) {
         if (learnedIds == null || learnedIds.isEmpty()) return;
@@ -130,6 +132,7 @@ public final class SkillTreeClientSync {
     /** Применяет кэш конкретного дерева: изученные ноды */
     // Обновляем метод applyCacheToTree для работы с несколькими родителями
 
+    /** Применяет кэш конкретного дерева: изученные ноды */
     private static void applyCacheToTree(int treeId) {
         Set<String> set = learnedCache.get(treeId);
         if (set == null) return;
@@ -146,6 +149,7 @@ public final class SkillTreeClientSync {
             boolean changed = false;
             String activeOptionsNodeId = (String) getFieldValue(treeObj, "activeOptionsNodeId");
 
+            // Сначала отмечаем изученные узлы
             for (String id : set) {
                 Object n = nodesMap.get(id);
                 if (n instanceof SkillTreeNode node && !node.learned) {
@@ -164,7 +168,7 @@ public final class SkillTreeClientSync {
                 }
             }
 
-            // Пересчёт locked нод с учетом нескольких родителей
+            // ИСПРАВЛЕНИЕ: Пересчёт locked нод с учетом ВСЕХ родителей
             for (Object entryObj : nodesMap.values()) {
                 if (!(entryObj instanceof SkillTreeNode)) continue;
                 SkillTreeNode node = (SkillTreeNode) entryObj;
@@ -176,15 +180,21 @@ public final class SkillTreeClientSync {
                 } else if (node.isRoot()) {
                     shouldBeLocked = false;
                 } else {
-                    // Проверяем всех родителей
-                    boolean anyParentLearned = false;
+                    // ИСПРАВЛЕНИЕ: Проверяем ВСЕХ родителей - ВСЕ должны быть изучены
+                    boolean allParentsLearned = true;
+
                     for (String parentId : node.parentIds) {
-                        if (set.contains(parentId)) {
-                            anyParentLearned = true;
+                        // Пропускаем "start"
+                        if (parentId == null || "start".equalsIgnoreCase(parentId)) continue;
+
+                        // Если хотя бы один родитель не изучен - узел locked
+                        if (!set.contains(parentId)) {
+                            allParentsLearned = false;
                             break;
                         }
                     }
-                    shouldBeLocked = !anyParentLearned;
+
+                    shouldBeLocked = !allParentsLearned;
                 }
 
                 if (node.locked != shouldBeLocked) {

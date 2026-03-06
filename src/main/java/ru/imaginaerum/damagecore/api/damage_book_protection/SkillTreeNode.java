@@ -5,6 +5,7 @@ import net.minecraft.world.item.ItemStack;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 public final class SkillTreeNode {
     public enum Side { START, LEFT, RIGHT, TOP, BOTTOM }
@@ -71,7 +72,18 @@ public final class SkillTreeNode {
     public boolean isRoot() {
         return parentIds.isEmpty() || (parentIds.size() == 1 && "start".equalsIgnoreCase(parentIds.get(0)));
     }
+    public boolean canLearn(Set<String> learnedNodes) {
+        if (learned || locked) return false;
+        if (isRoot()) return true;
 
+        for (String parentId : parentIds) {
+            if (parentId == null || "start".equalsIgnoreCase(parentId)) continue;
+            if (!learnedNodes.contains(parentId)) {
+                return false; // Хотя бы один родитель не изучен
+            }
+        }
+        return true; // Все родители изучены
+    }
     public void setGridPos(int gx, int gy) {
         this.hasGridPos = true;
         this.gridX = gx;

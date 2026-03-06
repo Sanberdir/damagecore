@@ -78,15 +78,21 @@ public final class SkillTreeServerHandler {
 
             Set<String> learned = getLearnedSet(player, treeId);
 
-            // Проверяем всех родителей (должны быть изучены все)
+            // ИСПРАВЛЕНИЕ: Проверяем ВСЕХ родителей (должны быть изучены ВСЕ)
             for (String parentId : node.parentIds) {
+                // Пропускаем "start" (корневой узел)
                 if (parentId != null && !"start".equalsIgnoreCase(parentId)) {
-                    if (!learned.contains(parentId)) return;
+                    // Если хотя бы один родитель не изучен - нельзя изучить узел
+                    if (!learned.contains(parentId)) {
+                        return; // Родитель не изучен - отказываем
+                    }
                 }
             }
 
+            // Проверка на уже изученный узел
             if (!learned.add(nodeId)) return;
 
+            // Проверка уровней опыта
             if (player.experienceLevel < REQUIRED_LEVELS) return;
             player.giveExperienceLevels(-REQUIRED_LEVELS);
 

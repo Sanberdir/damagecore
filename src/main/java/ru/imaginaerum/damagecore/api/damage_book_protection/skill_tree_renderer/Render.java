@@ -6,14 +6,18 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
 import ru.imaginaerum.damagecore.api.damage_book_protection.LearnNodePacket;
 import ru.imaginaerum.damagecore.api.damage_book_protection.ModNetwork;
+import ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeClientSync;
 import ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeNode;
 import ru.imaginaerum.damagecore.api.damage_book_protection.node_variant.SelectVariantPacket;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Map;
+import java.util.Set;
 
 public class Render {
     // copy of necessary constants (must match SkillTreeRenderer)
@@ -111,10 +115,37 @@ public class Render {
         int unscaledMouseX = (int)((mouseX - pivotX) / scale + pivotX);
         int unscaledMouseY = (int)((mouseY - pivotY) / scale + pivotY);
 
+        // ИСПРАВЛЕНИЕ: получаем ID активного дерева через рефлексию
+        int activeTreeId = getActiveTreeIdViaReflection();
+
+        // Получаем изученные узлы для проверки
+        Set<String> learned = null;
+        try {
+            // ИСПРАВЛЕНИЕ: используем активный treeId
+            learned = SkillTreeClientSync.getLearnedCache(activeTreeId);
+        } catch (Throwable t) {
+            // Игнорируем
+        }
+
         for (SkillTreeNode n : nodes.values()) {
             if (n.containsPoint(unscaledMouseX, unscaledMouseY)) {
-                // ИСПРАВЛЕНИЕ: не возвращаем заблокированные ИЛИ изученные ноды как hovered
+                // ИСПРАВЛЕНИЕ: не возвращаем заблокированные, изученные
+                // или узлы с не всеми изученными родителями
                 if (n.locked || n.learned) return null;
+
+                // Дополнительная проверка для узлов с несколькими родителями
+                if (learned != null && !n.isRoot()) {
+                    boolean allParentsLearned = true;
+                    for (String parentId : n.parentIds) {
+                        if (parentId != null && !"start".equalsIgnoreCase(parentId)
+                                && !learned.contains(parentId)) {
+                            allParentsLearned = false;
+                            break;
+                        }
+                    }
+                    if (!allParentsLearned) return null;
+                }
+
                 return n;
             }
         }
@@ -391,15 +422,18 @@ public class Render {
             // =============================
             if (hoveredOption != null) {
                 Font font = Minecraft.getInstance().font;
-
                 String baseKey = "damagecore.skilltree.variant." + hoveredOption.variant.displayId;
                 String title = Component.translatable(baseKey).getString();
                 String desc  = Component.translatable(baseKey + ".desc").getString();
                 if (desc.equals(baseKey + ".desc")) desc = "";
 
-                RenderDrawUtils.drawScaledTooltipAt(gui, font,
-                        hoveredOption.centerX, hoveredOption.centerY,
-                        title, desc, pivotX, pivotY, scale);
+                // ИСПРАВЛЕНИЕ: используем drawScaledTooltip, который уже правильно разбивает текст
+                // Но нам нужен SkillTreeNode для этого метода
+                SkillTreeNode tempNode = new SkillTreeNode("temp", ItemStack.EMPTY, false, new ArrayList<>(), SkillTreeNode.Side.RIGHT);
+                tempNode.x = hoveredOption.centerX - SkillTreeNode.FRAME_SIZE/2;
+                tempNode.y = hoveredOption.centerY - SkillTreeNode.FRAME_SIZE/2;
+
+                RenderDrawUtils.drawScaledTooltip(gui, font, tempNode, title, desc, pivotX, pivotY, scale);
             }
 
             // =============================
