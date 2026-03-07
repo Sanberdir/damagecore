@@ -1,5 +1,7 @@
 package ru.imaginaerum.damagecore.api.damage_book_protection.skill_tree_renderer;
 
+import com.mojang.blaze3d.platform.GlStateManager;
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -18,6 +20,12 @@ import java.util.List;
 public class RenderDrawUtils {
     private static final int OPTION_BASE_RADIUS = 36; // базовый радиус от центра ноды до центра ячейки опции
     private static final ResourceLocation TOOLTIP_TEXTURE = new ResourceLocation("damagecore", "textures/gui/container/creative_inventory/damage_core_interface.png");
+
+    private static final ResourceLocation SKILL_CIRCLE =
+            new ResourceLocation("damagecore", "textures/gui/container/creative_inventory/d_c_skill_circle.png");
+    private static final ResourceLocation SKILL_BG =
+            new ResourceLocation("damagecore", "textures/gui/container/creative_inventory/d_c_skill_bg.png");
+
     // координаты в текстуре (по условию)
     private static final int TOOLTIP_TITLE_SRC_U = 0;
     private static final int TOOLTIP_TITLE_SRC_V = 252;
@@ -58,7 +66,7 @@ public class RenderDrawUtils {
         gui.fill(n.x, n.y, n.x + frameSize, n.y + frameSize, 0xFF222222);
 
         // внутренняя часть затемнена
-        gui.fill(n.x + padding, n.y + padding, n.x + frameSize - padding, n.y + frameSize - padding, 0xAA444444);
+        gui.fill(n.x + padding, n.y + padding, n.x + frameSize - padding, n.y + frameSize - padding, 0xFF444444);
 
         int itemX = n.x + (frameSize - ITEM_SIZE) / 2;
         int itemY = n.y + (frameSize - ITEM_SIZE) / 2;
@@ -67,32 +75,6 @@ public class RenderDrawUtils {
 
         pose.popPose();
     }
-    public static void drawScaledTooltipAt(GuiGraphics gui,
-                                           Font font,
-                                           int centerX,
-                                           int centerY,
-                                           String title,
-                                           String desc,
-                                           int pivotX,
-                                           int pivotY,
-                                           float scale) {
-
-        final int TEXT_MAX_PIXELS = 220;
-
-        // ЯВНО разбиваем title и desc на строки
-        List<String> titleLines = splitStringToPixelWidth(font, title, TEXT_MAX_PIXELS);
-        List<String> descLines = new ArrayList<>();
-
-        // ПРОВЕРЯЕМ desc и разбиваем его
-        if (desc != null && !desc.isEmpty() && !desc.startsWith("damagecore.skilltree.variant.")) {
-            descLines = splitStringToPixelWidth(font, desc, TEXT_MAX_PIXELS);
-        }
-
-        if (titleLines.isEmpty() && descLines.isEmpty()) return;
-
-        // ... остальной код без изменений ...
-    }
-
     // --- добавляем вспомогательный класс, положи его в начало RenderDrawUtils после объявления класса ---
     public static class OptionHoverInfo {
         public final SkillTreeNode node;
@@ -114,6 +96,10 @@ public class RenderDrawUtils {
      * Рисует опции узла по кругу.
      * Возвращает OptionHoverInfo если над одной из опций сейчас hover (иначе возвращает null).
      */
+    /**
+     * Рисует опции узла по кругу.
+     * Возвращает OptionHoverInfo если над одной из опций сейчас hover (иначе возвращает null).
+     */
     @SuppressWarnings({"unchecked", "rawtypes"})
     public static OptionHoverInfo drawOptions(GuiGraphics gui,
                                               SkillTreeNode node,
@@ -126,34 +112,43 @@ public class RenderDrawUtils {
             List<?> opts = (List<?>) getFieldValue(node, "options");
             if (opts == null || opts.isEmpty()) return null;
 
-            final int OPTION_SIZE = 18;
-            final int ITEM_SIZE = 16;
+            final int OPTION_SIZE = 27; // увеличен с 18 до 27 (в 1.5 раза)
+            final int ITEM_SIZE = 16; // размер предмета остается 16x16
 
             OptionHoverInfo hoveredInfo = null;
 
-            int selectedOption = -1;
-            try {
-                Object so = getFieldValue(node, "selectedOption");
-                if (so instanceof Number n) selectedOption = n.intValue();
-            } catch (Throwable ignored) {}
-
             PoseStack pose = gui.pose();
+            int cx = node.centerX();
+            int cy = node.centerY();
 
-            // подложка под варианты
-            final int BG_U = 224;
-            final int BG_V = 176;
-            final int BG_SIZE = 80;
-            int bgLeft = node.centerX() - BG_SIZE / 2;
-            int bgTop  = node.centerY() - BG_SIZE / 2;
-
+            // --- Рисуем большой статичный круг вокруг ноды (фон для всех опций) ---
+            int mainCircleSize = OPTION_BASE_RADIUS * 2 + OPTION_SIZE; // чуть больше радиуса опций
             pose.pushPose();
             pose.translate(0, 0, Z_OPTIONS_BG);
-            blitTex(gui, TOOLTIP_TEXTURE, bgLeft, bgTop, BG_U, BG_V, BG_SIZE, BG_SIZE);
+
+            // Настройки рендера для полупрозрачного круга
+            RenderSystem.enableBlend();
+            RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+            RenderSystem.depthMask(false);
+            RenderSystem.disableDepthTest();
+
+            // Рисуем текстуру круга
+            gui.blit(SKILL_CIRCLE,
+                    cx - mainCircleSize / 2,
+                    cy - mainCircleSize / 2,
+                    0, 0,
+                    mainCircleSize, mainCircleSize,
+                    mainCircleSize, mainCircleSize);
+
+            // Восстанавливаем настройки
+            RenderSystem.enableDepthTest();
+            RenderSystem.depthMask(true);
+            RenderSystem.disableBlend();
+
             pose.popPose();
 
-            // варианты
+            // --- Рисуем опции ---
             for (int i = 0; i < opts.size(); i++) {
-
                 int[] pos = optionCenterForIndex(node, i);
                 int ox = pos[0], oy = pos[1];
 
@@ -163,40 +158,55 @@ public class RenderDrawUtils {
                                 mouseY >= oy - OPTION_SIZE / 2 &&
                                 mouseY <  oy + OPTION_SIZE / 2;
 
-                int left = ox - OPTION_SIZE / 2;
-                int top  = oy - OPTION_SIZE / 2;
-
                 pose.pushPose();
                 pose.translate(0, 0, Z_OPTIONS);
 
-                gui.fill(left, top, left + OPTION_SIZE, top + OPTION_SIZE, 0xFF333333);
+                // Настройки для полупрозрачных фонов опций
+                RenderSystem.enableBlend();
+                RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+                RenderSystem.depthMask(false);
+                RenderSystem.disableDepthTest();
 
-                int innerColor;
-                if (selectedOption == i) innerColor = 0xFFFFFFFF;
-                else if (hovered) innerColor = 0xAAFFFFFF;
-                else innerColor = 0xFF777777;
+                // круглый фон под опцией (увеличен в 1.5 раза)
+                pose.pushPose();
+                pose.translate(ox - OPTION_SIZE / 2f, oy - OPTION_SIZE / 2f, 0);
 
-                gui.fill(left + 1, top + 1,
-                        left + OPTION_SIZE - 1,
-                        top + OPTION_SIZE - 1,
-                        innerColor);
+                // Рисуем круг (полупрозрачный)
+                gui.blit(SKILL_CIRCLE, 0, 0, 0, 0, OPTION_SIZE, OPTION_SIZE, OPTION_SIZE, OPTION_SIZE);
 
-                int border = 0x88FFFFFF;
-                gui.fill(left, top, left + OPTION_SIZE, top + 1, border);
-                gui.fill(left, top + OPTION_SIZE - 1, left + OPTION_SIZE, top + OPTION_SIZE, border);
-                gui.fill(left, top, left + 1, top + OPTION_SIZE, border);
-                gui.fill(left + OPTION_SIZE - 1, top, left + OPTION_SIZE, top + OPTION_SIZE, border);
+                // Рисуем фон с иконкой (увеличен в 1.5 раза)
+                gui.blit(SKILL_BG, 0, 0, 0, 0, OPTION_SIZE, OPTION_SIZE, OPTION_SIZE, OPTION_SIZE);
 
+                pose.popPose();
+
+                // Восстанавливаем настройки для рендера предмета
+                RenderSystem.enableDepthTest();
+                RenderSystem.depthMask(true);
+                RenderSystem.disableBlend();
+
+                // ItemStack в центре (с корректным позиционированием для увеличенного фона)
                 Object opt = opts.get(i);
                 if (opt instanceof net.minecraft.world.item.ItemStack stack) {
-                    int itemX = left + (OPTION_SIZE - ITEM_SIZE) / 2;
-                    int itemY = top  + (OPTION_SIZE - ITEM_SIZE) / 2;
+                    int itemX = ox - ITEM_SIZE / 2;
+                    int itemY = oy - ITEM_SIZE / 2;
+
+                    // Сохраняем матрицу для предмета
+                    pose.pushPose();
+                    pose.translate(0, 0, 1); // небольшое смещение по Z чтобы предмет был над фоном
                     gui.renderItem(stack, itemX, itemY);
                     gui.renderItemDecorations(Minecraft.getInstance().font, stack, itemX, itemY);
+                    pose.popPose();
                 }
 
+                // подсветка hover (полупрозрачная)
                 if (hovered) {
-                    gui.fill(left + 1, top + 1, left + OPTION_SIZE - 1, top + OPTION_SIZE - 1, 0x33FFFFFF);
+                    RenderSystem.enableBlend();
+                    RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+
+                    gui.fill(ox - OPTION_SIZE / 2 + 1, oy - OPTION_SIZE / 2 + 1,
+                            ox + OPTION_SIZE / 2 - 1, oy + OPTION_SIZE / 2 - 1, 0x80FFFFFF); // полупрозрачный белый
+
+                    RenderSystem.disableBlend();
                 }
 
                 pose.popPose();
@@ -204,6 +214,12 @@ public class RenderDrawUtils {
                 // перерисовка ноды поверх
                 pose.pushPose();
                 pose.translate(0, 0, Z_NODE_TOP);
+
+                // Настройки для ноды (без блендинга, так как она непрозрачная)
+                RenderSystem.disableBlend();
+                RenderSystem.enableDepthTest();
+                RenderSystem.depthMask(true);
+
                 drawNode(gui, node, mouseX, mouseY);
                 pose.popPose();
 
