@@ -39,6 +39,11 @@ public class Render {
     public static SkillTreeNode currentHoveredNode = null;
     public static long mousePressTime = 0L;
     private static final long FAIL_FLASH_DURATION = 250L;
+
+
+    private static final int LINE_COLOR_LOCKED = 0xFF222222; // тёмно-серый
+    private static final int LINE_COLOR_LEARNABLE = 0xFFDDDDDD; // светло-серый / белый
+    private static final int LINE_COLOR_LEARNED = 0xFF66FF66; // светло-зелёный (салатовый)
     public static void triggerXpFailFlash(SkillTreeNode node) {
         node.xpFailFlashUntil = System.currentTimeMillis() + FAIL_FLASH_DURATION;
     }
@@ -325,6 +330,14 @@ public class Render {
             pose.scale(scale, scale, 1f);
             pose.translate(-pivotX, -pivotY, 0);
 
+            // Получаем кэш изученных нод (если доступен)
+            int activeTreeId = getActiveTreeIdViaReflection();
+            Set<String> learned = null;
+            try {
+                learned = SkillTreeClientSync.getLearnedCache(activeTreeId);
+            } catch (Throwable ignored) {}
+
+            // Рисуем линии, выбирая цвет по состоянию child'а
             for (SkillTreeNode child : nodes.values()) {
                 if (child.isRoot()) continue;
 
@@ -333,11 +346,44 @@ public class Render {
                     SkillTreeNode parent = nodes.get(parentId);
                     if (parent == null) continue;
 
-                    // Рисуем линию к каждому родителю
+                    int color;
+
+                    // приоритет: learned -> locked -> доступность(все родители изучены?) -> locked (fallback)
+                    if (child.learned) {
+                        color = LINE_COLOR_LEARNED;
+                    } else if (child.locked) {
+                        color = LINE_COLOR_LOCKED;
+                    } else {
+                        // проверим — все ли родители изучены?
+                        boolean allParentsLearned = true;
+
+                        if (learned != null) {
+                            for (String pid : child.parentIds) {
+                                if (pid == null || "start".equalsIgnoreCase(pid)) continue;
+                                if (!learned.contains(pid)) {
+                                    allParentsLearned = false;
+                                    break;
+                                }
+                            }
+                        } else {
+                            // fallback: проверяем по полям .learned у родительских нод
+                            for (String pid : child.parentIds) {
+                                if (pid == null || "start".equalsIgnoreCase(pid)) continue;
+                                SkillTreeNode pnode = nodes.get(pid);
+                                if (pnode == null || !pnode.learned) {
+                                    allParentsLearned = false;
+                                    break;
+                                }
+                            }
+                        }
+
+                        color = allParentsLearned ? LINE_COLOR_LEARNABLE : LINE_COLOR_LOCKED;
+                    }
+
                     RenderDrawUtils.drawThickLine(gui,
                             parent.centerX(), parent.centerY(),
                             child.centerX(), child.centerY(),
-                            2, 0xFF000000);
+                            2, color);
                 }
             }
             pose.popPose();
