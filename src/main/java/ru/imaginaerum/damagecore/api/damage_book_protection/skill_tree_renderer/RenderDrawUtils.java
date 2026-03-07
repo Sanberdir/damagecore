@@ -28,7 +28,7 @@ public class RenderDrawUtils {
 
     // координаты в текстуре (по условию)
     private static final int TOOLTIP_TITLE_SRC_U = 0;
-    private static final int TOOLTIP_TITLE_SRC_V = 252;
+
     private static final int TOOLTIP_DESC_SRC_U  = 0;
     private static final int TOOLTIP_DESC_SRC_V  = 294;
     private static final int TOOLTIP_SRC_W = 200;
@@ -36,6 +36,9 @@ public class RenderDrawUtils {
     private static final int TOOLTIP_CAP = 4; // непроходимые края (px), которые не растягиваются
     private static final int TOOLTIP_LEFT_OVERHANG = 4; // полоска выступает влево от ячейки на 4px
     private static final int TOOLTIP_RIGHT_PAD = 4;    // справа полоска заканчивается на 4px правее текста
+    private static final int TOOLTIP_TITLE_GREEN_V = 252;
+    private static final int TOOLTIP_TITLE_YELLOW_V = 273;
+    private static final int TOOLTIP_TITLE_WHITE_V  = 314;
     private static final int DESC_PADDING = 3; // отступ текста внутри полоски для описания
 
     public static final float Z_NODE_TOP = 450f;  // копия ноды при вариантах — ниже тултипов, но выше опций
@@ -363,7 +366,8 @@ public class RenderDrawUtils {
     }
 
     public static void drawScaledTooltip(GuiGraphics gui, Font font, SkillTreeNode n,
-                                         String title, String desc, int pivotX, int pivotY, float scale) {
+                                         String title, String desc, int pivotX, int pivotY,
+                                         float scale, boolean isVariant) {
         final int TEXT_MAX_PIXELS = 220;
 
         List<String> titleLines = splitStringToPixelWidth(font, title, TEXT_MAX_PIXELS);
@@ -377,9 +381,9 @@ public class RenderDrawUtils {
         for (String s : titleLines) maxWidth = Math.max(maxWidth, font.width(s));
         for (String s : descLines)  maxWidth = Math.max(maxWidth, font.width(s));
 
-        int cellLeft   = n.x;
-        int cellRight  = n.x + frame;
-        int cellCenterY = n.y + frame / 2;
+        int cellLeft   = (n != null) ? n.x : 0;
+        int cellRight  = (n != null) ? (n.x + frame) : frame;
+        int cellCenterY = (n != null) ? (n.y + frame / 2) : (frame / 2);
 
         int stripLeft = cellLeft - TOOLTIP_LEFT_OVERHANG;
         int textStartX = cellRight + 4;
@@ -389,15 +393,32 @@ public class RenderDrawUtils {
         int titleHeight = Math.max(TOOLTIP_SRC_H,
                 titleLines.size() * font.lineHeight + 6);
 
-        // описание растянуто на 4px
         int descHeight = descLines.isEmpty() ? 0 :
                 Math.max(TOOLTIP_SRC_H,
                         descLines.size() * font.lineHeight + 4);
 
         int titleTop = cellCenterY - titleHeight / 2;
-
-        // подтянуть описание под заголовок
         int descTop = titleTop + titleHeight - 4;
+
+        // Определяем цвет полоски с использованием параметра isVariant
+        int titleSrcV;
+
+        if (isVariant) {
+            // Вариант - всегда жёлтый
+            titleSrcV = TOOLTIP_TITLE_YELLOW_V;
+        }
+        else if (n != null && n.learned) {
+            // Изученный узел - зелёный
+            titleSrcV = TOOLTIP_TITLE_GREEN_V;
+        }
+        else if (n != null && n.variants != null && !n.variants.isEmpty()) {
+            // Узел с вариантами - жёлтый
+            titleSrcV = TOOLTIP_TITLE_YELLOW_V;
+        }
+        else {
+            // Обычный узел - белый
+            titleSrcV = TOOLTIP_TITLE_WHITE_V;
+        }
 
         PoseStack pose = gui.pose();
 
@@ -410,7 +431,7 @@ public class RenderDrawUtils {
 
             drawNineSliceTiled(gui, TOOLTIP_TEXTURE,
                     stripLeft, descTop,
-                    stripWidth, descHeight + 6, // растянули фон на 4 пикселя
+                    stripWidth, descHeight + 6,
                     TOOLTIP_DESC_SRC_U, TOOLTIP_DESC_SRC_V,
                     TOOLTIP_SRC_W, TOOLTIP_SRC_H,
                     TOOLTIP_CAP);
@@ -427,20 +448,20 @@ public class RenderDrawUtils {
         drawNineSliceTiled(gui, TOOLTIP_TEXTURE,
                 stripLeft, titleTop,
                 stripWidth, titleHeight,
-                TOOLTIP_TITLE_SRC_U, TOOLTIP_TITLE_SRC_V,
+                TOOLTIP_TITLE_SRC_U, titleSrcV,
                 TOOLTIP_SRC_W, TOOLTIP_SRC_H,
                 TOOLTIP_CAP);
 
         pose.popPose();
 
-        // --- Текст описания (тот же З, что и фон описания) ---
+        // --- Текст описания ---
         if (!descLines.isEmpty()) {
             pose.pushPose();
             pose.translate(pivotX, pivotY, Z_TOOLTIP_DESC_TEXT);
             pose.scale(scale, scale, 1f);
             pose.translate(-pivotX, -pivotY, 0);
 
-            int descTextY = descTop + DESC_PADDING + 4; // смещаем текст на 2 пикселя
+            int descTextY = descTop + DESC_PADDING + 4;
             for (String s : descLines) {
                 gui.drawString(font, s, stripLeft + 4, descTextY, 0xFFE0E0E0, false);
                 descTextY += font.lineHeight;
@@ -449,7 +470,7 @@ public class RenderDrawUtils {
             pose.popPose();
         }
 
-        // --- Текст заголовка (тот же Z, что и фон заголовка) ---
+        // --- Текст заголовка ---
         pose.pushPose();
         pose.translate(pivotX, pivotY, Z_TOOLTIP_TITLE_TEXT);
         pose.scale(scale, scale, 1f);
@@ -463,12 +484,6 @@ public class RenderDrawUtils {
 
         pose.popPose();
     }
-
-    /**
-     * Рисует опции узла по кругу
-     */
-
-
     /**
      * Рисует отдельный узел
      */

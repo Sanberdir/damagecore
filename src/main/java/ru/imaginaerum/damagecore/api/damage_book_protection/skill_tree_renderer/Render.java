@@ -473,13 +473,12 @@ public class Render {
                 String desc  = Component.translatable(baseKey + ".desc").getString();
                 if (desc.equals(baseKey + ".desc")) desc = "";
 
-                // ИСПРАВЛЕНИЕ: используем drawScaledTooltip, который уже правильно разбивает текст
-                // Но нам нужен SkillTreeNode для этого метода
                 SkillTreeNode tempNode = new SkillTreeNode("temp", ItemStack.EMPTY, false, new ArrayList<>(), SkillTreeNode.Side.RIGHT);
                 tempNode.x = hoveredOption.centerX - SkillTreeNode.FRAME_SIZE/2;
                 tempNode.y = hoveredOption.centerY - SkillTreeNode.FRAME_SIZE/2;
 
-                RenderDrawUtils.drawScaledTooltip(gui, font, tempNode, title, desc, pivotX, pivotY, scale);
+                // Передаём true для isVariant
+                RenderDrawUtils.drawScaledTooltip(gui, font, tempNode, title, desc, pivotX, pivotY, scale, true);
             }
 
             // =============================
@@ -487,14 +486,13 @@ public class Render {
             // =============================
             if (!optionsOpen && hoveredNode != null) {
                 Font font = Minecraft.getInstance().font;
-
                 String baseKey = "damagecore.skilltree.node." + (hoveredNode.displayId != null ? hoveredNode.displayId : hoveredNode.id);
                 String title = Component.translatable(baseKey).getString();
                 String desc  = Component.translatable(baseKey + ".desc").getString();
                 if (desc.equals(baseKey + ".desc")) desc = "";
 
-                RenderDrawUtils.drawScaledTooltip(gui, font,
-                        hoveredNode, title, desc, pivotX, pivotY, scale);
+                // Передаём false для isVariant
+                RenderDrawUtils.drawScaledTooltip(gui, font, hoveredNode, title, desc, pivotX, pivotY, scale, false);
             }
 
         } catch (Throwable t) {
