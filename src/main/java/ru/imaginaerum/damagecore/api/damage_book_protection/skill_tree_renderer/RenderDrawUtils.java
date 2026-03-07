@@ -56,6 +56,243 @@ public class RenderDrawUtils {
     public static void blitTex(GuiGraphics gui, ResourceLocation tex, int x, int y, int u, int v, int w, int h) {
         gui.blit(tex, x, y, u, v, w, h, 512, 512);
     }
+
+    public static void drawScaledTooltipWithProgress(GuiGraphics gui, Font font, SkillTreeNode n,
+                                                     String title, String desc, int pivotX, int pivotY,
+                                                     float scale, float progress) {
+        final int TEXT_MAX_PIXELS = 220;
+
+        List<String> titleLines = splitStringToPixelWidth(font, title, TEXT_MAX_PIXELS);
+        List<String> descLines  = splitStringToPixelWidth(font, desc, TEXT_MAX_PIXELS);
+
+        if (titleLines.isEmpty() && descLines.isEmpty()) return;
+
+        int frame = SkillTreeNode.FRAME_SIZE;
+
+        int maxWidth = 0;
+        for (String s : titleLines) maxWidth = Math.max(maxWidth, font.width(s));
+        for (String s : descLines)  maxWidth = Math.max(maxWidth, font.width(s));
+
+        int cellLeft   = (n != null) ? n.x : 0;
+        int cellRight  = (n != null) ? (n.x + frame) : frame;
+        int cellCenterY = (n != null) ? (n.y + frame / 2) : (frame / 2);
+
+        int stripLeft = cellLeft - TOOLTIP_LEFT_OVERHANG;
+        int textStartX = cellRight + 4;
+
+        int stripWidth = (textStartX - stripLeft) + maxWidth + TOOLTIP_RIGHT_PAD;
+
+        int titleHeight = Math.max(TOOLTIP_SRC_H,
+                titleLines.size() * font.lineHeight + 6);
+
+        int descHeight = descLines.isEmpty() ? 0 :
+                Math.max(TOOLTIP_SRC_H,
+                        descLines.size() * font.lineHeight + 4);
+
+        int titleTop = cellCenterY - titleHeight / 2;
+        int descTop = titleTop + titleHeight - 4;
+
+        // Определяем базовый цвет для тултипа (цвет после изучения)
+        int baseSrcV;
+        if (n != null && n.variants != null && !n.variants.isEmpty()) {
+            baseSrcV = TOOLTIP_TITLE_YELLOW_V; // Узел с вариантами - всегда жёлтый (даже изученный)
+        } else if (n != null && n.learned) {
+            baseSrcV = TOOLTIP_TITLE_GREEN_V; // Изученный обычный узел - зелёный
+        } else {
+            baseSrcV = TOOLTIP_TITLE_WHITE_V; // Обычный узел - белый
+        }
+
+        PoseStack pose = gui.pose();
+
+        // --- Рисуем фон описания (НИЖЕ по Z) ---
+        if (descHeight > 0) {
+            pose.pushPose();
+            pose.translate(pivotX, pivotY, Z_TOOLTIP_DESC_BG);
+            pose.scale(scale, scale, 1f);
+            pose.translate(-pivotX, -pivotY, 0);
+
+            drawNineSliceTiled(gui, TOOLTIP_TEXTURE,
+                    stripLeft, descTop,
+                    stripWidth, descHeight + 6,
+                    TOOLTIP_DESC_SRC_U, TOOLTIP_DESC_SRC_V,
+                    TOOLTIP_SRC_W, TOOLTIP_SRC_H,
+                    TOOLTIP_CAP);
+
+            pose.popPose();
+        }
+
+        // --- Рисуем базовый фон заголовка ---
+        pose.pushPose();
+        pose.translate(pivotX, pivotY, Z_TOOLTIP_TITLE_BG);
+        pose.scale(scale, scale, 1f);
+        pose.translate(-pivotX, -pivotY, 0);
+
+        drawNineSliceTiled(gui, TOOLTIP_TEXTURE,
+                stripLeft, titleTop,
+                stripWidth, titleHeight,
+                TOOLTIP_TITLE_SRC_U, baseSrcV,
+                TOOLTIP_SRC_W, TOOLTIP_SRC_H,
+                TOOLTIP_CAP);
+
+        pose.popPose();
+
+        // --- Рисуем зелёный прогресс поверх (для всех не изученных узлов) ---
+        // Прогресс рисуем если:
+        // 1. Прогресс > 0
+        // 2. Узел НЕ изучен (независимо от наличия вариантов)
+        if (progress > 0 && n != null && !n.learned) {
+            pose.pushPose();
+            pose.translate(pivotX, pivotY, Z_TOOLTIP_TITLE_BG + 5); // чуть выше базового фона
+            pose.scale(scale, scale, 1f);
+            pose.translate(-pivotX, -pivotY, 0);
+
+            // Включаем смешивание для полупрозрачности
+            RenderSystem.enableBlend();
+            RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+
+            if (progress >= 1.0f) {
+                // Полностью изучен - рисуем весь заголовок зелёным
+                drawNineSliceTiled(gui, TOOLTIP_TEXTURE,
+                        stripLeft, titleTop,
+                        stripWidth, titleHeight,
+                        TOOLTIP_TITLE_SRC_U, TOOLTIP_TITLE_GREEN_V,
+                        TOOLTIP_SRC_W, TOOLTIP_SRC_H,
+                        TOOLTIP_CAP);
+            } else {
+                // Частичный прогресс - рисуем только левую часть зелёным
+                int greenWidth = Math.round(stripWidth * progress);
+
+                // Используем специальный метод для частичного прогресса (без правого угла)
+                drawPartialProgressTooltip(gui, TOOLTIP_TEXTURE,
+                        stripLeft, titleTop,
+                        greenWidth, titleHeight,
+                        TOOLTIP_TITLE_SRC_U, TOOLTIP_TITLE_GREEN_V,
+                        TOOLTIP_SRC_W, TOOLTIP_SRC_H,
+                        TOOLTIP_CAP);
+            }
+
+            RenderSystem.disableBlend();
+            pose.popPose();
+        }
+
+        // --- Текст описания ---
+        if (!descLines.isEmpty()) {
+            pose.pushPose();
+            pose.translate(pivotX, pivotY, Z_TOOLTIP_DESC_TEXT);
+            pose.scale(scale, scale, 1f);
+            pose.translate(-pivotX, -pivotY, 0);
+
+            int descTextY = descTop + DESC_PADDING + 4;
+            for (String s : descLines) {
+                gui.drawString(font, s, stripLeft + 4, descTextY, 0xFFE0E0E0, false);
+                descTextY += font.lineHeight;
+            }
+
+            pose.popPose();
+        }
+
+        // --- Текст заголовка (поверх всего) ---
+        pose.pushPose();
+        pose.translate(pivotX, pivotY, Z_TOOLTIP_TITLE_TEXT);
+        pose.scale(scale, scale, 1f);
+        pose.translate(-pivotX, -pivotY, 0);
+
+        int titleTextY = titleTop + (titleHeight - titleLines.size() * font.lineHeight) / 2;
+        for (String s : titleLines) {
+            gui.drawString(font, s, textStartX, titleTextY, 0xFFFFFFFF, true);
+            titleTextY += font.lineHeight;
+        }
+
+        pose.popPose();
+    }
+    /**
+     * Специальный метод для рисования частичного прогресса без правого угла
+     * Используется для отображения незавершённого прогресса изучения
+     */
+    private static void drawPartialProgressTooltip(GuiGraphics gui, ResourceLocation tex,
+                                                   int destX, int destY, int destW, int destH,
+                                                   int srcU, int srcV, int srcW, int srcH,
+                                                   int cap) {
+        if (destW <= 0 || destH <= 0) return;
+
+        // Если ширина меньше или равна cap, рисуем просто кусок левого угла
+        if (destW <= cap) {
+            blitTex(gui, tex, destX, destY, srcU, srcV, destW, Math.min(cap, destH));
+            if (destH > cap) {
+                blitTex(gui, tex, destX, destY + destH - cap, srcU, srcV + srcH - cap, destW, cap);
+            }
+            return;
+        }
+
+        int innerSrcW = srcW - cap * 2;
+        int innerSrcH = srcH - cap * 2;
+
+        // --- ЛЕВЫЙ ВЕРХНИЙ УГОЛ ---
+        blitTex(gui, tex, destX, destY, srcU, srcV, cap, cap);
+
+        // --- ЛЕВЫЙ НИЖНИЙ УГОЛ ---
+        if (destH > cap) {
+            blitTex(gui, tex, destX, destY + destH - cap, srcU, srcV + srcH - cap, cap, cap);
+        }
+
+        // --- ВЕРХНЯЯ ЧАСТЬ (между левым углом и правым краем) ---
+        int x = destX + cap;
+        int maxX = destX + destW;
+        int remainingWidth = destW - cap;
+
+        while (x < maxX && remainingWidth > 0) {
+            int tileW = Math.min(innerSrcW, remainingWidth);
+            blitTex(gui, tex, x, destY, srcU + cap, srcV, tileW, cap);
+            x += tileW;
+            remainingWidth -= tileW;
+        }
+
+        // --- НИЖНЯЯ ЧАСТЬ (между левым углом и правым краем) ---
+        if (destH > cap) {
+            x = destX + cap;
+            remainingWidth = destW - cap;
+            while (x < maxX && remainingWidth > 0) {
+                int tileW = Math.min(innerSrcW, remainingWidth);
+                blitTex(gui, tex, x, destY + destH - cap, srcU + cap, srcV + srcH - cap, tileW, cap);
+                x += tileW;
+                remainingWidth -= tileW;
+            }
+        }
+
+        // --- ЛЕВАЯ ЧАСТЬ (вертикальная, между верхом и низом) ---
+        if (destH > cap * 2) {
+            int y = destY + cap;
+            int maxY = destY + destH - cap;
+            while (y < maxY) {
+                int tileH = Math.min(innerSrcH, maxY - y);
+                blitTex(gui, tex, destX, y, srcU, srcV + cap, cap, tileH);
+                y += tileH;
+            }
+        }
+
+        // --- ЦЕНТР (только если есть место) ---
+        if (destW > cap && destH > cap * 2) {
+            int y = destY + cap;
+            int maxY = destY + destH - cap;
+            while (y < maxY) {
+                int tileH = Math.min(innerSrcH, maxY - y);
+                x = destX + cap;
+                remainingWidth = destW - cap;
+                while (x < maxX && remainingWidth > 0) {
+                    int tileW = Math.min(innerSrcW, remainingWidth);
+                    blitTex(gui, tex, x, y, srcU + cap, srcV + cap, tileW, tileH);
+                    x += tileW;
+                    remainingWidth -= tileW;
+                }
+                y += tileH;
+            }
+        }
+
+        // ВАЖНО: Правые углы (верхний и нижний) НЕ РИСУЕМ!
+        // Это предотвращает появление "хвоста" при частичном заполнении
+    }
+
+
     public static void drawNodeDimmed(GuiGraphics gui, SkillTreeNode n) {
         int frameSize = SkillTreeNode.FRAME_SIZE;
         int padding   = SkillTreeNode.FRAME_PADDING;

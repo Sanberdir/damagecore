@@ -157,12 +157,16 @@ public class Render {
 
         return null;
     }
+    /**
+     * Проверяет завершение изучения узла без отрисовки полоски прогресса
+     * Прогресс отображается только в тултипе
+     */
     public static void renderHoldProgressOverlay(GuiGraphics gui,
                                                  int mouseX, int mouseY) {
 
         if (currentHoveredNode == null || mousePressTime <= 0L) return;
 
-        // ИСПРАВЛЕНИЕ: дополнительная проверка
+        // Проверка: узел не должен быть изучен или заблокирован
         if (currentHoveredNode.learned || currentHoveredNode.locked) {
             mousePressTime = 0L;
             currentHoveredNode = null;
@@ -187,6 +191,7 @@ public class Render {
         // если мышь ушла с ноды — сбрасываем удержание
         if (!currentHoveredNode.containsPoint(unscaledMouseX, unscaledMouseY)) {
             mousePressTime = 0L;
+            currentHoveredNode = null;
             return;
         }
 
@@ -195,47 +200,29 @@ public class Render {
 
         int REQUIRED_LEVELS = 5;
 
+        // Проверка на уровень опыта
         if (mc.player.experienceLevel < REQUIRED_LEVELS) {
             triggerXpFailFlash(currentHoveredNode);
             mousePressTime = 0L;
+            currentHoveredNode = null;
             return;
         }
 
         long now = System.currentTimeMillis();
         final long HOLD_MS = 1500L;
         float progress = Math.min(1f, (float)(now - mousePressTime) / HOLD_MS);
-        if (progress <= 0f) return;
 
-        PoseStack pose = gui.pose();
-        pose.pushPose();
-        pose.translate(pivotX, pivotY, 2000);
-        pose.scale(scale, scale, 1f);
-        pose.translate(-pivotX, -pivotY, 0);
+        // УБРАНА ОТРИСОВКА ЗЕЛЁНОЙ ПОЛОСКИ
+        // gui.fill(...) - удалено
 
-        int frameSize = SkillTreeNode.FRAME_SIZE;
-        int padding = SkillTreeNode.FRAME_PADDING;
-
-        int left = currentHoveredNode.x + padding;
-        int top = currentHoveredNode.y + padding;
-        int width = frameSize - 2 * padding;
-        int height = frameSize - 2 * padding;
-
-        gui.fill(left,
-                top,
-                left + Math.round(width * progress),
-                top + height,
-                0x8800FF00);
-
-        pose.popPose();
-
-        // завершение изучения
+        // завершение изучения (проверяем прогресс, но не рисуем)
         if (progress >= 1f) {
             int activeTreeId = getActiveTreeIdViaReflection();
             ModNetwork.CHANNEL.sendToServer(
                     new LearnNodePacket(activeTreeId, currentHoveredNode.id)
             );
 
-            // ИСПРАВЛЕНИЕ: сразу помечаем ноду как изученную на клиенте
+            // Помечаем ноду как изученную на клиенте
             currentHoveredNode.learned = true;
 
             mousePressTime = 0L;
@@ -491,8 +478,21 @@ public class Render {
                 String desc  = Component.translatable(baseKey + ".desc").getString();
                 if (desc.equals(baseKey + ".desc")) desc = "";
 
-                // Передаём false для isVariant
-                RenderDrawUtils.drawScaledTooltip(gui, font, hoveredNode, title, desc, pivotX, pivotY, scale, false);
+                // Вычисляем прогресс изучения для этого узла
+                float progress = 0f;
+
+                if (hoveredNode.learned) {
+                    progress = 1f; // Полностью изучен
+                } else if (hoveredNode == currentHoveredNode && mousePressTime > 0) {
+                    // Узел сейчас изучается - показываем прогресс
+                    long now = System.currentTimeMillis();
+                    final long HOLD_MS = 1500L;
+                    progress = Math.min(1f, (float)(now - mousePressTime) / HOLD_MS);
+                }
+
+                // Используем новый метод с прогрессом (заполнение слева направо)
+                RenderDrawUtils.drawScaledTooltipWithProgress(gui, font, hoveredNode, title, desc,
+                        pivotX, pivotY, scale, progress);
             }
 
         } catch (Throwable t) {
