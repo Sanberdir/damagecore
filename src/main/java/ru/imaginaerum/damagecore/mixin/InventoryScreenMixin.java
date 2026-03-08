@@ -308,15 +308,10 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
         int panelScreenX = guiLeft + imageWidth + 2;
         int panelScreenY = guiTop;
 
-        // 1) Обновляем drag каждый кадр (если isDragging==true внутри SkillTreeData — метод выполнит смещение)
-        //    Это заменяет отсутствие mouseDragged в InventoryScreen — вызывать безопасно всегда.
         SkillTreeRenderer.mouseDragged((int) mouseX, (int) mouseY, 0, panelScreenX, panelScreenY);
 
-        // 2) После возможного перемещения дерева — обновляем hovered-ноду (учитывает offset/scale внутри Render)
         Render.currentHoveredNode = Render.getHoveredNodeUnderMouse(mouseX, mouseY);
 
-        // 3) (опционально) — если хочешь показывать hold-бар прямо сейчас, можно вызвать
-        // Render.renderHoldProgressOverlay(gui);
     }
     // --- mousePressed (заменяет текущую реализацию) ---
     @Inject(method = "mouseClicked", at = @At("TAIL"), cancellable = true)

@@ -1,0 +1,12 @@
+{
+  "tabIcon": "minecraft:potion",
+  "nodes": [
+    {
+      "id": "b",
+      "item": "minecraft:cauldron",
+      "parents": ["start"],
+      "gridX": 0,
+      "gridY": 0
+    }
+  ]
+}

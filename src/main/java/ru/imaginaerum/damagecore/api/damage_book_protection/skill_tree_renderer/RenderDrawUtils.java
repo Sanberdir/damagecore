@@ -14,63 +14,66 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Вспомогательные методы рисования, вынесённые из Render.
- * Реализация методов скопирована точно.
+ * Compact but behavior-preserving RenderDrawUtils.
+ * All rendering logic intentionally preserved (colors, Z-order, progress behavior).
  */
 public class RenderDrawUtils {
-    private static final int OPTION_BASE_RADIUS = 36; // базовый радиус от центра ноды до центра ячейки опции
+    private static final int OPTION_BASE_RADIUS = 36;
     private static final ResourceLocation TOOLTIP_TEXTURE = new ResourceLocation("damagecore", "textures/gui/container/creative_inventory/damage_core_interface.png");
+    private static final ResourceLocation SKILL_CIRCLE = new ResourceLocation("damagecore", "textures/gui/container/creative_inventory/d_c_skill_circle.png");
+    private static final ResourceLocation SKILL_BG = new ResourceLocation("damagecore", "textures/gui/container/creative_inventory/d_c_skill_bg.png");
 
-    private static final ResourceLocation SKILL_CIRCLE =
-            new ResourceLocation("damagecore", "textures/gui/container/creative_inventory/d_c_skill_circle.png");
-    private static final ResourceLocation SKILL_BG =
-            new ResourceLocation("damagecore", "textures/gui/container/creative_inventory/d_c_skill_bg.png");
-
-    // координаты в текстуре (по условию)
     private static final int TOOLTIP_TITLE_SRC_U = 0;
-
     private static final int TOOLTIP_DESC_SRC_U  = 0;
     private static final int TOOLTIP_DESC_SRC_V  = 294;
     private static final int TOOLTIP_SRC_W = 200;
     private static final int TOOLTIP_SRC_H = 20;
-    private static final int TOOLTIP_CAP = 4; // непроходимые края (px), которые не растягиваются
-    private static final int TOOLTIP_LEFT_OVERHANG = 4; // полоска выступает влево от ячейки на 4px
-    private static final int TOOLTIP_RIGHT_PAD = 4;    // справа полоска заканчивается на 4px правее текста
+    private static final int TOOLTIP_CAP = 4;
+    private static final int TOOLTIP_LEFT_OVERHANG = 4;
+    private static final int TOOLTIP_RIGHT_PAD = 4;
     private static final int TOOLTIP_TITLE_GREEN_V = 252;
     private static final int TOOLTIP_TITLE_YELLOW_V = 273;
     private static final int TOOLTIP_TITLE_WHITE_V  = 314;
-    private static final int DESC_PADDING = 3; // отступ текста внутри полоски для описания
+    private static final int DESC_PADDING = 3;
 
-    public static final float Z_NODE_TOP = 450f;  // копия ноды при вариантах — ниже тултипов, но выше опций
+    public static final float Z_NODE_TOP = 450f;
+    private static final float Z_LINES = 100f;
+    private static final float Z_OPTIONS_BG = 330f;
+    private static final float Z_NODE = 50f;
+    private static final float Z_OPTIONS = 400f;
+    private static final float Z_TOOLTIP_DESC_BG = 460f;
+    private static final float Z_TOOLTIP_DESC_TEXT = 470f;
+    private static final float Z_TOOLTIP_TITLE_BG = 480f;
+    private static final float Z_TOOLTIP_TITLE_TEXT = 490f;
 
-    private static final float Z_LINES        = 100f; // линии связей
-    private static final float Z_OPTIONS_BG   = 330f; // круглая подложка вариантов
-    private static final float Z_NODE         = 50f;  // основная нода (под опциями)
-    private static final float Z_OPTIONS      = 400f; // ячейки вариантов (под копией ноды)
-    // Тултипы — ВСЕ части рисуются выше Z_NODE_TOP
-    private static final float Z_TOOLTIP_DESC_BG   = 460f;  // фон описания (нижний слой тултипа)
-    private static final float Z_TOOLTIP_DESC_TEXT = 470f;  // текст описания
-    private static final float Z_TOOLTIP_TITLE_BG  = 480f;  // фон заголовка тултипа
-    private static final float Z_TOOLTIP_TITLE_TEXT= 490f;  // текст заголовка тултипа
-    // --- вспомогательные упрощения, не трогающие логику ---
     public static void blitTex(GuiGraphics gui, ResourceLocation tex, int x, int y, int u, int v, int w, int h) {
         gui.blit(tex, x, y, u, v, w, h, 512, 512);
     }
 
+    // --- public entry points keep original semantics exactly ---
     public static void drawScaledTooltipWithProgress(GuiGraphics gui, Font font, SkillTreeNode n,
                                                      String title, String desc, int pivotX, int pivotY,
                                                      float scale, float progress) {
-        final int TEXT_MAX_PIXELS = 220;
+        drawTooltip(gui, font, n, title, desc, pivotX, pivotY, scale, /*isVariant=*/false, /*forceVariantYellowIfNodeHasVariants=*/true, progress);
+    }
 
+    public static void drawScaledTooltip(GuiGraphics gui, Font font, SkillTreeNode n,
+                                         String title, String desc, int pivotX, int pivotY,
+                                         float scale, boolean isVariant) {
+        drawTooltip(gui, font, n, title, desc, pivotX, pivotY, scale, isVariant, /*forceVariantYellowIfNodeHasVariants=*/false, /*progress=*/0f);
+    }
+
+    // --- unified implementation but keeps both original selection rules ---
+    private static void drawTooltip(GuiGraphics gui, Font font, SkillTreeNode n,
+                                    String title, String desc, int pivotX, int pivotY,
+                                    float scale, boolean isVariant, boolean forceVariantYellowIfNodeHasVariants, float progress) {
+        final int TEXT_MAX_PIXELS = 220;
         List<String> titleLines = splitStringToPixelWidth(font, title, TEXT_MAX_PIXELS);
         List<String> descLines  = splitStringToPixelWidth(font, desc, TEXT_MAX_PIXELS);
-
         if (titleLines.isEmpty() && descLines.isEmpty()) return;
 
         int frame = SkillTreeNode.FRAME_SIZE;
-
-        int maxWidth = 0;
-        for (String s : titleLines) maxWidth = Math.max(maxWidth, font.width(s));
+        int maxWidth = 0; for (String s : titleLines) maxWidth = Math.max(maxWidth, font.width(s));
         for (String s : descLines)  maxWidth = Math.max(maxWidth, font.width(s));
 
         int cellLeft   = (n != null) ? n.x : 0;
@@ -79,688 +82,307 @@ public class RenderDrawUtils {
 
         int stripLeft = cellLeft - TOOLTIP_LEFT_OVERHANG;
         int textStartX = cellRight + 4;
-
         int stripWidth = (textStartX - stripLeft) + maxWidth + TOOLTIP_RIGHT_PAD;
 
-        int titleHeight = Math.max(TOOLTIP_SRC_H,
-                titleLines.size() * font.lineHeight + 6);
-
-        int descHeight = descLines.isEmpty() ? 0 :
-                Math.max(TOOLTIP_SRC_H,
-                        descLines.size() * font.lineHeight + 4);
-
+        int titleHeight = Math.max(TOOLTIP_SRC_H, titleLines.size() * font.lineHeight + 6);
+        int descHeight  = descLines.isEmpty() ? 0 : Math.max(TOOLTIP_SRC_H, descLines.size() * font.lineHeight + 4);
         int titleTop = cellCenterY - titleHeight / 2;
         int descTop = titleTop + titleHeight - 4;
 
-        // Определяем базовый цвет для тултипа (цвет после изучения)
-        int baseSrcV;
-        if (n != null && n.variants != null && !n.variants.isEmpty()) {
-            baseSrcV = TOOLTIP_TITLE_YELLOW_V; // Узел с вариантами - всегда жёлтый (даже изученный)
+        // выбор базового цвета — ТОНКОЕ место (мы соблюдаем исходное поведение):
+        // - В drawScaledTooltipWithProgress (forceVariantYellowIfNodeHasVariants==true) —
+        //   если у ноды есть варианты -> всегда жёлтый (даже если learned).
+        // - В drawScaledTooltip (isVariant param) — isVariant имеет приоритет и делает жёлтым.
+        int titleSrcV;
+        if (forceVariantYellowIfNodeHasVariants && n != null && n.variants != null && !n.variants.isEmpty()) {
+            titleSrcV = TOOLTIP_TITLE_YELLOW_V;
+        } else if (isVariant) {
+            titleSrcV = TOOLTIP_TITLE_YELLOW_V;
         } else if (n != null && n.learned) {
-            baseSrcV = TOOLTIP_TITLE_GREEN_V; // Изученный обычный узел - зелёный
+            titleSrcV = TOOLTIP_TITLE_GREEN_V;
+        } else if (n != null && n.variants != null && !n.variants.isEmpty()) {
+            // preserve original: a node *with variants* normally shows yellow in some flows;
+            // drawScaledTooltipWithProgress already forced that above; here we keep same fallback.
+            titleSrcV = TOOLTIP_TITLE_YELLOW_V;
         } else {
-            baseSrcV = TOOLTIP_TITLE_WHITE_V; // Обычный узел - белый
+            titleSrcV = TOOLTIP_TITLE_WHITE_V;
         }
 
         PoseStack pose = gui.pose();
 
-        // --- Рисуем фон описания (НИЖЕ по Z) ---
+        // description background (below)
         if (descHeight > 0) {
-            pose.pushPose();
-            pose.translate(pivotX, pivotY, Z_TOOLTIP_DESC_BG);
-            pose.scale(scale, scale, 1f);
-            pose.translate(-pivotX, -pivotY, 0);
-
-            drawNineSliceTiled(gui, TOOLTIP_TEXTURE,
-                    stripLeft, descTop,
-                    stripWidth, descHeight + 6,
-                    TOOLTIP_DESC_SRC_U, TOOLTIP_DESC_SRC_V,
-                    TOOLTIP_SRC_W, TOOLTIP_SRC_H,
-                    TOOLTIP_CAP);
-
-            pose.popPose();
+            pushTransform(pose, pivotX, pivotY, Z_TOOLTIP_DESC_BG, scale);
+            drawNineSliceTiled(gui, TOOLTIP_TEXTURE, stripLeft, descTop, stripWidth, descHeight + 6,
+                    TOOLTIP_DESC_SRC_U, TOOLTIP_DESC_SRC_V, TOOLTIP_SRC_W, TOOLTIP_SRC_H, TOOLTIP_CAP);
+            popTransform(pose);
         }
 
-        // --- Рисуем базовый фон заголовка ---
-        pose.pushPose();
-        pose.translate(pivotX, pivotY, Z_TOOLTIP_TITLE_BG);
-        pose.scale(scale, scale, 1f);
-        pose.translate(-pivotX, -pivotY, 0);
+        // title base background
+        pushTransform(pose, pivotX, pivotY, Z_TOOLTIP_TITLE_BG, scale);
+        drawNineSliceTiled(gui, TOOLTIP_TEXTURE, stripLeft, titleTop, stripWidth, titleHeight,
+                TOOLTIP_TITLE_SRC_U, titleSrcV, TOOLTIP_SRC_W, TOOLTIP_SRC_H, TOOLTIP_CAP);
+        popTransform(pose);
 
-        drawNineSliceTiled(gui, TOOLTIP_TEXTURE,
-                stripLeft, titleTop,
-                stripWidth, titleHeight,
-                TOOLTIP_TITLE_SRC_U, baseSrcV,
-                TOOLTIP_SRC_W, TOOLTIP_SRC_H,
-                TOOLTIP_CAP);
-
-        pose.popPose();
-
-        // --- Рисуем зелёный прогресс поверх (для всех не изученных узлов) ---
-        // Прогресс рисуем если:
-        // 1. Прогресс > 0
-        // 2. Узел НЕ изучен (независимо от наличия вариантов)
+        // green progress overlay for non-learned nodes when progress>0
         if (progress > 0 && n != null && !n.learned) {
-            pose.pushPose();
-            pose.translate(pivotX, pivotY, Z_TOOLTIP_TITLE_BG + 5); // чуть выше базового фона
-            pose.scale(scale, scale, 1f);
-            pose.translate(-pivotX, -pivotY, 0);
-
-            // Включаем смешивание для полупрозрачности
+            pushTransform(pose, pivotX, pivotY, Z_TOOLTIP_TITLE_BG + 5, scale);
             RenderSystem.enableBlend();
             RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
 
             if (progress >= 1.0f) {
-                // Полностью изучен - рисуем весь заголовок зелёным
-                drawNineSliceTiled(gui, TOOLTIP_TEXTURE,
-                        stripLeft, titleTop,
-                        stripWidth, titleHeight,
-                        TOOLTIP_TITLE_SRC_U, TOOLTIP_TITLE_GREEN_V,
-                        TOOLTIP_SRC_W, TOOLTIP_SRC_H,
-                        TOOLTIP_CAP);
+                drawNineSliceTiled(gui, TOOLTIP_TEXTURE, stripLeft, titleTop, stripWidth, titleHeight,
+                        TOOLTIP_TITLE_SRC_U, TOOLTIP_TITLE_GREEN_V, TOOLTIP_SRC_W, TOOLTIP_SRC_H, TOOLTIP_CAP);
             } else {
-                // Частичный прогресс - рисуем только левую часть зелёным
                 int greenWidth = Math.round(stripWidth * progress);
-
-                // Используем специальный метод для частичного прогресса (без правого угла)
-                drawPartialProgressTooltip(gui, TOOLTIP_TEXTURE,
-                        stripLeft, titleTop,
-                        greenWidth, titleHeight,
-                        TOOLTIP_TITLE_SRC_U, TOOLTIP_TITLE_GREEN_V,
-                        TOOLTIP_SRC_W, TOOLTIP_SRC_H,
-                        TOOLTIP_CAP);
+                drawPartialProgressTooltip(gui, TOOLTIP_TEXTURE, stripLeft, titleTop, greenWidth, titleHeight,
+                        TOOLTIP_TITLE_SRC_U, TOOLTIP_TITLE_GREEN_V, TOOLTIP_SRC_W, TOOLTIP_SRC_H, TOOLTIP_CAP);
             }
 
             RenderSystem.disableBlend();
-            pose.popPose();
+            popTransform(pose);
         }
 
-        // --- Текст описания ---
+        // description text
         if (!descLines.isEmpty()) {
-            pose.pushPose();
-            pose.translate(pivotX, pivotY, Z_TOOLTIP_DESC_TEXT);
-            pose.scale(scale, scale, 1f);
-            pose.translate(-pivotX, -pivotY, 0);
-
+            pushTransform(pose, pivotX, pivotY, Z_TOOLTIP_DESC_TEXT, scale);
             int descTextY = descTop + DESC_PADDING + 4;
             for (String s : descLines) {
                 gui.drawString(font, s, stripLeft + 4, descTextY, 0xFFE0E0E0, false);
                 descTextY += font.lineHeight;
             }
-
-            pose.popPose();
+            popTransform(pose);
         }
 
-        // --- Текст заголовка (поверх всего) ---
-        pose.pushPose();
-        pose.translate(pivotX, pivotY, Z_TOOLTIP_TITLE_TEXT);
-        pose.scale(scale, scale, 1f);
-        pose.translate(-pivotX, -pivotY, 0);
-
+        // title text (on top)
+        pushTransform(pose, pivotX, pivotY, Z_TOOLTIP_TITLE_TEXT, scale);
         int titleTextY = titleTop + (titleHeight - titleLines.size() * font.lineHeight) / 2;
         for (String s : titleLines) {
             gui.drawString(font, s, textStartX, titleTextY, 0xFFFFFFFF, true);
             titleTextY += font.lineHeight;
         }
-
-        pose.popPose();
+        popTransform(pose);
     }
-    /**
-     * Специальный метод для рисования частичного прогресса без правого угла
-     * Используется для отображения незавершённого прогресса изучения
-     */
+
+    private static void pushTransform(PoseStack pose, int pivotX, int pivotY, float z, float scale) {
+        pose.pushPose();
+        pose.translate(pivotX, pivotY, z);
+        pose.scale(scale, scale, 1f);
+        pose.translate(-pivotX, -pivotY, 0);
+    }
+    private static void popTransform(PoseStack pose) { pose.popPose(); }
+
     private static void drawPartialProgressTooltip(GuiGraphics gui, ResourceLocation tex,
                                                    int destX, int destY, int destW, int destH,
                                                    int srcU, int srcV, int srcW, int srcH,
                                                    int cap) {
         if (destW <= 0 || destH <= 0) return;
-
-        // Если ширина меньше или равна cap, рисуем просто кусок левого угла
         if (destW <= cap) {
             blitTex(gui, tex, destX, destY, srcU, srcV, destW, Math.min(cap, destH));
-            if (destH > cap) {
-                blitTex(gui, tex, destX, destY + destH - cap, srcU, srcV + srcH - cap, destW, cap);
-            }
+            if (destH > cap) blitTex(gui, tex, destX, destY + destH - cap, srcU, srcV + srcH - cap, destW, cap);
             return;
         }
 
-        int innerSrcW = srcW - cap * 2;
-        int innerSrcH = srcH - cap * 2;
-
-        // --- ЛЕВЫЙ ВЕРХНИЙ УГОЛ ---
+        int innerSrcW = srcW - cap * 2, innerSrcH = srcH - cap * 2;
         blitTex(gui, tex, destX, destY, srcU, srcV, cap, cap);
+        if (destH > cap) blitTex(gui, tex, destX, destY + destH - cap, srcU, srcV + srcH - cap, cap, cap);
 
-        // --- ЛЕВЫЙ НИЖНИЙ УГОЛ ---
-        if (destH > cap) {
-            blitTex(gui, tex, destX, destY + destH - cap, srcU, srcV + srcH - cap, cap, cap);
-        }
-
-        // --- ВЕРХНЯЯ ЧАСТЬ (между левым углом и правым краем) ---
-        int x = destX + cap;
-        int maxX = destX + destW;
-        int remainingWidth = destW - cap;
-
+        int x = destX + cap, maxX = destX + destW, remainingWidth = destW - cap;
         while (x < maxX && remainingWidth > 0) {
             int tileW = Math.min(innerSrcW, remainingWidth);
             blitTex(gui, tex, x, destY, srcU + cap, srcV, tileW, cap);
-            x += tileW;
-            remainingWidth -= tileW;
+            x += tileW; remainingWidth -= tileW;
         }
 
-        // --- НИЖНЯЯ ЧАСТЬ (между левым углом и правым краем) ---
-        if (destH > cap) {
-            x = destX + cap;
-            remainingWidth = destW - cap;
-            while (x < maxX && remainingWidth > 0) {
-                int tileW = Math.min(innerSrcW, remainingWidth);
-                blitTex(gui, tex, x, destY + destH - cap, srcU + cap, srcV + srcH - cap, tileW, cap);
-                x += tileW;
-                remainingWidth -= tileW;
-            }
-        }
+        if (destH > cap) { x = destX + cap; remainingWidth = destW - cap; while (x < maxX && remainingWidth > 0) { int tileW = Math.min(innerSrcW, remainingWidth); blitTex(gui, tex, x, destY + destH - cap, srcU + cap, srcV + srcH - cap, tileW, cap); x += tileW; remainingWidth -= tileW; } }
 
-        // --- ЛЕВАЯ ЧАСТЬ (вертикальная, между верхом и низом) ---
-        if (destH > cap * 2) {
-            int y = destY + cap;
-            int maxY = destY + destH - cap;
-            while (y < maxY) {
-                int tileH = Math.min(innerSrcH, maxY - y);
-                blitTex(gui, tex, destX, y, srcU, srcV + cap, cap, tileH);
-                y += tileH;
-            }
-        }
+        if (destH > cap * 2) { int y = destY + cap, maxY = destY + destH - cap; while (y < maxY) { int tileH = Math.min(innerSrcH, maxY - y); blitTex(gui, tex, destX, y, srcU, srcV + cap, cap, tileH); y += tileH; } }
 
-        // --- ЦЕНТР (только если есть место) ---
         if (destW > cap && destH > cap * 2) {
-            int y = destY + cap;
-            int maxY = destY + destH - cap;
+            int y = destY + cap, maxY = destY + destH - cap;
             while (y < maxY) {
                 int tileH = Math.min(innerSrcH, maxY - y);
-                x = destX + cap;
-                remainingWidth = destW - cap;
+                x = destX + cap; remainingWidth = destW - cap;
                 while (x < maxX && remainingWidth > 0) {
                     int tileW = Math.min(innerSrcW, remainingWidth);
                     blitTex(gui, tex, x, y, srcU + cap, srcV + cap, tileW, tileH);
-                    x += tileW;
-                    remainingWidth -= tileW;
+                    x += tileW; remainingWidth -= tileW;
                 }
                 y += tileH;
             }
         }
-
-        // ВАЖНО: Правые углы (верхний и нижний) НЕ РИСУЕМ!
-        // Это предотвращает появление "хвоста" при частичном заполнении
+        // Note: right corners intentionally not drawn for partial progress (same as original).
     }
-
 
     public static void drawNodeDimmed(GuiGraphics gui, SkillTreeNode n) {
-        int frameSize = SkillTreeNode.FRAME_SIZE;
-        int padding   = SkillTreeNode.FRAME_PADDING;
-        int ITEM_SIZE = 16;
-
-        PoseStack pose = gui.pose();
-        pose.pushPose();
-        pose.translate(0, 0, Z_NODE);
-
-        // рамка
+        int frameSize = SkillTreeNode.FRAME_SIZE, padding = SkillTreeNode.FRAME_PADDING, ITEM_SIZE = 16;
+        PoseStack pose = gui.pose(); pose.pushPose(); pose.translate(0,0,Z_NODE);
         gui.fill(n.x, n.y, n.x + frameSize, n.y + frameSize, 0xFF222222);
-
-        // внутренняя часть затемнена
         gui.fill(n.x + padding, n.y + padding, n.x + frameSize - padding, n.y + frameSize - padding, 0xFF444444);
-
-        int itemX = n.x + (frameSize - ITEM_SIZE) / 2;
-        int itemY = n.y + (frameSize - ITEM_SIZE) / 2;
+        int itemX = n.x + (frameSize - ITEM_SIZE)/2, itemY = n.y + (frameSize - ITEM_SIZE)/2;
         gui.renderItem(n.itemStack, itemX, itemY);
         gui.renderItemDecorations(Minecraft.getInstance().font, n.itemStack, itemX, itemY);
-
         pose.popPose();
     }
-    // --- добавляем вспомогательный класс, положи его в начало RenderDrawUtils после объявления класса ---
+
     public static class OptionHoverInfo {
         public final SkillTreeNode node;
-        public final SkillTreeNode.Variant variant; // <--- ссылка на вариант (может быть null)
-        public final int optionIndex;
-        public final int centerX;
-        public final int centerY;
-
+        public final SkillTreeNode.Variant variant;
+        public final int optionIndex, centerX, centerY;
         public OptionHoverInfo(SkillTreeNode node, SkillTreeNode.Variant variant, int optionIndex, int centerX, int centerY) {
-            this.node = node;
-            this.variant = variant;
-            this.optionIndex = optionIndex;
-            this.centerX = centerX;
-            this.centerY = centerY;
+            this.node = node; this.variant = variant; this.optionIndex = optionIndex; this.centerX = centerX; this.centerY = centerY;
         }
     }
 
-    /**
-     * Рисует опции узла по кругу.
-     * Возвращает OptionHoverInfo если над одной из опций сейчас hover (иначе возвращает null).
-     */
-    /**
-     * Рисует опции узла по кругу.
-     * Возвращает OptionHoverInfo если над одной из опций сейчас hover (иначе возвращает null).
-     */
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    public static OptionHoverInfo drawOptions(GuiGraphics gui,
-                                              SkillTreeNode node,
-                                              Object treeObj,
-                                              int mouseX,
-                                              int mouseY) {
+    @SuppressWarnings({"unchecked","rawtypes"})
+    public static OptionHoverInfo drawOptions(GuiGraphics gui, SkillTreeNode node, Object treeObj, int mouseX, int mouseY) {
         try {
             if (node == null || node.locked) return null;
-
             List<?> opts = (List<?>) getFieldValue(node, "options");
             if (opts == null || opts.isEmpty()) return null;
 
-            final int OPTION_SIZE = 27; // увеличен с 18 до 27 (в 1.5 раза)
-            final int ITEM_SIZE = 16; // размер предмета остается 16x16
-
+            final int OPTION_SIZE = 27, ITEM_SIZE = 16;
             OptionHoverInfo hoveredInfo = null;
-
             PoseStack pose = gui.pose();
-            int cx = node.centerX();
-            int cy = node.centerY();
+            int cx = node.centerX(), cy = node.centerY();
 
-            // --- Рисуем большой статичный круг вокруг ноды (фон для всех опций) ---
-            int mainCircleSize = OPTION_BASE_RADIUS * 2 + OPTION_SIZE; // чуть больше радиуса опций
-            pose.pushPose();
-            pose.translate(0, 0, Z_OPTIONS_BG);
-
-            // Настройки рендера для полупрозрачного круга
-            RenderSystem.enableBlend();
-            RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
-            RenderSystem.depthMask(false);
-            RenderSystem.disableDepthTest();
-
-            // Рисуем текстуру круга
-            gui.blit(SKILL_CIRCLE,
-                    cx - mainCircleSize / 2,
-                    cy - mainCircleSize / 2,
-                    0, 0,
-                    mainCircleSize, mainCircleSize,
-                    mainCircleSize, mainCircleSize);
-
-            // Восстанавливаем настройки
-            RenderSystem.enableDepthTest();
-            RenderSystem.depthMask(true);
-            RenderSystem.disableBlend();
-
+            int mainCircleSize = OPTION_BASE_RADIUS * 2 + OPTION_SIZE;
+            pose.pushPose(); pose.translate(0,0,Z_OPTIONS_BG);
+            RenderSystem.enableBlend(); RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+            RenderSystem.depthMask(false); RenderSystem.disableDepthTest();
+            gui.blit(SKILL_CIRCLE, cx - mainCircleSize/2, cy - mainCircleSize/2, 0,0, mainCircleSize, mainCircleSize, mainCircleSize, mainCircleSize);
+            RenderSystem.enableDepthTest(); RenderSystem.depthMask(true); RenderSystem.disableBlend();
             pose.popPose();
 
-            // --- Рисуем опции ---
             for (int i = 0; i < opts.size(); i++) {
-                int[] pos = optionCenterForIndex(node, i);
-                int ox = pos[0], oy = pos[1];
+                int[] pos = optionCenterForIndex(node, i); int ox = pos[0], oy = pos[1];
+                boolean hovered = mouseX >= ox - OPTION_SIZE/2 && mouseX < ox + OPTION_SIZE/2 && mouseY >= oy - OPTION_SIZE/2 && mouseY < oy + OPTION_SIZE/2;
 
-                boolean hovered =
-                        mouseX >= ox - OPTION_SIZE / 2 &&
-                                mouseX <  ox + OPTION_SIZE / 2 &&
-                                mouseY >= oy - OPTION_SIZE / 2 &&
-                                mouseY <  oy + OPTION_SIZE / 2;
+                pose.pushPose(); pose.translate(0,0,Z_OPTIONS);
+                RenderSystem.enableBlend(); RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+                RenderSystem.depthMask(false); RenderSystem.disableDepthTest();
 
-                pose.pushPose();
-                pose.translate(0, 0, Z_OPTIONS);
-
-                // Настройки для полупрозрачных фонов опций
-                RenderSystem.enableBlend();
-                RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
-                RenderSystem.depthMask(false);
-                RenderSystem.disableDepthTest();
-
-                // круглый фон под опцией (увеличен в 1.5 раза)
-                pose.pushPose();
-                pose.translate(ox - OPTION_SIZE / 2f, oy - OPTION_SIZE / 2f, 0);
-
-                // Рисуем круг (полупрозрачный)
-                gui.blit(SKILL_CIRCLE, 0, 0, 0, 0, OPTION_SIZE, OPTION_SIZE, OPTION_SIZE, OPTION_SIZE);
-
-                // Рисуем фон с иконкой (увеличен в 1.5 раза)
-                gui.blit(SKILL_BG, 0, 0, 0, 0, OPTION_SIZE, OPTION_SIZE, OPTION_SIZE, OPTION_SIZE);
-
+                pose.pushPose(); pose.translate(ox - OPTION_SIZE/2f, oy - OPTION_SIZE/2f, 0);
+                gui.blit(SKILL_CIRCLE,0,0,0,0, OPTION_SIZE, OPTION_SIZE, OPTION_SIZE, OPTION_SIZE);
+                gui.blit(SKILL_BG,0,0,0,0, OPTION_SIZE, OPTION_SIZE, OPTION_SIZE, OPTION_SIZE);
                 pose.popPose();
 
-                // Восстанавливаем настройки для рендера предмета
-                RenderSystem.enableDepthTest();
-                RenderSystem.depthMask(true);
-                RenderSystem.disableBlend();
+                RenderSystem.enableDepthTest(); RenderSystem.depthMask(true); RenderSystem.disableBlend();
 
-                // ItemStack в центре (с корректным позиционированием для увеличенного фона)
                 Object opt = opts.get(i);
                 if (opt instanceof net.minecraft.world.item.ItemStack stack) {
-                    int itemX = ox - ITEM_SIZE / 2;
-                    int itemY = oy - ITEM_SIZE / 2;
-
-                    // Сохраняем матрицу для предмета
-                    pose.pushPose();
-                    pose.translate(0, 0, 1); // небольшое смещение по Z чтобы предмет был над фоном
-                    gui.renderItem(stack, itemX, itemY);
-                    gui.renderItemDecorations(Minecraft.getInstance().font, stack, itemX, itemY);
-                    pose.popPose();
+                    int itemX = ox - ITEM_SIZE/2, itemY = oy - ITEM_SIZE/2;
+                    pose.pushPose(); pose.translate(0,0,1); gui.renderItem(stack, itemX, itemY); gui.renderItemDecorations(Minecraft.getInstance().font, stack, itemX, itemY); pose.popPose();
                 }
 
-                // подсветка hover (полупрозрачная)
                 if (hovered) {
-                    RenderSystem.enableBlend();
-                    RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
-
-                    gui.fill(ox - OPTION_SIZE / 2 + 1, oy - OPTION_SIZE / 2 + 1,
-                            ox + OPTION_SIZE / 2 - 1, oy + OPTION_SIZE / 2 - 1, 0x80FFFFFF); // полупрозрачный белый
-
+                    RenderSystem.enableBlend(); RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+                    gui.fill(ox - OPTION_SIZE/2 + 1, oy - OPTION_SIZE/2 + 1, ox + OPTION_SIZE/2 - 1, oy + OPTION_SIZE/2 - 1, 0x80FFFFFF);
                     RenderSystem.disableBlend();
                 }
 
                 pose.popPose();
 
-                // перерисовка ноды поверх
-                pose.pushPose();
-                pose.translate(0, 0, Z_NODE_TOP);
-
-                // Настройки для ноды (без блендинга, так как она непрозрачная)
-                RenderSystem.disableBlend();
-                RenderSystem.enableDepthTest();
-                RenderSystem.depthMask(true);
-
+                pose.pushPose(); pose.translate(0,0,Z_NODE_TOP);
+                RenderSystem.disableBlend(); RenderSystem.enableDepthTest(); RenderSystem.depthMask(true);
                 drawNode(gui, node, mouseX, mouseY);
                 pose.popPose();
 
-                // если hover — применяем вариант
                 if (hovered && hoveredInfo == null) {
                     node.applyVariant(i);
                     node.optionsVisible = false;
-
-                    SkillTreeNode.Variant variant = null;
-                    if (node.variants != null && i < node.variants.size()) {
-                        variant = node.variants.get(i);
-                    }
+                    SkillTreeNode.Variant variant = (node.variants != null && i < node.variants.size()) ? node.variants.get(i) : null;
                     hoveredInfo = new OptionHoverInfo(node, variant, i, ox, oy);
                 }
             }
-
             return hoveredInfo;
-
-        } catch (Throwable t) {
-            t.printStackTrace();
-            return null;
-        }
+        } catch (Throwable t) { t.printStackTrace(); return null; }
     }
+
     public static List<String> splitLongWord(Font font, String w, int maxWidth) {
-        List<String> parts = new ArrayList<>();
-        if (w == null || w.isEmpty()) return parts;
+        List<String> parts = new ArrayList<>(); if (w == null || w.isEmpty()) return parts;
         StringBuilder part = new StringBuilder();
         for (char c : w.toCharArray()) {
-            if (font.width(part.toString() + c) <= maxWidth) {
-                part.append(c);
-            } else {
-                if (part.length() > 0) parts.add(part.toString());
-                part = new StringBuilder();
-                part.append(c);
-            }
+            if (font.width(part.toString() + c) <= maxWidth) part.append(c);
+            else { if (part.length() > 0) parts.add(part.toString()); part = new StringBuilder(); part.append(c); }
         }
         if (part.length() > 0) parts.add(part.toString());
         return parts;
     }
 
     public static List<String> splitStringToPixelWidth(Font font, String text, int maxWidth) {
-        List<String> lines = new ArrayList<>();
-        if (text == null) return lines;
-        text = text.trim();
-        if (text.isEmpty()) return lines;
-
-        String[] words = text.split("\\s+");
-        StringBuilder cur = new StringBuilder();
-
+        List<String> lines = new ArrayList<>(); if (text == null) return lines;
+        text = text.trim(); if (text.isEmpty()) return lines;
+        String[] words = text.split("\\s+"); StringBuilder cur = new StringBuilder();
         for (String w : words) {
             if (cur.length() == 0) {
-                if (font.width(w) > maxWidth) {
-                    lines.addAll(splitLongWord(font, w, maxWidth));
-                } else {
-                    cur.append(w);
-                }
+                if (font.width(w) > maxWidth) lines.addAll(splitLongWord(font, w, maxWidth));
+                else cur.append(w);
             } else {
                 String candidate = cur.toString() + ' ' + w;
-                if (font.width(candidate) <= maxWidth) {
-                    cur.append(' ').append(w);
-                } else {
+                if (font.width(candidate) <= maxWidth) cur.append(' ').append(w);
+                else {
                     lines.add(cur.toString());
-                    if (font.width(w) > maxWidth) {
-                        lines.addAll(splitLongWord(font, w, maxWidth));
-                        cur = new StringBuilder();
-                    } else {
-                        cur = new StringBuilder(w);
-                    }
+                    if (font.width(w) > maxWidth) { lines.addAll(splitLongWord(font, w, maxWidth)); cur = new StringBuilder(); }
+                    else cur = new StringBuilder(w);
                 }
             }
         }
-        if (cur.length() > 0) lines.add(cur.toString());
-        return lines;
+        if (cur.length() > 0) lines.add(cur.toString()); return lines;
     }
 
-    /**
-     * Рисует горизонтально растягиваемую "полосу" из текстуры: left cap, middle (растягивается), right cap.
-     * srcW/ srcH — размеры исходной полосы в текстуре; capPx — ширина нерастягиваемых краёв (левый/правый).
-     */
     public static void drawNineSliceTiled(GuiGraphics gui, ResourceLocation tex,
                                           int destX, int destY, int destW, int destH,
                                           int srcU, int srcV, int srcW, int srcH,
                                           int cap) {
-
         if (destW <= 0 || destH <= 0) return;
+        if (destW <= cap * 2 || destH <= cap * 2) { blitTex(gui, tex, destX, destY, srcU, srcV, destW, destH); return; }
 
-        // если слишком маленький прямоугольник — просто рисуем как есть
-        if (destW <= cap * 2 || destH <= cap * 2) {
-            blitTex(gui, tex, destX, destY, srcU, srcV, destW, destH);
-            return;
-        }
+        int innerSrcW = srcW - cap * 2, innerSrcH = srcH - cap * 2;
+        blitTex(gui, tex, destX, destY, srcU, srcV, cap, cap);
+        blitTex(gui, tex, destX + destW - cap, destY, srcU + srcW - cap, srcV, cap, cap);
+        blitTex(gui, tex, destX, destY + destH - cap, srcU, srcV + srcH - cap, cap, cap);
+        blitTex(gui, tex, destX + destW - cap, destY + destH - cap, srcU + srcW - cap, srcV + srcH - cap, cap, cap);
 
-        int innerSrcW = srcW - cap * 2;
-        int innerSrcH = srcH - cap * 2;
-
-        // --- УГЛЫ ---
-        blitTex(gui, tex, destX, destY, srcU, srcV, cap, cap); // TL
-        blitTex(gui, tex, destX + destW - cap, destY, srcU + srcW - cap, srcV, cap, cap); // TR
-        blitTex(gui, tex, destX, destY + destH - cap, srcU, srcV + srcH - cap, cap, cap); // BL
-        blitTex(gui, tex, destX + destW - cap, destY + destH - cap, srcU + srcW - cap, srcV + srcH - cap, cap, cap); // BR
-
-        // --- ВЕРХ И НИЗ (тайл по X) ---
         int x = destX + cap;
         while (x < destX + destW - cap) {
             int tileW = Math.min(innerSrcW, destX + destW - cap - x);
-
-            blitTex(gui, tex, x, destY, srcU + cap, srcV, tileW, cap); // верх
-            blitTex(gui, tex, x, destY + destH - cap, srcU + cap, srcV + srcH - cap, tileW, cap); // низ
-
+            blitTex(gui, tex, x, destY, srcU + cap, srcV, tileW, cap);
+            blitTex(gui, tex, x, destY + destH - cap, srcU + cap, srcV + srcH - cap, tileW, cap);
             x += tileW;
         }
 
-        // --- ЛЕВО И ПРАВО (тайл по Y) ---
         int y = destY + cap;
         while (y < destY + destH - cap) {
             int tileH = Math.min(innerSrcH, destY + destH - cap - y);
-
-            blitTex(gui, tex, destX, y, srcU, srcV + cap, cap, tileH); // лево
-            blitTex(gui, tex, destX + destW - cap, y, srcU + srcW - cap, srcV + cap, cap, tileH); // право
-
+            blitTex(gui, tex, destX, y, srcU, srcV + cap, cap, tileH);
+            blitTex(gui, tex, destX + destW - cap, y, srcU + srcW - cap, srcV + cap, cap, tileH);
             y += tileH;
         }
 
-        // --- ЦЕНТР (тайл по X и Y) ---
         y = destY + cap;
         while (y < destY + destH - cap) {
-
             int tileH = Math.min(innerSrcH, destY + destH - cap - y);
             x = destX + cap;
-
             while (x < destX + destW - cap) {
                 int tileW = Math.min(innerSrcW, destX + destW - cap - x);
-
                 blitTex(gui, tex, x, y, srcU + cap, srcV + cap, tileW, tileH);
-
                 x += tileW;
             }
-
             y += tileH;
         }
     }
 
-    public static void drawScaledTooltip(GuiGraphics gui, Font font, SkillTreeNode n,
-                                         String title, String desc, int pivotX, int pivotY,
-                                         float scale, boolean isVariant) {
-        final int TEXT_MAX_PIXELS = 220;
-
-        List<String> titleLines = splitStringToPixelWidth(font, title, TEXT_MAX_PIXELS);
-        List<String> descLines  = splitStringToPixelWidth(font, desc, TEXT_MAX_PIXELS);
-
-        if (titleLines.isEmpty() && descLines.isEmpty()) return;
-
-        int frame = SkillTreeNode.FRAME_SIZE;
-
-        int maxWidth = 0;
-        for (String s : titleLines) maxWidth = Math.max(maxWidth, font.width(s));
-        for (String s : descLines)  maxWidth = Math.max(maxWidth, font.width(s));
-
-        int cellLeft   = (n != null) ? n.x : 0;
-        int cellRight  = (n != null) ? (n.x + frame) : frame;
-        int cellCenterY = (n != null) ? (n.y + frame / 2) : (frame / 2);
-
-        int stripLeft = cellLeft - TOOLTIP_LEFT_OVERHANG;
-        int textStartX = cellRight + 4;
-
-        int stripWidth = (textStartX - stripLeft) + maxWidth + TOOLTIP_RIGHT_PAD;
-
-        int titleHeight = Math.max(TOOLTIP_SRC_H,
-                titleLines.size() * font.lineHeight + 6);
-
-        int descHeight = descLines.isEmpty() ? 0 :
-                Math.max(TOOLTIP_SRC_H,
-                        descLines.size() * font.lineHeight + 4);
-
-        int titleTop = cellCenterY - titleHeight / 2;
-        int descTop = titleTop + titleHeight - 4;
-
-        // Определяем цвет полоски с использованием параметра isVariant
-        int titleSrcV;
-
-        if (isVariant) {
-            // Вариант - всегда жёлтый
-            titleSrcV = TOOLTIP_TITLE_YELLOW_V;
-        }
-        else if (n != null && n.learned) {
-            // Изученный узел - зелёный
-            titleSrcV = TOOLTIP_TITLE_GREEN_V;
-        }
-        else if (n != null && n.variants != null && !n.variants.isEmpty()) {
-            // Узел с вариантами - жёлтый
-            titleSrcV = TOOLTIP_TITLE_YELLOW_V;
-        }
-        else {
-            // Обычный узел - белый
-            titleSrcV = TOOLTIP_TITLE_WHITE_V;
-        }
-
-        PoseStack pose = gui.pose();
-
-        // --- Рисуем фон описания (НИЖЕ по Z) ---
-        if (descHeight > 0) {
-            pose.pushPose();
-            pose.translate(pivotX, pivotY, Z_TOOLTIP_DESC_BG);
-            pose.scale(scale, scale, 1f);
-            pose.translate(-pivotX, -pivotY, 0);
-
-            drawNineSliceTiled(gui, TOOLTIP_TEXTURE,
-                    stripLeft, descTop,
-                    stripWidth, descHeight + 6,
-                    TOOLTIP_DESC_SRC_U, TOOLTIP_DESC_SRC_V,
-                    TOOLTIP_SRC_W, TOOLTIP_SRC_H,
-                    TOOLTIP_CAP);
-
-            pose.popPose();
-        }
-
-        // --- Рисуем фон заголовка (ВЫШЕ по Z) ---
-        pose.pushPose();
-        pose.translate(pivotX, pivotY, Z_TOOLTIP_TITLE_BG);
-        pose.scale(scale, scale, 1f);
-        pose.translate(-pivotX, -pivotY, 0);
-
-        drawNineSliceTiled(gui, TOOLTIP_TEXTURE,
-                stripLeft, titleTop,
-                stripWidth, titleHeight,
-                TOOLTIP_TITLE_SRC_U, titleSrcV,
-                TOOLTIP_SRC_W, TOOLTIP_SRC_H,
-                TOOLTIP_CAP);
-
-        pose.popPose();
-
-        // --- Текст описания ---
-        if (!descLines.isEmpty()) {
-            pose.pushPose();
-            pose.translate(pivotX, pivotY, Z_TOOLTIP_DESC_TEXT);
-            pose.scale(scale, scale, 1f);
-            pose.translate(-pivotX, -pivotY, 0);
-
-            int descTextY = descTop + DESC_PADDING + 4;
-            for (String s : descLines) {
-                gui.drawString(font, s, stripLeft + 4, descTextY, 0xFFE0E0E0, false);
-                descTextY += font.lineHeight;
-            }
-
-            pose.popPose();
-        }
-
-        // --- Текст заголовка ---
-        pose.pushPose();
-        pose.translate(pivotX, pivotY, Z_TOOLTIP_TITLE_TEXT);
-        pose.scale(scale, scale, 1f);
-        pose.translate(-pivotX, -pivotY, 0);
-
-        int titleTextY = titleTop + (titleHeight - titleLines.size() * font.lineHeight) / 2;
-        for (String s : titleLines) {
-            gui.drawString(font, s, textStartX, titleTextY, 0xFFFFFFFF, true);
-            titleTextY += font.lineHeight;
-        }
-
-        pose.popPose();
-    }
-    /**
-     * Рисует отдельный узел
-     */
-    public static void drawNode(GuiGraphics gui,
-                                SkillTreeNode n,
-                                int mouseX,
-                                int mouseY) {
-
-        int frameSize = SkillTreeNode.FRAME_SIZE;
-        int padding   = SkillTreeNode.FRAME_PADDING;
-        int ITEM_SIZE = 16;
-
-        PoseStack pose = gui.pose();
-        pose.pushPose();
-        pose.translate(0, 0, Z_NODE);
-
-        // рамка
-        gui.fill(n.x, n.y,
-                n.x + frameSize,
-                n.y + frameSize,
-                0xFF333333);
-
+    public static void drawNode(GuiGraphics gui, SkillTreeNode n, int mouseX, int mouseY) {
+        int frameSize = SkillTreeNode.FRAME_SIZE, padding = SkillTreeNode.FRAME_PADDING, ITEM_SIZE = 16;
+        PoseStack pose = gui.pose(); pose.pushPose(); pose.translate(0,0,Z_NODE);
+        gui.fill(n.x, n.y, n.x + frameSize, n.y + frameSize, 0xFF333333);
         boolean hovered = n.containsPoint(mouseX, mouseY);
-        int innerColor = hovered
-                ? (n.locked ? 0xFF444444 : 0xAAFFFFFF)
-                : 0xFF777777;
-
-        gui.fill(n.x + padding,
-                n.y + padding,
-                n.x + frameSize - padding,
-                n.y + frameSize - padding,
-                innerColor);
-
-        // Используем itemStack ноды (уже обновлённый вариант)
-        int itemX = n.x + (frameSize - ITEM_SIZE) / 2;
-        int itemY = n.y + (frameSize - ITEM_SIZE) / 2;
+        int innerColor = hovered ? (n.locked ? 0xFF444444 : 0xAAFFFFFF) : 0xFF777777;
+        gui.fill(n.x + padding, n.y + padding, n.x + frameSize - padding, n.y + frameSize - padding, innerColor);
+        int itemX = n.x + (frameSize - ITEM_SIZE)/2, itemY = n.y + (frameSize - ITEM_SIZE)/2;
         gui.renderItem(n.itemStack, itemX, itemY);
-        gui.renderItemDecorations(Minecraft.getInstance().font,
-                n.itemStack, itemX, itemY);
-
+        gui.renderItemDecorations(Minecraft.getInstance().font, n.itemStack, itemX, itemY);
         pose.popPose();
     }
 
@@ -771,21 +393,14 @@ public class RenderDrawUtils {
             f.setAccessible(true);
             return f.get(obj);
         } catch (NoSuchFieldException nsf) {
-            // пробуем у супер-класса (на случай внутренних реализаций)
             Class<?> c = obj.getClass();
             while ((c = c.getSuperclass()) != null) {
-                try {
-                    Field f = c.getDeclaredField(fieldName);
-                    f.setAccessible(true);
-                    return f.get(obj);
-                } catch (NoSuchFieldException ignored) {}
+                try { Field f = c.getDeclaredField(fieldName); f.setAccessible(true); return f.get(obj); }
+                catch (NoSuchFieldException ignored) {}
                 catch (Throwable ex) { ex.printStackTrace(); return null; }
             }
             return null;
-        } catch (Throwable t) {
-            t.printStackTrace();
-            return null;
-        }
+        } catch (Throwable t) { t.printStackTrace(); return null; }
     }
 
     private static int[] optionCenterForIndex(SkillTreeNode node, int index) {
@@ -793,48 +408,20 @@ public class RenderDrawUtils {
             List<?> opts = (List<?>) getFieldValue(node, "options");
             int n = (opts == null) ? 0 : opts.size();
             if (n == 0) return new int[]{node.centerX(), node.centerY()};
-
             int radius = OPTION_BASE_RADIUS;
             double angle = 2.0 * Math.PI * index / n;
-            int cx = node.centerX() + (int) Math.round(radius * Math.cos(angle));
-            int cy = node.centerY() + (int) Math.round(radius * Math.sin(angle));
+            int cx = node.centerX() + (int)Math.round(radius * Math.cos(angle));
+            int cy = node.centerY() + (int)Math.round(radius * Math.sin(angle));
             return new int[]{cx, cy};
-        } catch (Throwable t) {
-            t.printStackTrace();
-            return new int[]{node.centerX(), node.centerY()};
-        }
+        } catch (Throwable t) { t.printStackTrace(); return new int[]{node.centerX(), node.centerY()}; }
     }
 
-    public static void drawThickLine(
-            GuiGraphics gui,
-            int x1, int y1,
-            int x2, int y2,
-            int thickness,
-            int color
-    ) {
-        if (y1 == y2) {
-            gui.fill(Math.min(x1, x2), y1 - thickness / 2,
-                    Math.max(x1, x2), y1 + thickness / 2 + 1, color);
-            return;
-        }
-
-        if (x1 == x2) {
-            gui.fill(x1 - thickness / 2, Math.min(y1, y2),
-                    x1 + thickness / 2 + 1, Math.max(y1, y2), color);
-            return;
-        }
-
-        int dx = x2 - x1;
-        int dy = y2 - y1;
-        int steps = Math.max(Math.abs(dx), Math.abs(dy));
-
-        for (int i = 0; i <= steps; i++) {
-            float t = i / (float) steps;
-            int px = Math.round(x1 + t * dx);
-            int py = Math.round(y1 + t * dy);
-
-            gui.fill(px - thickness / 2, py - thickness / 2,
-                    px + thickness / 2 + 1, py + thickness / 2 + 1, color);
+    public static void drawThickLine(GuiGraphics gui, int x1, int y1, int x2, int y2, int thickness, int color) {
+        if (y1 == y2) { gui.fill(Math.min(x1,x2), y1 - thickness/2, Math.max(x1,x2), y1 + thickness/2 + 1, color); return; }
+        if (x1 == x2) { gui.fill(x1 - thickness/2, Math.min(y1,y2), x1 + thickness/2 + 1, Math.max(y1,y2), color); return; }
+        int dx = x2 - x1, dy = y2 - y1, steps = Math.max(Math.abs(dx), Math.abs(dy));
+        for (int i=0;i<=steps;i++){ float t = i/(float)steps; int px = Math.round(x1 + t*dx), py = Math.round(y1 + t*dy);
+            gui.fill(px - thickness/2, py - thickness/2, px + thickness/2 + 1, py + thickness/2 + 1, color);
         }
     }
 }

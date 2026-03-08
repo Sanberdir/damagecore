@@ -456,7 +456,16 @@ public final class SkillTreeRenderer {
 
                 // ИСПРАВЛЕНИЕ: если нода уже изучена - не открываем опции
                 if (node.learned) {
-                    return false; // Просто игнорируем клик по изученной ноде
+                    // изученную ноду можно тянуть, но нельзя открывать опции
+                    if (button == 0) {
+                        currentTree.isDragging = true;
+                        currentTree.dragStartX = mouseX;
+                        currentTree.dragStartY = mouseY;
+                        currentTree.dragStartOffsetX = currentTree.offsetX;
+                        currentTree.dragStartOffsetY = currentTree.offsetY;
+                        return true;
+                    }
+                    return false;
                 }
 
                 if (node.options != null && !node.options.isEmpty()) {

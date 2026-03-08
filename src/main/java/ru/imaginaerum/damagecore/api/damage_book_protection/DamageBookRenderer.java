@@ -23,7 +23,10 @@ public final class DamageBookRenderer {
     public static final int TABS_PER_ROW = MIDDLE_TABS + SIDE_TABS;
     public static final int ROWS = 2;
     public static final int PAGE_SIZE = TABS_PER_ROW * ROWS;
-
+    private static final int XP_BAR_U = 176;
+    private static final int XP_BAR_V = 214;
+    private static final int XP_BAR_WIDTH = 31;
+    private static final int XP_BAR_HEIGHT = 5;
     public static int bottomLeft()  { return 0; }
     public static int bottomRight() { return TABS_PER_ROW - 1; }
     public static int bottomMiddle(int i) { return 1 + i; }
@@ -45,7 +48,37 @@ public final class DamageBookRenderer {
     private static int currentPage = 0;
 
     private DamageBookRenderer() {}
+    private static void renderTabXp(GuiGraphics gui, int tabX, int tabY, int tabW, int tabH, boolean topTab) {
+        // всегда рисуем полную полоску
+        final int padding = 3;
+        int availableWidth = tabW - padding * 2;
+        if (availableWidth <= 0) return;
 
+        int destWidth = availableWidth; // полностью
+        int destHeight = XP_BAR_HEIGHT;
+
+        int xpX = tabX + padding;
+        int xpY = topTab ? (tabY + padding) : (tabY + tabH - destHeight - padding);
+
+        gui.blit(
+                DAMAGE_CORE_INTERFACE,
+                xpX, xpY,
+                destWidth, destHeight,
+                XP_BAR_U, XP_BAR_V,
+                XP_BAR_WIDTH, XP_BAR_HEIGHT,
+                512, 512
+        );
+
+        // рисуем цифру 0 зелёным (под нижней, над верхней)
+        String xpText = "0";
+        int textWidth = Minecraft.getInstance().font.width(xpText);
+        int textX = tabX + (tabW - textWidth) / 2;
+        int textY = topTab
+                ? xpY - Minecraft.getInstance().font.lineHeight - 4  // над полоской для верхней вкладки
+                : xpY + destHeight + 4;                               // под полоской для нижней вкладки
+
+        gui.drawString(Minecraft.getInstance().font, xpText, textX, textY, 0xFF00FF00, false);
+    }
     // ---------- вычисление позиций ----------
     public static int calcMiddleGap(int panelLeft, int panelWidth, int tabW) {
         int startX = panelLeft + tabW;
@@ -191,6 +224,12 @@ public final class DamageBookRenderer {
             }
 
             gui.blit(DAMAGE_CORE_INTERFACE, x, y + yOffset, u, v, tabW, h, 512, 512);
+            // пример внутри drawSideTab / drawMiddleRow
+
+            if (active) {
+                // полоска и цифра только для активной вкладки
+                renderTabXp(gui, x, y + yOffset, tabW, h, !bottom);
+            }
             drawRootIconCentered(gui, x, y + yOffset, tabW, h, globalId);
         }
     }
@@ -222,6 +261,10 @@ public final class DamageBookRenderer {
 
         gui.blit(DAMAGE_CORE_INTERFACE, x, y + yOffset, u, v, tabW, h, 512, 512);
 
+        if (active) {
+            // полоска и цифра только для активной вкладки
+            renderTabXp(gui, x, y + yOffset, tabW, h, !bottom);
+        }
         // ⭐ вот этого не хватало
         drawRootIconCentered(gui, x, y + yOffset, tabW, h, globalId);
     }
