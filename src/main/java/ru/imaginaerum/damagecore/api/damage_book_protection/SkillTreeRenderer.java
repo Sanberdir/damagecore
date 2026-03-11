@@ -82,7 +82,9 @@ public final class SkillTreeRenderer {
         tree.activeOptionsNodeId = node.id;
         return true;
     }
-
+    public static int getGlobalIdByTreeName(String fileName) {
+        return fileNameToTabId.getOrDefault(fileName, -1);
+    }
     private static void closeOptions(SkillTreeData tree) {
         tree.activeOptionsNodeId = null;
     }

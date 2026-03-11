@@ -8,6 +8,7 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.network.PacketDistributor;
 import ru.imaginaerum.damagecore.api.damage_book_protection.node_variant.SyncNodeVariantsPacket;
+import ru.imaginaerum.damagecore.events_tree.SyncTreeXpPacket;
 import ru.imaginaerum.damagecore.sounds.CustomSoundEvents;
 
 import java.lang.reflect.Field;
@@ -19,6 +20,9 @@ import java.util.*;
 public final class SkillTreeServerHandler {
     private static final String ROOT_KEY = "damagecore_skilltree";
     private static final int REQUIRED_LEVELS = 5;
+    // Добавить константы в SkillTreeServerHandler:
+    private static final String XP_KEY = "tree_xp";
+    private static final String LEVEL_KEY = "tree_level";
 
     private SkillTreeServerHandler() {}
 
@@ -36,7 +40,59 @@ public final class SkillTreeServerHandler {
         }
         return Collections.emptyMap();
     }
+    public static void saveTreeXp(ServerPlayer player) {
+        CompoundTag persisted = player.getPersistentData().getCompound(Player.PERSISTED_NBT_TAG);
+        player.getPersistentData().put(Player.PERSISTED_NBT_TAG, persisted);
 
+        CompoundTag mod = persisted.getCompound(ROOT_KEY);
+        persisted.put(ROOT_KEY, mod);
+
+        // Получаем данные XP с клиента? Нет, XP должно храниться на сервере!
+        // Но пока у нас XP только на клиенте - нужно перенести логику XP на сервер
+
+        // Создаем отдельные CompoundTag для XP и уровней
+        CompoundTag xpTag = new CompoundTag();
+        CompoundTag levelTag = new CompoundTag();
+
+        // Здесь должна быть логика получения XP из серверного хранилища
+        // Пока оставляем заглушку - в следующем шаге добавим серверное хранилище
+
+        mod.put(XP_KEY, xpTag);
+        mod.put(LEVEL_KEY, levelTag);
+    }
+
+    // Метод для загрузки XP при входе:
+    public static void loadTreeXp(ServerPlayer player) {
+        CompoundTag persisted = player.getPersistentData().getCompound(Player.PERSISTED_NBT_TAG);
+        CompoundTag mod = persisted.getCompound(ROOT_KEY);
+
+        Map<Integer, Integer> xpMap = new HashMap<>();
+        Map<Integer, Integer> levelMap = new HashMap<>();
+
+        if (mod.contains(XP_KEY)) {
+            CompoundTag xpTag = mod.getCompound(XP_KEY);
+            for (String key : xpTag.getAllKeys()) {
+                try {
+                    int treeId = Integer.parseInt(key);
+                    xpMap.put(treeId, xpTag.getInt(key));
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+
+        if (mod.contains(LEVEL_KEY)) {
+            CompoundTag levelTag = mod.getCompound(LEVEL_KEY);
+            for (String key : levelTag.getAllKeys()) {
+                try {
+                    int treeId = Integer.parseInt(key);
+                    levelMap.put(treeId, levelTag.getInt(key));
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+
+        // Отправляем данные клиенту
+        ModNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
+                new SyncTreeXpPacket(xpMap, levelMap));
+    }
     // ------------------------------
     // Сохранение выбранного варианта
     // ------------------------------

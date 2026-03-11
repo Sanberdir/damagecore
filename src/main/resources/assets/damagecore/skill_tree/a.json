@@ -2,7 +2,7 @@
   "tabIcon": "minecraft:potion",
   "nodes": [
     {
-      "id": "b",
+      "id": "a",
       "item": "minecraft:cauldron",
       "parents": ["start"],
       "gridX": 0,

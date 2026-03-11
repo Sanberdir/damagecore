@@ -6,6 +6,7 @@ import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.simple.SimpleChannel;
 import ru.imaginaerum.damagecore.api.damage_book_protection.node_variant.SelectVariantPacket;
 import ru.imaginaerum.damagecore.api.damage_book_protection.node_variant.SyncNodeVariantsPacket;
+import ru.imaginaerum.damagecore.events_tree.SyncTreeXpPacket;
 
 import java.util.Optional;
 
@@ -37,6 +38,13 @@ public final class ModNetwork {
                 SelectVariantPacket::decode,
                 SelectVariantPacket::handle
         );
+        // В методе init() добавить:
+        CHANNEL.registerMessage(id++,
+                SyncTreeXpPacket.class,
+                SyncTreeXpPacket::encode,
+                SyncTreeXpPacket::decode,
+                SyncTreeXpPacket::handle,
+                Optional.of(NetworkDirection.PLAY_TO_CLIENT)); // <- важно: с сервера на клиент
 //        ModNetwork.CHANNEL.sendToServer(new RequestFullSyncPacket());
         CHANNEL.registerMessage(id++,
                 LearnNodePacket.class,

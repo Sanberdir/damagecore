@@ -11,11 +11,19 @@ import net.minecraft.world.item.alchemy.Potions;
 import ru.imaginaerum.damagecore.api.damage_book_protection.skill_tree_renderer.Render;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public final class DamageBookRenderer {
 
     public static final int TAB_WIDTH = 150;
+
+    public static final int XP_PER_LEVEL = 3;
+    private static final Map<Integer, Integer> TREE_XP = new HashMap<>();
+    private static final Map<Integer, Integer> TREE_LEVEL = new HashMap<>();
+    private static final int BASE_XP_PER_LEVEL = 5; // Можно настроить
+    private static final double XP_GROWTH_FACTOR = 1.5; // Множитель роста
 
     // ---- СХЕМА ВКЛАДОК ----
     public static final int MIDDLE_TABS = 8;
@@ -48,36 +56,85 @@ public final class DamageBookRenderer {
     private static int currentPage = 0;
 
     private DamageBookRenderer() {}
-    private static void renderTabXp(GuiGraphics gui, int tabX, int tabY, int tabW, int tabH, boolean topTab) {
-        // всегда рисуем полную полоску
+    // Метод для расчета XP, необходимого для достижения следующего уровня
+    public static int getXpRequiredForLevel(int level) {
+        if (level < 0) return 0;
+        // Формула: базовый XP * (growthFactor ^ level)
+        // Для level=0 (1-й уровень) возвращаем BASE_XP_PER_LEVEL
+        return (int) Math.floor(BASE_XP_PER_LEVEL * Math.pow(XP_GROWTH_FACTOR, level));
+    }
+
+    // Метод для расчета текущего прогресса (0.0 - 1.0)
+    public static float getLevelProgress(int treeId) {
+        int currentXp = TREE_XP.getOrDefault(treeId, 0);
+        int currentLevel = TREE_LEVEL.getOrDefault(treeId, 0);
+
+        int xpForCurrentLevel = getXpRequiredForLevel(currentLevel);
+
+        return (float) currentXp / xpForCurrentLevel;
+    }
+
+
+    // Обновляем renderTabXp для использования нового прогресса
+    private static void renderTabXp(
+            GuiGraphics gui, int tabX,int tabY,int tabW,int tabH,boolean topTab,int treeId) {
         final int padding = 3;
         int availableWidth = tabW - padding * 2;
         if (availableWidth <= 0) return;
 
-        int destWidth = availableWidth; // полностью
-        int destHeight = XP_BAR_HEIGHT;
+        float progress = getLevelProgress(treeId);
+        int filledWidth = (int)(availableWidth * progress);
 
         int xpX = tabX + padding;
-        int xpY = topTab ? (tabY + padding) : (tabY + tabH - destHeight - padding);
+        int xpY = topTab ? (tabY + padding) : (tabY + tabH - XP_BAR_HEIGHT - padding);
 
-        gui.blit(
-                DAMAGE_CORE_INTERFACE,
-                xpX, xpY,
-                destWidth, destHeight,
-                XP_BAR_U, XP_BAR_V,
-                XP_BAR_WIDTH, XP_BAR_HEIGHT,
-                512, 512
-        );
+        // Рисуем фон
+        gui.blit(DAMAGE_CORE_INTERFACE,xpX,xpY,availableWidth,XP_BAR_HEIGHT,XP_BAR_U,XP_BAR_V, XP_BAR_WIDTH,XP_BAR_HEIGHT,512,512);
 
-        // рисуем цифру 0 зелёным (под нижней, над верхней)
-        String xpText = "0";
-        int textWidth = Minecraft.getInstance().font.width(xpText);
+        // Рисуем заполнение прогресса
+        if (filledWidth > 0) {
+            int sourceWidth = (int)(XP_BAR_WIDTH * progress);
+            if (sourceWidth < 1) sourceWidth = 1;
+
+            gui.blit(DAMAGE_CORE_INTERFACE,xpX,xpY,filledWidth,XP_BAR_HEIGHT,XP_BAR_U,XP_BAR_V + XP_BAR_HEIGHT,sourceWidth,XP_BAR_HEIGHT,
+                    512,512);
+        }
+
+        // Рисуем уровень
+        String levelText = String.valueOf(TREE_LEVEL.getOrDefault(treeId, 0));
+        int textWidth = Minecraft.getInstance().font.width(levelText);
         int textX = tabX + (tabW - textWidth) / 2;
-        int textY = topTab
-                ? xpY - Minecraft.getInstance().font.lineHeight - 4  // над полоской для верхней вкладки
-                : xpY + destHeight + 4;                               // под полоской для нижней вкладки
+        int textY = topTab ? xpY - Minecraft.getInstance().font.lineHeight - 2 : xpY + XP_BAR_HEIGHT + 4;
 
-        gui.drawString(Minecraft.getInstance().font, xpText, textX, textY, 0xFF00FF00, false);
+        gui.drawString(Minecraft.getInstance().font, levelText, textX, textY, 0xFF00FF00, false);
+
+        // Опционально: рисуем точное значение XP при наведении
+        // Это можно добавить позже в обработчик тултипов
+    }
+    // Добавить в класс DamageBookRenderer:
+
+    // Для очистки перед синхронизацией
+    public static void clearXpData() {
+        TREE_XP.clear();
+        TREE_LEVEL.clear();
+    }
+
+    // Для установки значений с сервера
+    public static void setXp(int treeId, int xp) {
+        TREE_XP.put(treeId, xp);
+    }
+
+    public static void setLevel(int treeId, int level) {
+        TREE_LEVEL.put(treeId, level);
+    }
+
+    // Для получения данных для сохранения
+    public static Map<Integer, Integer> getTreeXp() {
+        return new HashMap<>(TREE_XP);
+    }
+
+    public static Map<Integer, Integer> getTreeLevel() {
+        return new HashMap<>(TREE_LEVEL);
     }
     // ---------- вычисление позиций ----------
     public static int calcMiddleGap(int panelLeft, int panelWidth, int tabW) {
@@ -228,7 +285,7 @@ public final class DamageBookRenderer {
 
             if (active) {
                 // полоска и цифра только для активной вкладки
-                renderTabXp(gui, x, y + yOffset, tabW, h, !bottom);
+                renderTabXp(gui, x, y + yOffset, tabW, h, !bottom, globalId);
             }
             drawRootIconCentered(gui, x, y + yOffset, tabW, h, globalId);
         }
@@ -263,7 +320,7 @@ public final class DamageBookRenderer {
 
         if (active) {
             // полоска и цифра только для активной вкладки
-            renderTabXp(gui, x, y + yOffset, tabW, h, !bottom);
+            renderTabXp(gui, x, y + yOffset, tabW, h, !bottom, globalId);
         }
         // ⭐ вот этого не хватало
         drawRootIconCentered(gui, x, y + yOffset, tabW, h, globalId);
