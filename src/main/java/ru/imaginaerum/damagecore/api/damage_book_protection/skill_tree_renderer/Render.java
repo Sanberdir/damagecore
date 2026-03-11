@@ -105,14 +105,20 @@ public class Render {
         Object treeObj = invokePrivateGetCurrentTree();
         if (treeObj == null) return null;
 
+        int clipX1 = currentPanelScreenX + PANEL_DRAW_OFFSET_X_IN_PANEL;
+        int clipY1 = currentPanelScreenY + PANEL_DRAW_OFFSET_Y_IN_PANEL;
+        int clipX2 = clipX1 + AREA_WIDTH;
+        int clipY2 = clipY1 + AREA_HEIGHT;
+
+        if (mouseX < clipX1 || mouseX > clipX2 || mouseY < clipY1 || mouseY > clipY2) {
+            return null;
+        }
+
         Map<String, SkillTreeNode> nodes =
                 (Map<String, SkillTreeNode>) getFieldValue(treeObj, "nodes");
         if (nodes == null || nodes.isEmpty()) return null;
 
         float scale = ((Number) getFieldValue(treeObj, "scale")).floatValue();
-
-        int clipX1 = currentPanelScreenX + PANEL_DRAW_OFFSET_X_IN_PANEL;
-        int clipY1 = currentPanelScreenY + PANEL_DRAW_OFFSET_Y_IN_PANEL;
 
         int pivotX = clipX1 + AREA_WIDTH / 2;
         int pivotY = clipY1 + AREA_HEIGHT / 2;
@@ -120,38 +126,9 @@ public class Render {
         int unscaledMouseX = (int)((mouseX - pivotX) / scale + pivotX);
         int unscaledMouseY = (int)((mouseY - pivotY) / scale + pivotY);
 
-        // ИСПРАВЛЕНИЕ: получаем ID активного дерева через рефлексию
-        int activeTreeId = getActiveTreeIdViaReflection();
-
-        // Получаем изученные узлы для проверки
-        Set<String> learned = null;
-        try {
-            // ИСПРАВЛЕНИЕ: используем активный treeId
-            learned = SkillTreeClientSync.getLearnedCache(activeTreeId);
-        } catch (Throwable t) {
-            // Игнорируем
-        }
-
         for (SkillTreeNode n : nodes.values()) {
             if (n.containsPoint(unscaledMouseX, unscaledMouseY)) {
-                // ИСПРАВЛЕНИЕ: не возвращаем заблокированные, изученные
-                // или узлы с не всеми изученными родителями
-                if (n.locked || n.learned) return null;
-
-                // Дополнительная проверка для узлов с несколькими родителями
-                if (learned != null && !n.isRoot()) {
-                    boolean allParentsLearned = true;
-                    for (String parentId : n.parentIds) {
-                        if (parentId != null && !"start".equalsIgnoreCase(parentId)
-                                && !learned.contains(parentId)) {
-                            allParentsLearned = false;
-                            break;
-                        }
-                    }
-                    if (!allParentsLearned) return null;
-                }
-
-                return n;
+                return n; // больше не проверяем locked / learned
             }
         }
 
@@ -381,16 +358,27 @@ public class Render {
             SkillTreeNode hoveredNode = null;
             RenderDrawUtils.OptionHoverInfo hoveredOption = null;
 
+// мышь внутри панели?
+            boolean mouseInsidePanel =
+                    mouseX >= clipX1 && mouseX <= clipX2 &&
+                            mouseY >= clipY1 && mouseY <= clipY2;
+
+// ищем ноду ВСЕГДА (это нужно для drag системы)
             if (!optionsOpen) {
-                // Ищем наведенный узел только если варианты закрыты
                 for (SkillTreeNode n : nodes.values()) {
                     if (n.containsPoint(unscaledMouseX, unscaledMouseY)) {
                         hoveredNode = n;
                         break;
                     }
                 }
-                currentHoveredNode = hoveredNode; // hoveredNode = node под мышью
             }
+
+// но hover активен только внутри панели
+            if (!mouseInsidePanel) {
+                hoveredNode = null;
+            }
+
+            currentHoveredNode = hoveredNode;
 
             // =============================
             // 3) ОТРИСОВКА УЗЛОВ (кроме hovered)

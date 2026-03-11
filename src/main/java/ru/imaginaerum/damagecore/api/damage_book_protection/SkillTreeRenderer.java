@@ -71,10 +71,6 @@ public final class SkillTreeRenderer {
             this.displayName = displayName;
         }
     }
-    // В SkillTreeRenderer
-    public static SkillTreeData getActiveTree() {
-        return getCurrentTree();
-    }
     // Открыть меню опций для ноды (возвращает true если открылось)
     private static boolean openOptionsForNode(SkillTreeData tree, SkillTreeNode node) {
         // ИСПРАВЛЕНИЕ: не открываем опции для изученных узлов
@@ -82,9 +78,7 @@ public final class SkillTreeRenderer {
         tree.activeOptionsNodeId = node.id;
         return true;
     }
-    public static int getGlobalIdByTreeName(String fileName) {
-        return fileNameToTabId.getOrDefault(fileName, -1);
-    }
+
     private static void closeOptions(SkillTreeData tree) {
         tree.activeOptionsNodeId = null;
     }
@@ -422,10 +416,7 @@ public final class SkillTreeRenderer {
             if (node != null && !node.options.isEmpty()) {
                 int idx = optionIndexAtPoint(node, unscaledMouseX, unscaledMouseY, OPTION_SIZE);
                 if (idx >= 0) {
-                    // Применяем вариант к ноде (изменяем отображаемый стек и displayId)
                     node.applyVariant(idx);
-
-                    // Отправляем на сервер выбор варианта для постоянного сохранения
                     try {
                         if (ModNetwork.CHANNEL != null) {
                             int treeId = activeTreeId;
@@ -434,11 +425,9 @@ public final class SkillTreeRenderer {
                     } catch (Throwable t) {
                         t.printStackTrace();
                     }
-
                     closeOptions(currentTree);
                     return true;
                 } else {
-                    // Клик внутри области опций, но не по конкретной опции — просто закрываем
                     closeOptions(currentTree);
                     return true;
                 }
@@ -451,37 +440,34 @@ public final class SkillTreeRenderer {
         // проверка клика по нодам
         for (SkillTreeNode node : currentTree.nodes.values()) {
             if (node.containsPoint(unscaledMouseX, unscaledMouseY)) {
-                // Если нода заблокирована - игнорируем
-                if (node.locked) {
-                    return false;
-                }
 
-                // ИСПРАВЛЕНИЕ: если нода уже изучена - не открываем опции
-                if (node.learned) {
-                    // изученную ноду можно тянуть, но нельзя открывать опции
-                    if (button == 0) {
-                        currentTree.isDragging = true;
-                        currentTree.dragStartX = mouseX;
-                        currentTree.dragStartY = mouseY;
-                        currentTree.dragStartOffsetX = currentTree.offsetX;
-                        currentTree.dragStartOffsetY = currentTree.offsetY;
-                        return true;
-                    }
-                    return false;
-                }
-
-                if (node.options != null && !node.options.isEmpty()) {
-                    openOptionsForNode(currentTree, node);
-                    return true;
-                } else if (button == 0) {
+                // --- drag всегда можно, независимо от заблокированности ---
+                if (button == 0) {
                     currentTree.isDragging = true;
                     currentTree.dragStartX = mouseX;
                     currentTree.dragStartY = mouseY;
                     currentTree.dragStartOffsetX = currentTree.offsetX;
                     currentTree.dragStartOffsetY = currentTree.offsetY;
+                }
+
+                // если нода заблокирована — не открываем опции и не стартуем hold
+                if (node.locked) {
+                    return true; // drag уже разрешён выше
+                }
+
+                // если нода уже изучена — открытие опций запрещено
+                if (node.learned) {
+                    return true; // drag уже разрешён выше
+                }
+
+                // если есть варианты — открываем меню
+                if (node.options != null && !node.options.isEmpty()) {
+                    openOptionsForNode(currentTree, node);
                     return true;
                 }
-                return false;
+
+                // иначе drag уже включён выше
+                return true;
             }
         }
 
