@@ -57,7 +57,7 @@ public class SkillTreeXpManager {
     }
 
     // Добавляем константы (можно вынести в общий класс)
-    private static final int BASE_XP_PER_LEVEL = 5;
+    private static final int BASE_XP_PER_LEVEL = 3;
     private static final double XP_GROWTH_FACTOR = 1.5;
 
     public static void loadFromPersistentData(ServerPlayer player) {

@@ -22,7 +22,7 @@ public final class DamageBookRenderer {
     public static final int XP_PER_LEVEL = 3;
     private static final Map<Integer, Integer> TREE_XP = new HashMap<>();
     private static final Map<Integer, Integer> TREE_LEVEL = new HashMap<>();
-    private static final int BASE_XP_PER_LEVEL = 5; // Можно настроить
+    private static final int BASE_XP_PER_LEVEL = 3; // Можно настроить
     private static final double XP_GROWTH_FACTOR = 1.5; // Множитель роста
 
     // ---- СХЕМА ВКЛАДОК ----
@@ -66,11 +66,13 @@ public final class DamageBookRenderer {
 
     // Метод для расчета текущего прогресса (0.0 - 1.0)
     public static float getLevelProgress(int treeId) {
-        int currentXp = TREE_XP.getOrDefault(treeId, 0);
         int currentLevel = TREE_LEVEL.getOrDefault(treeId, 0);
+        if (currentLevel >= 20) {
+            return 1.0f; // полоска полностью заполнена на уровне 20
+        }
 
+        int currentXp = TREE_XP.getOrDefault(treeId, 0);
         int xpForCurrentLevel = getXpRequiredForLevel(currentLevel);
-
         return (float) currentXp / xpForCurrentLevel;
     }
 
@@ -125,7 +127,7 @@ public final class DamageBookRenderer {
     }
 
     public static void setLevel(int treeId, int level) {
-        TREE_LEVEL.put(treeId, level);
+        TREE_LEVEL.put(treeId, Math.min(level, 20));
     }
 
     // Для получения данных для сохранения
