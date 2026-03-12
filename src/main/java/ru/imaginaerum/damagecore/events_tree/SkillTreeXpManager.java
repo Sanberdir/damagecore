@@ -4,6 +4,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.network.PacketDistributor;
+import ru.imaginaerum.damagecore.api.damage_book_protection.DamageBookRenderer;
 import ru.imaginaerum.damagecore.api.damage_book_protection.ModNetwork;
 
 import java.util.HashMap;
@@ -18,7 +19,64 @@ public class SkillTreeXpManager {
     private static final String XP_KEY = "tree_xp";
     private static final String LEVEL_KEY = "tree_level";
 
-// В классе SkillTreeXpManager обновляем метод addXp
+    private static final int BASE_XP_PER_LEVEL = 3;
+    private static final double XP_GROWTH_FACTOR = 1.5;
+
+    // ===== НОВЫЕ МЕТОДЫ ДЛЯ ПОЛУЧЕНИЯ ДАННЫХ =====
+
+    /**
+     * Получить XP игрока для указанного дерева
+     */
+    public static int getXp(ServerPlayer player, int treeId) {
+        Map<Integer, Integer> xpMap = playerTreeXp.get(player);
+        if (xpMap == null) return 0;
+        return xpMap.getOrDefault(treeId, 0);
+    }
+
+    /**
+     * Получить уровень игрока для указанного дерева
+     */
+    public static int getLevel(ServerPlayer player, int treeId) {
+        Map<Integer, Integer> levelMap = playerTreeLevel.get(player);
+        if (levelMap == null) return 0;
+        return levelMap.getOrDefault(treeId, 0);
+    }
+
+    /**
+     * Получить прогресс к следующему уровню (0.0 - 1.0)
+     */
+    public static float getProgress(ServerPlayer player, int treeId) {
+        int currentLevel = getLevel(player, treeId);
+        int currentXp = getXp(player, treeId);
+        int xpRequired = getXpRequiredForLevel(currentLevel);
+
+        if (xpRequired <= 0) return 0f;
+        return (float) currentXp / xpRequired;
+    }
+
+    /**
+     * Получить общий XP до следующего уровня
+     */
+    public static int getXpToNextLevel(ServerPlayer player, int treeId) {
+        int currentLevel = getLevel(player, treeId);
+        int currentXp = getXp(player, treeId);
+        int xpRequired = getXpRequiredForLevel(currentLevel);
+
+        return Math.max(0, xpRequired - currentXp);
+    }
+
+    /**
+     * Проверить, может ли игрок повысить уровень дерева
+     */
+    public static boolean canLevelUp(ServerPlayer player, int treeId) {
+        int currentLevel = getLevel(player, treeId);
+        int currentXp = getXp(player, treeId);
+        int xpRequired = getXpRequiredForLevel(currentLevel);
+
+        return currentXp >= xpRequired;
+    }
+
+    // ===== СУЩЕСТВУЮЩИЕ МЕТОДЫ =====
 
     public static void addXp(ServerPlayer player, int treeId, int amount) {
         Map<Integer, Integer> xpMap = playerTreeXp.computeIfAbsent(player, k -> new HashMap<>());
@@ -27,13 +85,16 @@ public class SkillTreeXpManager {
         int currentXp = xpMap.getOrDefault(treeId, 0) + amount;
         int currentLevel = levelMap.getOrDefault(treeId, 0);
 
-        // Повышаем уровень пока хватает XP, используя прогрессивную шкалу
+        // Повышаем уровень пока хватает XP
         int xpRequired = getXpRequiredForLevel(currentLevel);
 
         while (currentXp >= xpRequired) {
             currentXp -= xpRequired;
             currentLevel++;
             xpRequired = getXpRequiredForLevel(currentLevel);
+
+            System.out.println("[SkillTreeXpManager] Player " + player.getName().getString() +
+                    " leveled up tree " + treeId + " to level " + currentLevel);
         }
 
         xpMap.put(treeId, currentXp);
@@ -50,15 +111,10 @@ public class SkillTreeXpManager {
                 " Level: " + currentLevel);
     }
 
-    // Добавляем те же методы расчета XP
     private static int getXpRequiredForLevel(int level) {
         if (level < 0) return 0;
         return (int) Math.floor(BASE_XP_PER_LEVEL * Math.pow(XP_GROWTH_FACTOR, level));
     }
-
-    // Добавляем константы (можно вынести в общий класс)
-    private static final int BASE_XP_PER_LEVEL = 3;
-    private static final double XP_GROWTH_FACTOR = 1.5;
 
     public static void loadFromPersistentData(ServerPlayer player) {
         CompoundTag persisted = player.getPersistentData().getCompound(Player.PERSISTED_NBT_TAG);
@@ -88,26 +144,30 @@ public class SkillTreeXpManager {
         playerTreeXp.put(player, xpMap);
         playerTreeLevel.put(player, levelMap);
 
+        System.out.println("[SkillTreeXpManager] Loaded data for player " + player.getName().getString() +
+                ": XP=" + xpMap + ", Levels=" + levelMap);
+
         // Отправляем клиенту
-        ModNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
-                new SyncTreeXpPacket(xpMap, levelMap));
+        syncToClient(player);
     }
 
     private static void saveToPersistentData(ServerPlayer player, int treeId, int xp, int level) {
         CompoundTag persisted = player.getPersistentData().getCompound(Player.PERSISTED_NBT_TAG);
-        player.getPersistentData().put(Player.PERSISTED_NBT_TAG, persisted);
+        if (persisted == null) persisted = new CompoundTag();
 
         CompoundTag mod = persisted.getCompound(ROOT_KEY);
-        persisted.put(ROOT_KEY, mod);
+        if (mod == null) mod = new CompoundTag();
 
-        CompoundTag xpTag = mod.getCompound(XP_KEY);
-        CompoundTag levelTag = mod.getCompound(LEVEL_KEY);
+        CompoundTag xpTag = mod.contains(XP_KEY) ? mod.getCompound(XP_KEY) : new CompoundTag();
+        CompoundTag levelTag = mod.contains(LEVEL_KEY) ? mod.getCompound(LEVEL_KEY) : new CompoundTag();
 
         xpTag.putInt(String.valueOf(treeId), xp);
         levelTag.putInt(String.valueOf(treeId), level);
 
         mod.put(XP_KEY, xpTag);
         mod.put(LEVEL_KEY, levelTag);
+        persisted.put(ROOT_KEY, mod);
+        player.getPersistentData().put(Player.PERSISTED_NBT_TAG, persisted);
     }
 
     private static void syncToClient(ServerPlayer player) {
@@ -116,10 +176,14 @@ public class SkillTreeXpManager {
 
         ModNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
                 new SyncTreeXpPacket(xpMap, levelMap));
+
+        System.out.println("[SkillTreeXpManager] Sent sync to player " + player.getName().getString() +
+                ": XP=" + xpMap + ", Levels=" + levelMap);
     }
 
     public static void removePlayer(ServerPlayer player) {
         playerTreeXp.remove(player);
         playerTreeLevel.remove(player);
+        System.out.println("[SkillTreeXpManager] Removed player " + player.getName().getString() + " from cache");
     }
 }

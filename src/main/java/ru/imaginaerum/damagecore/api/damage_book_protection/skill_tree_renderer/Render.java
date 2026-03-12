@@ -17,7 +17,6 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Map;
-import java.util.Set;
 
 public class Render {
     // copy of necessary constants (must match SkillTreeRenderer)
@@ -138,34 +137,35 @@ public class Render {
      * Проверяет завершение изучения узла без отрисовки полоски прогресса
      * Прогресс отображается только в тултипе
      */
-    public static void renderHoldProgressOverlay(GuiGraphics gui,
-                                                 int mouseX, int mouseY) {
-
+    public static void renderHoldProgressOverlay(GuiGraphics gui, int mouseX, int mouseY) {
         if (currentHoveredNode == null || mousePressTime <= 0L) return;
 
-        // Проверка: узел не должен быть изучен или заблокирован
-        if (currentHoveredNode.learned || currentHoveredNode.locked) {
+        // Если узел уже на максимуме или заблокирован — сбрасываем hold
+        if (currentHoveredNode.isMaxLevel() || currentHoveredNode.locked) {
             mousePressTime = 0L;
             currentHoveredNode = null;
             return;
         }
 
         Object treeObj = invokePrivateGetCurrentTree();
-        if (treeObj == null) return;
+        if (treeObj == null) {
+            mousePressTime = 0L;
+            currentHoveredNode = null;
+            return;
+        }
 
+        // Получаем scale и координаты области
         float scale = ((Number) getFieldValue(treeObj, "scale")).floatValue();
-
         int clipX1 = currentPanelScreenX + PANEL_DRAW_OFFSET_X_IN_PANEL;
         int clipY1 = currentPanelScreenY + PANEL_DRAW_OFFSET_Y_IN_PANEL;
-
         int pivotX = clipX1 + AREA_WIDTH / 2;
         int pivotY = clipY1 + AREA_HEIGHT / 2;
 
-        // переводим мышь в unscaled
+        // unscaled мышь
         int unscaledMouseX = (int)((mouseX - pivotX) / scale + pivotX);
         int unscaledMouseY = (int)((mouseY - pivotY) / scale + pivotY);
 
-        // если мышь ушла с ноды — сбрасываем удержание
+        // если мышь ушла — сбрасываем удержание
         if (!currentHoveredNode.containsPoint(unscaledMouseX, unscaledMouseY)) {
             mousePressTime = 0L;
             currentHoveredNode = null;
@@ -173,11 +173,10 @@ public class Render {
         }
 
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null) return;
+        if (mc.player == null) { mousePressTime = 0L; currentHoveredNode = null; return; }
 
-        int REQUIRED_LEVELS = 5;
-
-        // Проверка на уровень опыта
+        // уровень затрат (сервер и клиент используют тот же REQUIRED_LEVELS)
+        final int REQUIRED_LEVELS = 5;
         if (mc.player.experienceLevel < REQUIRED_LEVELS) {
             triggerXpFailFlash(currentHoveredNode);
             mousePressTime = 0L;
@@ -189,22 +188,42 @@ public class Render {
         final long HOLD_MS = 1500L;
         float progress = Math.min(1f, (float)(now - mousePressTime) / HOLD_MS);
 
-        // УБРАНА ОТРИСОВКА ЗЕЛЁНОЙ ПОЛОСКИ
-        // gui.fill(...) - удалено
-
-        // завершение изучения (проверяем прогресс, но не рисуем)
         if (progress >= 1f) {
+            // Отправляем запрос на сервер об изучении/повышении уровня
             int activeTreeId = getActiveTreeIdViaReflection();
-            ModNetwork.CHANNEL.sendToServer(
-                    new LearnNodePacket(activeTreeId, currentHoveredNode.id)
-            );
+            try {
+                ModNetwork.CHANNEL.sendToServer(new LearnNodePacket(activeTreeId, currentHoveredNode.id));
+            } catch (Throwable ignored) {}
 
-            // Помечаем ноду как изученную на клиенте
-            currentHoveredNode.learned = true;
+            // Локально повышаем уровень на клиенте (визуальная быстрая реакция), НЕ выше maxLevel.
+            // Сначала пытаемся применить к node.level, затем обновим представление.
+            int newLevel = Math.min(currentHoveredNode.maxLevel, currentHoveredNode.level + 1);
+            if (newLevel != currentHoveredNode.level) {
+                currentHoveredNode.level = newLevel;
+            }
 
+            // Рекалькулируем позиции/рендер (рефлексия, чтобы вызвать calculateAndUpdatePositions)
+            Object treeObj2 = invokePrivateGetCurrentTree();
+            if (treeObj2 != null) {
+                invokePrivateCalculateAndUpdatePositions(treeObj2, currentPanelScreenX, currentPanelScreenY);
+            }
+
+            // Сброс состояния удержания
             mousePressTime = 0L;
             currentHoveredNode = null;
+            return;
         }
+
+        // Рисуем тултип с прогрессом удержания
+        Font font = Minecraft.getInstance().font;
+        String baseKey = "damagecore.skilltree.node." + (currentHoveredNode.displayId != null ? currentHoveredNode.displayId : currentHoveredNode.id);
+        String title = Component.translatable(baseKey).getString();
+        String desc = Component.translatable(baseKey + ".desc").getString();
+        if (desc.equals(baseKey + ".desc")) desc = "";
+
+        String titleWithLevel = title + " " + currentHoveredNode.level + "/" + currentHoveredNode.maxLevel;
+
+        RenderDrawUtils.drawScaledTooltipWithProgress(gui, font, currentHoveredNode, titleWithLevel, desc, pivotX, pivotY, scale, progress);
     }
     private static int getActiveTreeIdViaReflection() {
         try {
@@ -294,11 +313,11 @@ public class Render {
             pose.scale(scale, scale, 1f);
             pose.translate(-pivotX, -pivotY, 0);
 
-            // Получаем кэш изученных нод (если доступен)
+            // Получаем кэш уровней (если доступен)
             int activeTreeId = getActiveTreeIdViaReflection();
-            Set<String> learned = null;
+            Map<String, Integer> levels = null;
             try {
-                learned = SkillTreeClientSync.getLearnedCache(activeTreeId);
+                levels = SkillTreeClientSync.getLevelCache(activeTreeId);
             } catch (Throwable ignored) {}
 
             // Рисуем линии, выбирая цвет по состоянию child'а
@@ -312,36 +331,28 @@ public class Render {
 
                     int color;
 
-                    // приоритет: learned -> locked -> доступность(все родители изучены?) -> locked (fallback)
-                    if (child.learned) {
+                    int childLevel = (levels != null) ? levels.getOrDefault(child.id, child.level) : child.level;
+
+                    if (childLevel >= child.maxLevel) {
                         color = LINE_COLOR_LEARNED;
                     } else if (child.locked) {
                         color = LINE_COLOR_LOCKED;
                     } else {
-                        // проверим — все ли родители изучены?
-                        boolean allParentsLearned = true;
-
-                        if (learned != null) {
-                            for (String pid : child.parentIds) {
-                                if (pid == null || "start".equalsIgnoreCase(pid)) continue;
-                                if (!learned.contains(pid)) {
-                                    allParentsLearned = false;
-                                    break;
-                                }
-                            }
-                        } else {
-                            // fallback: проверяем по полям .learned у родительских нод
-                            for (String pid : child.parentIds) {
-                                if (pid == null || "start".equalsIgnoreCase(pid)) continue;
+                        // проверим — все ли родители имеют level >= 1
+                        boolean allParentsAtLeastOne = true;
+                        for (String pid : child.parentIds) {
+                            if (pid == null || "start".equalsIgnoreCase(pid)) continue;
+                            int plev = 0;
+                            if (levels != null && levels.containsKey(pid)) {
+                                Integer pv = levels.get(pid);
+                                plev = (pv == null) ? 0 : pv;
+                            } else {
                                 SkillTreeNode pnode = nodes.get(pid);
-                                if (pnode == null || !pnode.learned) {
-                                    allParentsLearned = false;
-                                    break;
-                                }
+                                if (pnode != null) plev = pnode.level;
                             }
+                            if (plev <= 0) { allParentsAtLeastOne = false; break; }
                         }
-
-                        color = allParentsLearned ? LINE_COLOR_LEARNABLE : LINE_COLOR_LOCKED;
+                        color = allParentsAtLeastOne ? LINE_COLOR_LEARNABLE : LINE_COLOR_LOCKED;
                     }
 
                     RenderDrawUtils.drawThickLine(gui,
@@ -358,12 +369,12 @@ public class Render {
             SkillTreeNode hoveredNode = null;
             RenderDrawUtils.OptionHoverInfo hoveredOption = null;
 
-// мышь внутри панели?
+            // мышь внутри панели?
             boolean mouseInsidePanel =
                     mouseX >= clipX1 && mouseX <= clipX2 &&
                             mouseY >= clipY1 && mouseY <= clipY2;
 
-// ищем ноду ВСЕГДА (это нужно для drag системы)
+            // ищем ноду ВСЕГДА (это нужно для drag системы)
             if (!optionsOpen) {
                 for (SkillTreeNode n : nodes.values()) {
                     if (n.containsPoint(unscaledMouseX, unscaledMouseY)) {
@@ -373,7 +384,7 @@ public class Render {
                 }
             }
 
-// но hover активен только внутри панели
+            // но hover активен только внутри панели
             if (!mouseInsidePanel) {
                 hoveredNode = null;
             }
@@ -401,7 +412,7 @@ public class Render {
                 }
 
                 // Рисуем опции для активного узла (если они открыты)
-                if (optionsOpen && activeOptionsNodeId.equals(n.id)) {
+                if (optionsOpen && activeOptionsNodeId != null && activeOptionsNodeId.equals(n.id)) {
                     RenderDrawUtils.OptionHoverInfo hi = RenderDrawUtils.drawOptions(gui, n, treeObj, unscaledMouseX, unscaledMouseY);
                     if (hi != null) hoveredOption = hi;
                 }
@@ -463,24 +474,24 @@ public class Render {
                 Font font = Minecraft.getInstance().font;
                 String baseKey = "damagecore.skilltree.node." + (hoveredNode.displayId != null ? hoveredNode.displayId : hoveredNode.id);
                 String title = Component.translatable(baseKey).getString();
-                String desc  = Component.translatable(baseKey + ".desc").getString();
+                String desc = Component.translatable(baseKey + ".desc").getString();
                 if (desc.equals(baseKey + ".desc")) desc = "";
 
-                // Вычисляем прогресс изучения для этого узла
-                float progress = 0f;
+                // используем существующие activeTreeId и levels
+                int nodeLevel = levels != null ? levels.getOrDefault(hoveredNode.id, hoveredNode.level) : hoveredNode.level;
+                String titleWithLevel = title + " " + nodeLevel + "/" + hoveredNode.maxLevel;
 
-                if (hoveredNode.learned) {
-                    progress = 1f; // Полностью изучен
-                } else if (hoveredNode == currentHoveredNode && mousePressTime > 0) {
-                    // Узел сейчас изучается - показываем прогресс
+                // прогресс удержания
+                float progress = 0f;
+                if (hoveredNode == currentHoveredNode && mousePressTime > 0L) {
                     long now = System.currentTimeMillis();
                     final long HOLD_MS = 1500L;
                     progress = Math.min(1f, (float)(now - mousePressTime) / HOLD_MS);
+                } else if (hoveredNode.isMaxLevel()) {
+                    progress = 1f;
                 }
 
-                // Используем новый метод с прогрессом (заполнение слева направо)
-                RenderDrawUtils.drawScaledTooltipWithProgress(gui, font, hoveredNode, title, desc,
-                        pivotX, pivotY, scale, progress);
+                RenderDrawUtils.drawScaledTooltipWithProgress(gui, font, hoveredNode, titleWithLevel, desc, pivotX, pivotY, scale, progress);
             }
 
         } catch (Throwable t) {

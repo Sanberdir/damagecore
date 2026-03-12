@@ -2,6 +2,7 @@ package ru.imaginaerum.damagecore.api.damage_book_protection;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Items;
@@ -24,7 +25,7 @@ public final class DamageBookRenderer {
     private static final Map<Integer, Integer> TREE_LEVEL = new HashMap<>();
     private static final int BASE_XP_PER_LEVEL = 3; // Можно настроить
     private static final double XP_GROWTH_FACTOR = 1.5; // Множитель роста
-
+    public static Screen currentScreen = null;
     // ---- СХЕМА ВКЛАДОК ----
     public static final int MIDDLE_TABS = 8;
     public static final int SIDE_TABS = 2;
@@ -63,7 +64,31 @@ public final class DamageBookRenderer {
         // Для level=0 (1-й уровень) возвращаем BASE_XP_PER_LEVEL
         return (int) Math.floor(BASE_XP_PER_LEVEL * Math.pow(XP_GROWTH_FACTOR, level));
     }
+    // 2. ПОТОМ новые методы-геттеры/сеттеры
+    public static int getXp(int treeId) {
+        return TREE_XP.getOrDefault(treeId, 0);
+    }
 
+    public static int getLevel(int treeId) {
+        return TREE_LEVEL.getOrDefault(treeId, 0);
+    }
+
+    public static void clearXpData() {
+        TREE_XP.clear();
+        TREE_LEVEL.clear();
+    }
+
+    public static void setXp(int treeId, int xp) {
+        TREE_XP.put(treeId, xp);
+    }
+
+    public static void setLevel(int treeId, int level) {
+        TREE_LEVEL.put(treeId, Math.min(level, 20));
+    }
+
+    public static void forceRefresh() {
+        Minecraft.getInstance().tell(() -> {});
+    }
     // Метод для расчета текущего прогресса (0.0 - 1.0)
     public static float getLevelProgress(int treeId) {
         int currentLevel = TREE_LEVEL.getOrDefault(treeId, 0);
@@ -115,20 +140,6 @@ public final class DamageBookRenderer {
     }
     // Добавить в класс DamageBookRenderer:
 
-    // Для очистки перед синхронизацией
-    public static void clearXpData() {
-        TREE_XP.clear();
-        TREE_LEVEL.clear();
-    }
-
-    // Для установки значений с сервера
-    public static void setXp(int treeId, int xp) {
-        TREE_XP.put(treeId, xp);
-    }
-
-    public static void setLevel(int treeId, int level) {
-        TREE_LEVEL.put(treeId, Math.min(level, 20));
-    }
 
     // Для получения данных для сохранения
     public static Map<Integer, Integer> getTreeXp() {

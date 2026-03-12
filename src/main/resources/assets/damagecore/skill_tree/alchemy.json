@@ -14,7 +14,8 @@
       "parents": ["alchemy_experience"],
       "lock": true,
       "gridX": -2,
-      "gridY": 2
+      "gridY": 2,
+      "maxLevel": 3
     },
     {
       "id": "potion_master",
@@ -22,7 +23,8 @@
       "parents": ["alchemy_experience"],
       "lock": true,
       "gridX": 2,
-      "gridY": 2
+      "gridY": 2,
+      "maxLevel": 5
     },
     {
       "id": "adept_insight",

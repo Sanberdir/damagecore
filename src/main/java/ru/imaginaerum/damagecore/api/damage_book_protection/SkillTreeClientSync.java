@@ -1,23 +1,36 @@
 package ru.imaginaerum.damagecore.api.damage_book_protection;
 
-import ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeNode;
 import ru.imaginaerum.damagecore.api.damage_book_protection.skill_tree_renderer.Render;
 
 import java.lang.reflect.Field;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Client-side synchronization helpers for skill tree progress:
+ * - levelCache: treeId -> (nodeId -> level)
+ * - variantCache: treeId -> (nodeId -> selectedOption)
+ *
+ * Supports:
+ * - applyLearnedNodes(treeId, List<String>) — compatibility with old "learned list" packets:
+ *      converts every id -> level 1 and applies.
+ * - applyNodeLevels(treeId, Map<String,Integer>) — apply arbitrary node levels.
+ * - applyVariants(treeId, Map<String,Integer>) — apply selected variants.
+ * - reapplyCachedForAllTrees() — reapply caches after trees are loaded client-side.
+ */
 public final class SkillTreeClientSync {
     private SkillTreeClientSync() {}
 
-    // client-side cache: treeId -> set of learned node ids
-    private static final Map<Integer, Set<String>> learnedCache = new ConcurrentHashMap<>();
-    // client-side cache: treeId -> (nodeId -> selectedOption)
+    // treeId -> (nodeId -> level)
+    private static final Map<Integer, Map<String, Integer>> levelCache = new ConcurrentHashMap<>();
+
+    // treeId -> (nodeId -> selectedOption)
     private static final Map<Integer, Map<String, Integer>> variantCache = new ConcurrentHashMap<>();
 
     private static Field treesField = null;
 
-    private static Map<?, ?> getTreesMap() {
+    // Reflection helper: get SkillTreeRenderer.trees map
+    private static Map<?,?> getTreesMap() {
         try {
             if (treesField == null) {
                 Class<?> rendererCls = Class.forName("ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeRenderer");
@@ -25,120 +38,46 @@ public final class SkillTreeClientSync {
                 treesField.setAccessible(true);
             }
             Object obj = treesField.get(null);
-            if (obj instanceof Map<?, ?> map) return map;
+            if (obj instanceof Map<?,?> map) return map;
         } catch (Throwable t) {
             t.printStackTrace();
         }
         return Collections.emptyMap();
     }
-    public static Set<String> getLearnedCache(int treeId) {
-        return learnedCache.get(treeId);
-    }
-    /** Обновляет кэш изученных нод и сразу применяет к текущим деревьям */
-    public static void applyLearnedNodes(int treeId, List<String> learnedIds) {
-        if (learnedIds == null || learnedIds.isEmpty()) return;
-        learnedCache.put(treeId, ConcurrentHashMap.newKeySet());
-        learnedCache.get(treeId).addAll(learnedIds);
-        applyCacheToTree(treeId);
+
+    /** Public getter for level cache for a tree (may return null) */
+    public static Map<String, Integer> getLevelCache(int treeId) {
+        return levelCache.get(treeId);
     }
 
-    /** Обновляет кэш выбранных вариантов и сразу применяет к текущим деревьям */
-    public static void applyVariants(int treeId, Map<String, Integer> variants) {
-        System.out.println("applyVariants called for tree " + treeId + " with variants: " + variants);
-        if (variants == null || variants.isEmpty()) {
-            System.out.println("Variants is null or empty, returning");
+    /**
+     * Backwards-compatible: apply list of learned node ids (from older server packet).
+     * Each id becomes level = 1 in the level cache.
+     */
+    public static void applyLearnedNodes(int treeId, List<String> learnedIds) {
+        if (learnedIds == null) return;
+        Map<String,Integer> map = new HashMap<>();
+        for (String id : learnedIds) {
+            if (id != null) map.put(id, 1);
+        }
+        applyNodeLevels(treeId, map);
+    }
+
+    /**
+     * Apply node levels for a tree and immediately apply to any loaded client-side tree.
+     * Levels are clamped to the node.maxLevel when the node exists.
+     */
+    public static void applyNodeLevels(int treeId, Map<String, Integer> levels) {
+        if (levels == null) return;
+
+        // update cache (replace)
+        levelCache.put(treeId, new HashMap<>(levels));
+
+        Object treeObj = getTreesMap().get(treeId);
+        if (treeObj == null) {
+            // tree not loaded yet, will be applied when tree loads
             return;
         }
-        variantCache.put(treeId, new HashMap<>(variants));
-        System.out.println("Variant cache now: " + variantCache);
-
-        // Проверяем, загружено ли дерево
-        Object treeObj = getTreesMap().get(treeId);
-        if (treeObj != null) {
-            System.out.println("Tree already loaded, applying variants now");
-            applyVariantsToTree(treeId);
-        } else {
-            System.out.println("Tree not loaded yet, variants will be applied when tree loads");
-            // Кэш сохранится, применится при загрузке дерева
-        }
-    }
-    /** Применяет кэш ко всем деревьям после loadAllTrees */
-    public static void reapplyCachedForAllTrees() {
-        System.out.println("reapplyCachedForAllTrees() called");
-        Map<?, ?> trees = getTreesMap();
-        System.out.println("Trees map size: " + trees.size());
-
-        for (Object key : trees.keySet()) {
-            if (!(key instanceof Integer treeId)) continue;
-            System.out.println("Applying cache for tree " + treeId);
-
-            if (learnedCache.containsKey(treeId)) {
-                System.out.println("Has learned cache for tree " + treeId);
-                applyCacheToTree(treeId);
-            }
-
-            if (variantCache.containsKey(treeId)) {
-                System.out.println("Has variant cache for tree " + treeId + ": " + variantCache.get(treeId));
-                applyVariantsToTree(treeId);
-            }
-        }
-    }
-    private static Object getFieldValue(Object obj, String fieldName) {
-        if (obj == null) return null;
-        try {
-            Field f = obj.getClass().getDeclaredField(fieldName);
-            f.setAccessible(true);
-            return f.get(obj);
-        } catch (NoSuchFieldException nsf) {
-            // пробуем у супер-класса
-            Class<?> c = obj.getClass();
-            while ((c = c.getSuperclass()) != null) {
-                try {
-                    Field f = c.getDeclaredField(fieldName);
-                    f.setAccessible(true);
-                    return f.get(obj);
-                } catch (NoSuchFieldException ignored) {}
-                catch (Throwable ex) { ex.printStackTrace(); return null; }
-            }
-            return null;
-        } catch (Throwable t) {
-            t.printStackTrace();
-            return null;
-        }
-    }
-
-    private static void setFieldValue(Object obj, String fieldName, Object value) {
-        if (obj == null) return;
-        try {
-            Field f = obj.getClass().getDeclaredField(fieldName);
-            f.setAccessible(true);
-            f.set(obj, value);
-        } catch (NoSuchFieldException nsf) {
-            Class<?> c = obj.getClass();
-            while ((c = c.getSuperclass()) != null) {
-                try {
-                    Field f = c.getDeclaredField(fieldName);
-                    f.setAccessible(true);
-                    f.set(obj, value);
-                    return;
-                } catch (NoSuchFieldException ignored) {}
-                catch (Throwable ex) { ex.printStackTrace(); return; }
-            }
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
-    }
-    /** Применяет кэш конкретного дерева: изученные ноды */
-    /** Применяет кэш конкретного дерева: изученные ноды */
-    // Обновляем метод applyCacheToTree для работы с несколькими родителями
-
-    /** Применяет кэш конкретного дерева: изученные ноды */
-    private static void applyCacheToTree(int treeId) {
-        Set<String> set = learnedCache.get(treeId);
-        if (set == null) return;
-
-        Object treeObj = getTreesMap().get(treeId);
-        if (treeObj == null) return;
 
         try {
             Field nodesField = treeObj.getClass().getDeclaredField("nodes");
@@ -147,54 +86,50 @@ public final class SkillTreeClientSync {
             if (!(nodesObj instanceof Map<?, ?> nodesMap)) return;
 
             boolean changed = false;
-            String activeOptionsNodeId = (String) getFieldValue(treeObj, "activeOptionsNodeId");
 
-            // Сначала отмечаем изученные узлы
-            for (String id : set) {
-                Object n = nodesMap.get(id);
-                if (n instanceof SkillTreeNode node && !node.learned) {
-                    node.learned = true;
-                    node.locked = false;
-                    changed = true;
-
-                    if (id.equals(activeOptionsNodeId)) {
-                        setFieldValue(treeObj, "activeOptionsNodeId", null);
-                    }
-
-                    if (Render.currentHoveredNode == node) {
-                        Render.mousePressTime = 0L;
-                        Render.currentHoveredNode = null;
+            // 1) Apply levels from cache (clamped to node.maxLevel if node present)
+            for (Map.Entry<String,Integer> e : levels.entrySet()) {
+                String nid = e.getKey();
+                int lvl = (e.getValue() == null) ? 0 : e.getValue();
+                Object nodeObj = nodesMap.get(nid);
+                if (nodeObj instanceof SkillTreeNode) {
+                    SkillTreeNode node = (SkillTreeNode) nodeObj;
+                    int clamped = Math.max(0, Math.min(node.maxLevel, lvl));
+                    if (node.level != clamped) {
+                        node.level = clamped;
+                        // if gained level >=1, ensure not locked
+                        if (node.level > 0 && node.locked) node.locked = false;
+                        changed = true;
                     }
                 }
             }
 
-            // ИСПРАВЛЕНИЕ: Пересчёт locked нод с учетом ВСЕХ родителей
+            // 2) For nodes not in incoming map, we shouldn't overwrite local values.
+            // But we must recalc locks for all nodes based on parents' levels (>=1 required).
             for (Object entryObj : nodesMap.values()) {
                 if (!(entryObj instanceof SkillTreeNode)) continue;
                 SkillTreeNode node = (SkillTreeNode) entryObj;
 
-                boolean shouldBeLocked = true;
-
-                if (node.learned) {
-                    shouldBeLocked = false;
-                } else if (node.isRoot()) {
+                boolean shouldBeLocked;
+                if (node.isRoot()) {
                     shouldBeLocked = false;
                 } else {
-                    // ИСПРАВЛЕНИЕ: Проверяем ВСЕХ родителей - ВСЕ должны быть изучены
-                    boolean allParentsLearned = true;
-
-                    for (String parentId : node.parentIds) {
-                        // Пропускаем "start"
-                        if (parentId == null || "start".equalsIgnoreCase(parentId)) continue;
-
-                        // Если хотя бы один родитель не изучен - узел locked
-                        if (!set.contains(parentId)) {
-                            allParentsLearned = false;
-                            break;
+                    boolean allParentsAtLeastOne = true;
+                    for (String pid : node.parentIds) {
+                        if (pid == null || "start".equalsIgnoreCase(pid)) continue;
+                        // parent level — prefer cache, fallback to node.field
+                        int pLevel = 0;
+                        Map<String,Integer> cached = levelCache.get(treeId);
+                        if (cached != null && cached.containsKey(pid)) {
+                            Integer pv = cached.get(pid);
+                            pLevel = (pv == null) ? 0 : pv;
+                        } else {
+                            SkillTreeNode pnode = (SkillTreeNode) ((Map)nodesMap).get(pid);
+                            if (pnode != null) pLevel = pnode.level;
                         }
+                        if (pLevel <= 0) { allParentsAtLeastOne = false; break; }
                     }
-
-                    shouldBeLocked = !allParentsLearned;
+                    shouldBeLocked = !allParentsAtLeastOne;
                 }
 
                 if (node.locked != shouldBeLocked) {
@@ -204,6 +139,7 @@ public final class SkillTreeClientSync {
             }
 
             if (changed) {
+                // request recalculation/render update
                 Render.invokePrivateCalculateAndUpdatePositions(treeObj,
                         Render.currentPanelScreenX,
                         Render.currentPanelScreenY);
@@ -213,10 +149,25 @@ public final class SkillTreeClientSync {
         }
     }
 
-    /** Применяет кэш выбранных вариантов конкретного дерева */
-    /** Применяет кэш выбранных вариантов конкретного дерева */
+    /**
+     * Apply variants (node selected options) for a specific tree.
+     */
+    public static void applyVariants(int treeId, Map<String, Integer> variants) {
+        if (variants == null || variants.isEmpty()) return;
+        variantCache.put(treeId, new HashMap<>(variants));
+
+        Object treeObj = getTreesMap().get(treeId);
+        if (treeObj == null) {
+            // will apply when tree loads
+            return;
+        }
+
+        applyVariantsToTree(treeId);
+    }
+
+    // internal: apply cached variants to a loaded tree
     private static void applyVariantsToTree(int treeId) {
-        Map<String, Integer> variants = variantCache.get(treeId);
+        Map<String,Integer> variants = variantCache.get(treeId);
         if (variants == null || variants.isEmpty()) return;
 
         Object treeObj = getTreesMap().get(treeId);
@@ -226,15 +177,19 @@ public final class SkillTreeClientSync {
             Field nodesField = treeObj.getClass().getDeclaredField("nodes");
             nodesField.setAccessible(true);
             Object nodesObj = nodesField.get(treeObj);
-            if (!(nodesObj instanceof Map<?, ?> nodesMap)) return;
+            if (!(nodesObj instanceof Map<?,?> nodesMap)) return;
 
             boolean changed = false;
-            for (Map.Entry<String, Integer> entry : variants.entrySet()) {
-                Object n = nodesMap.get(entry.getKey());
-                if (n instanceof SkillTreeNode node) {
-                    // ИСПРАВЛЕНИЕ: применяем вариант, чтобы обновить itemStack и displayId
-                    if (node.selectedOption != entry.getValue()) {
-                        node.applyVariant(entry.getValue());
+            for (Map.Entry<String,Integer> e : variants.entrySet()) {
+                String nid = e.getKey();
+                Integer idx = e.getValue();
+                Object nodeObj = nodesMap.get(nid);
+                if (nodeObj instanceof SkillTreeNode) {
+                    SkillTreeNode node = (SkillTreeNode) nodeObj;
+                    int sel = (idx == null) ? -1 : idx;
+                    if (node.selectedOption != sel) {
+                        // safe apply (applyVariant checks bounds)
+                        node.applyVariant(sel);
                         changed = true;
                     }
                 }
@@ -247,6 +202,26 @@ public final class SkillTreeClientSync {
             }
         } catch (Throwable t) {
             t.printStackTrace();
+        }
+    }
+
+    /**
+     * Reapply all cached data for all trees.
+     * Called after SkillTreeRenderer.loadAllTrees()
+     */
+    public static void reapplyCachedForAllTrees() {
+        Map<?,?> trees = getTreesMap();
+        for (Object key : trees.keySet()) {
+            if (!(key instanceof Integer)) continue;
+            int treeId = (Integer) key;
+
+            if (levelCache.containsKey(treeId)) {
+                applyNodeLevels(treeId, levelCache.get(treeId));
+            }
+
+            if (variantCache.containsKey(treeId)) {
+                applyVariantsToTree(treeId);
+            }
         }
     }
 }

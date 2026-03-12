@@ -98,7 +98,7 @@ public class RenderDrawUtils {
             titleSrcV = TOOLTIP_TITLE_YELLOW_V;
         } else if (isVariant) {
             titleSrcV = TOOLTIP_TITLE_YELLOW_V;
-        } else if (n != null && n.learned) {
+        } else if (n != null && n.isLearned()) {
             titleSrcV = TOOLTIP_TITLE_GREEN_V;
         } else if (n != null && n.variants != null && !n.variants.isEmpty()) {
             // preserve original: a node *with variants* normally shows yellow in some flows;
@@ -125,7 +125,7 @@ public class RenderDrawUtils {
         popTransform(pose);
 
         // green progress overlay for non-learned nodes when progress>0
-        if (progress > 0 && n != null && !n.learned) {
+        if (progress > 0 && n != null && !n.isLearned()) {
             pushTransform(pose, pivotX, pivotY, Z_TOOLTIP_TITLE_BG + 5, scale);
             RenderSystem.enableBlend();
             RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);

@@ -31,6 +31,13 @@ public final class ModNetwork {
                 SyncNodeVariantsPacket::encode,
                 SyncNodeVariantsPacket::decode,
                 SyncNodeVariantsPacket::handle);
+        // после других пакетов, например после SyncTreeXpPacket
+        CHANNEL.registerMessage(id++,
+                SyncNodeLevelsPacket.class,
+                SyncNodeLevelsPacket::encode,
+                SyncNodeLevelsPacket::decode,
+                SyncNodeLevelsPacket::handle,
+                Optional.of(NetworkDirection.PLAY_TO_CLIENT)); // сервер → клиент
         CHANNEL.registerMessage(
                 packetId++,
                 SelectVariantPacket.class,

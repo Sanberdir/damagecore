@@ -5,19 +5,30 @@ import net.minecraft.world.item.ItemStack;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
+import java.util.UUID;
 
+/**
+ * Node с поддержкой уровней (stackable node), вариантами и мультиродителями.
+ *
+ * Замечание: поля level/maxLevel сделаны public для совместимости с существующим кодом,
+ * но также предоставлены геттеры/сеттеры и утилиты.
+ */
 public final class SkillTreeNode {
     public enum Side { START, LEFT, RIGHT, TOP, BOTTOM }
+
     public boolean optionsVisible = false;
     public final String id;
     public String displayId;
     public ItemStack itemStack;
     public boolean locked;
-    public boolean learned = false;
+
+    // уровень текущий и максимум уровней для этой ноды (stackable node)
+    // сделаны public чтобы старый код (который обращается напрямую) компилировался
+    public int level = 0;
+    public int maxLevel = 1;
 
     // Изменяем с одного родителя на список
-    public final List<String> parentIds; // теперь список
+    public final List<String> parentIds;
     public final Side side;
 
     public long xpFailFlashUntil = 0L;
@@ -32,31 +43,20 @@ public final class SkillTreeNode {
     public static final int FRAME_SIZE = 24;
     public static final int FRAME_PADDING = 2;
 
-    public final List<ItemStack> options = new ArrayList<>();
+    public final List<net.minecraft.world.item.ItemStack> options = new ArrayList<>();
     public int selectedOption = -1;
 
     // Конструктор для обратной совместимости (один родитель)
     public SkillTreeNode(String id, ItemStack itemStack, boolean locked, String parentId, Side side) {
-        this.id = id;
-        this.displayId = id;
-        this.itemStack = itemStack;
-        this.locked = locked;
-        this.parentIds = parentId != null
-                ? new ArrayList<>(Collections.singletonList(parentId))
-                : new ArrayList<>();
-        this.side = side;
-        this.x = 0;
-        this.y = 0;
-        this.hasGridPos = false;
-        this.gridX = 0;
-        this.gridY = 0;
-        this.learned = false;
+        this(id, itemStack, locked,
+                parentId != null ? new ArrayList<>(Collections.singletonList(parentId)) : new ArrayList<>(),
+                side);
     }
 
     // Новый конструктор для нескольких родителей
     public SkillTreeNode(String id, ItemStack itemStack, boolean locked, List<String> parentIds, Side side) {
-        this.id = id;
-        this.displayId = id;
+        this.id = id == null ? UUID.randomUUID().toString() : id;
+        this.displayId = this.id;
         this.itemStack = itemStack;
         this.locked = locked;
         this.parentIds = parentIds != null ? new ArrayList<>(parentIds) : new ArrayList<>();
@@ -66,24 +66,24 @@ public final class SkillTreeNode {
         this.hasGridPos = false;
         this.gridX = 0;
         this.gridY = 0;
-        this.learned = false;
+        this.level = 0;
+        this.maxLevel = 1;
     }
 
     public boolean isRoot() {
         return parentIds.isEmpty() || (parentIds.size() == 1 && "start".equalsIgnoreCase(parentIds.get(0)));
     }
-    public boolean canLearn(Set<String> learnedNodes) {
-        if (learned || locked) return false;
-        if (isRoot()) return true;
 
-        for (String parentId : parentIds) {
-            if (parentId == null || "start".equalsIgnoreCase(parentId)) continue;
-            if (!learnedNodes.contains(parentId)) {
-                return false; // Хотя бы один родитель не изучен
-            }
-        }
-        return true; // Все родители изучены
-    }
+    /** Вспомогательные геттеры/сеттеры */
+    public int getLevel() { return level; }
+    public void setLevel(int lvl) { this.level = Math.max(0, Math.min(lvl, maxLevel)); }
+
+    public int getMaxLevel() { return maxLevel; }
+    public void setMaxLevel(int ml) { this.maxLevel = Math.max(1, ml); if (this.level > this.maxLevel) this.level = this.maxLevel; }
+
+    public boolean isLearned() { return level > 0; }
+    public boolean isMaxLevel() { return level >= maxLevel; }
+
     public void setGridPos(int gx, int gy) {
         this.hasGridPos = true;
         this.gridX = gx;
@@ -99,13 +99,6 @@ public final class SkillTreeNode {
             this.stack = stack;
         }
 
-        public ItemStack getItemStack() {
-            return stack;
-        }
-
-        public String getDisplayId() {
-            return displayId;
-        }
     }
 
     public final List<Variant> variants = new ArrayList<>();
@@ -120,16 +113,10 @@ public final class SkillTreeNode {
         this.selectedOption = index;
     }
 
-    public int centerX() {
-        return x + FRAME_SIZE / 2;
-    }
-
-    public int centerY() {
-        return y + FRAME_SIZE / 2;
-    }
+    public int centerX() { return x + FRAME_SIZE / 2; }
+    public int centerY() { return y + FRAME_SIZE / 2; }
 
     public boolean containsPoint(int px, int py) {
-        return px >= x && px < x + FRAME_SIZE
-                && py >= y && py < y + FRAME_SIZE;
+        return px >= x && px < x + FRAME_SIZE && py >= y && py < y + FRAME_SIZE;
     }
 }

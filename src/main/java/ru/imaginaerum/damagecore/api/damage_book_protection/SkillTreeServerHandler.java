@@ -23,9 +23,73 @@ public final class SkillTreeServerHandler {
     // Добавить константы в SkillTreeServerHandler:
     private static final String XP_KEY = "tree_xp";
     private static final String LEVEL_KEY = "tree_level";
+    private static final String NODE_LEVEL_PREFIX = "node_level_";
 
     private SkillTreeServerHandler() {}
+    private static Map<String, Integer> getNodeLevels(ServerPlayer player, int treeId) {
+        CompoundTag persisted = player.getPersistentData().getCompound(Player.PERSISTED_NBT_TAG);
+        player.getPersistentData().put(Player.PERSISTED_NBT_TAG, persisted);
 
+        CompoundTag mod = persisted.getCompound(ROOT_KEY);
+        persisted.put(ROOT_KEY, mod);
+
+        CompoundTag treeTag = mod.getCompound("tree_" + treeId);
+        mod.put("tree_" + treeId, treeTag);
+
+        Map<String, Integer> result = new HashMap<>();
+        for (String key : treeTag.getAllKeys()) {
+            if (key.startsWith(NODE_LEVEL_PREFIX)) {
+                String nodeId = key.substring(NODE_LEVEL_PREFIX.length());
+                try {
+                    int lvl = treeTag.getInt(key);
+                    if (lvl > 0) result.put(nodeId, lvl);
+                } catch (Exception ignored) {}
+            }
+        }
+        return result;
+    }
+    /**
+     * Возвращает объект дерева по ID (рефлексия)
+     */
+    public static Object getTreeById(int treeId) {
+        return getTreeObject(treeId); // уже есть в классе
+    }
+
+    /**
+     * Возвращает прогресс конкретной ноды для игрока в диапазоне 0..1
+     */
+    public static float getNodeProgress(ServerPlayer player, int treeId, String nodeId) {
+        if (player == null || nodeId == null) return 0f;
+        try {
+            Map<String, SkillTreeNode> nodes = getNodesMap(getTreeById(treeId));
+            if (nodes == null || !nodes.containsKey(nodeId)) return 0f;
+
+            SkillTreeNode node = nodes.get(nodeId);
+            Map<String, Integer> levels = getNodeLevels(player, treeId);
+            int currentLevel = levels.getOrDefault(nodeId, 0);
+
+            return Math.min(1f, (float) currentLevel / Math.max(1, node.maxLevel));
+        } catch (Throwable t) {
+            t.printStackTrace();
+            return 0f;
+        }
+    }
+    // Сохраняет уровень для конкретной ноды
+    private static void saveNodeLevel(ServerPlayer player, int treeId, String nodeId, int level) {
+        if (player == null || nodeId == null) return;
+        CompoundTag persisted = player.getPersistentData().getCompound(Player.PERSISTED_NBT_TAG);
+        player.getPersistentData().put(Player.PERSISTED_NBT_TAG, persisted);
+
+        CompoundTag mod = persisted.getCompound(ROOT_KEY);
+        persisted.put(ROOT_KEY, mod);
+
+        CompoundTag treeTag = mod.getCompound("tree_" + treeId);
+        mod.put("tree_" + treeId, treeTag);
+
+        treeTag.putInt(NODE_LEVEL_PREFIX + nodeId, Math.max(0, level));
+
+        player.getPersistentData().put(Player.PERSISTED_NBT_TAG, persisted);
+    }
     /** Возвращает Map всех деревьев (treeId -> дерево) через рефлексию */
     @SuppressWarnings("unchecked")
     public static Map<Integer, Object> getTreesMap() {
@@ -40,59 +104,7 @@ public final class SkillTreeServerHandler {
         }
         return Collections.emptyMap();
     }
-    public static void saveTreeXp(ServerPlayer player) {
-        CompoundTag persisted = player.getPersistentData().getCompound(Player.PERSISTED_NBT_TAG);
-        player.getPersistentData().put(Player.PERSISTED_NBT_TAG, persisted);
 
-        CompoundTag mod = persisted.getCompound(ROOT_KEY);
-        persisted.put(ROOT_KEY, mod);
-
-        // Получаем данные XP с клиента? Нет, XP должно храниться на сервере!
-        // Но пока у нас XP только на клиенте - нужно перенести логику XP на сервер
-
-        // Создаем отдельные CompoundTag для XP и уровней
-        CompoundTag xpTag = new CompoundTag();
-        CompoundTag levelTag = new CompoundTag();
-
-        // Здесь должна быть логика получения XP из серверного хранилища
-        // Пока оставляем заглушку - в следующем шаге добавим серверное хранилище
-
-        mod.put(XP_KEY, xpTag);
-        mod.put(LEVEL_KEY, levelTag);
-    }
-
-    // Метод для загрузки XP при входе:
-    public static void loadTreeXp(ServerPlayer player) {
-        CompoundTag persisted = player.getPersistentData().getCompound(Player.PERSISTED_NBT_TAG);
-        CompoundTag mod = persisted.getCompound(ROOT_KEY);
-
-        Map<Integer, Integer> xpMap = new HashMap<>();
-        Map<Integer, Integer> levelMap = new HashMap<>();
-
-        if (mod.contains(XP_KEY)) {
-            CompoundTag xpTag = mod.getCompound(XP_KEY);
-            for (String key : xpTag.getAllKeys()) {
-                try {
-                    int treeId = Integer.parseInt(key);
-                    xpMap.put(treeId, xpTag.getInt(key));
-                } catch (NumberFormatException ignored) {}
-            }
-        }
-
-        if (mod.contains(LEVEL_KEY)) {
-            CompoundTag levelTag = mod.getCompound(LEVEL_KEY);
-            for (String key : levelTag.getAllKeys()) {
-                try {
-                    int treeId = Integer.parseInt(key);
-                    levelMap.put(treeId, levelTag.getInt(key));
-                } catch (NumberFormatException ignored) {}
-            }
-        }
-
-        // Отправляем данные клиенту
-        ModNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
-                new SyncTreeXpPacket(xpMap, levelMap));
-    }
     // ------------------------------
     // Сохранение выбранного варианта
     // ------------------------------
@@ -129,39 +141,55 @@ public final class SkillTreeServerHandler {
             if (nodes == null || !nodes.containsKey(nodeId)) return;
 
             SkillTreeNode node = nodes.get(nodeId);
+            if (node == null) return;
 
             if (node.locked) return;
 
-            Set<String> learned = getLearnedSet(player, treeId);
+            // читаем текущие уровни на сервере
+            Map<String, Integer> levels = getNodeLevels(player, treeId);
+            int currentLevel = levels.getOrDefault(nodeId, 0);
 
-            // ИСПРАВЛЕНИЕ: Проверяем ВСЕХ родителей (должны быть изучены ВСЕ)
+            // не даём учиться выше maxLevel
+            if (currentLevel >= node.maxLevel) return;
+
+            // Проверяем всех родителей — каждый должен быть хотя бы level >= 1
             for (String parentId : node.parentIds) {
-                // Пропускаем "start" (корневой узел)
                 if (parentId != null && !"start".equalsIgnoreCase(parentId)) {
-                    // Если хотя бы один родитель не изучен - нельзя изучить узел
-                    if (!learned.contains(parentId)) {
-                        return; // Родитель не изучен - отказываем
+                    int pLevel = levels.getOrDefault(parentId, 0);
+
+                    // если отсутствует в сохранённых — пробуем взять значение из server-side node (если есть)
+                    if (pLevel <= 0) {
+                        SkillTreeNode pnode = nodes.get(parentId);
+                        if (pnode != null) pLevel = pnode.level;
+                    }
+
+                    if (pLevel <= 0) {
+                        // хотя бы один родитель не изучен — нельзя изучить
+                        return;
                     }
                 }
             }
 
-            // Проверка на уже изученный узел
-            if (!learned.add(nodeId)) return;
-
-            // Проверка уровней опыта
+            // Проверка уровня опыта
             if (player.experienceLevel < REQUIRED_LEVELS) return;
             player.giveExperienceLevels(-REQUIRED_LEVELS);
 
-            saveLearnedSet(player, treeId, learned);
+            // увеличиваем уровень и сохраняем
+            int newLevel = Math.min(node.maxLevel, currentLevel + 1);
+            saveNodeLevel(player, treeId, nodeId, newLevel);
 
+            // Отправляем синхронизацию (можно отправить только изменённую ноду или весь map)
+            Map<String, Integer> single = new HashMap<>();
+            single.put(nodeId, newLevel);
             ModNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
-                    new SyncLearnedNodesPacket(treeId, new ArrayList<>(learned)));
+                    new SyncNodeLevelsPacket(treeId, single));
 
             player.playNotifySound(CustomSoundEvents.LEARNING_SKILL.get(), SoundSource.PLAYERS, 1.5f, 1f);
         } catch (Throwable t) {
             t.printStackTrace();
         }
     }
+
 
     // ------------------------------
     // Рефлексия для дерева
@@ -179,7 +207,12 @@ public final class SkillTreeServerHandler {
             return null;
         }
     }
-
+    @SuppressWarnings("unchecked")
+    public static Map<String, Object> getNodesMapAsObjects(Object treeObj) {
+        Map<String, SkillTreeNode> nodes = getNodesMap(treeObj);
+        if (nodes == null) return Collections.emptyMap();
+        return new HashMap<>(nodes); // автоматически приведется к Map<String,Object>
+    }
     @SuppressWarnings("unchecked")
     public static Map<String, SkillTreeNode> getNodesMap(Object treeObj) {
         if (treeObj == null) return null;
@@ -268,14 +301,21 @@ public final class SkillTreeServerHandler {
                 int treeId = Integer.parseInt(key.substring(5));
                 CompoundTag treeTag = mod.getCompound(key);
 
-                // изученные ноды
-                List<String> learnedList = new ArrayList<>();
-                ListTag lt = treeTag.getList("learned", 8);
-                for (int i = 0; i < lt.size(); i++) learnedList.add(lt.getString(i));
-                ModNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
-                        new SyncLearnedNodesPacket(treeId, learnedList));
+                // --- уровни нод ---
+                Map<String, Integer> levels = new HashMap<>();
+                for (String tk : treeTag.getAllKeys()) {
+                    if (tk.startsWith(NODE_LEVEL_PREFIX)) {
+                        String nodeId = tk.substring(NODE_LEVEL_PREFIX.length());
+                        int lvl = treeTag.getInt(tk);
+                        if (lvl > 0) levels.put(nodeId, lvl);
+                    }
+                }
+                if (!levels.isEmpty()) {
+                    ModNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
+                            new SyncNodeLevelsPacket(treeId, levels));
+                }
 
-                // варианты нод
+                // --- варианты нод (как было) ---
                 Map<String, Integer> variants = new HashMap<>();
                 for (String varKey : treeTag.getAllKeys()) {
                     if (varKey.startsWith("node_variant_")) {
@@ -284,11 +324,11 @@ public final class SkillTreeServerHandler {
                     }
                 }
                 if (!variants.isEmpty()) {
-                    System.out.println("Sending variants for tree " + treeId + ": " + variants); // ДОБАВИТЬ
                     ModNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
                             new SyncNodeVariantsPacket(treeId, variants));
                 }
-            } catch (NumberFormatException ignored) {}
+            } catch (NumberFormatException ignored) {
+            }
         }
     }
 }

@@ -2,6 +2,7 @@ package ru.imaginaerum.damagecore.mixin;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.gui.components.ImageButton;
@@ -332,19 +333,10 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
                 panelScreenX, panelScreenY
         );
 
+        // Устанавливаем hold только при нажатии ЛКМ и если под мышью нода, и нода не изучена полностью и не заблокирована.
         if (button == 0) {
             SkillTreeNode hovered = Render.getHoveredNodeUnderMouse((int) mouseX, (int) mouseY);
-            if (hovered != null) {
-                if (hovered.learned) {
-                    // игнорируем: уже изучена
-                    Render.currentHoveredNode = null;
-                    Render.mousePressTime = 0L;
-                } else {
-                    Render.currentHoveredNode = hovered;
-                    Render.mousePressTime = System.currentTimeMillis();
-                }
-            }
-            if (hovered != null && !hovered.learned) {
+            if (hovered != null && !hovered.isMaxLevel() && !hovered.locked) {
                 Render.currentHoveredNode = hovered;
                 Render.mousePressTime = System.currentTimeMillis();
             } else {
