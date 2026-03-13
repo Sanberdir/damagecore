@@ -140,7 +140,7 @@ public class Render {
     public static void renderHoldProgressOverlay(GuiGraphics gui, int mouseX, int mouseY) {
         if (currentHoveredNode == null || mousePressTime <= 0L) return;
 
-        // Если узел уже на максимуме или заблокирован — сбрасываем hold
+        // Проверка: узел не должен быть изучен до max или заблокирован
         if (currentHoveredNode.isMaxLevel() || currentHoveredNode.locked) {
             mousePressTime = 0L;
             currentHoveredNode = null;
@@ -148,24 +148,20 @@ public class Render {
         }
 
         Object treeObj = invokePrivateGetCurrentTree();
-        if (treeObj == null) {
-            mousePressTime = 0L;
-            currentHoveredNode = null;
-            return;
-        }
+        if (treeObj == null) return;
 
-        // Получаем scale и координаты области
         float scale = ((Number) getFieldValue(treeObj, "scale")).floatValue();
+
         int clipX1 = currentPanelScreenX + PANEL_DRAW_OFFSET_X_IN_PANEL;
         int clipY1 = currentPanelScreenY + PANEL_DRAW_OFFSET_Y_IN_PANEL;
         int pivotX = clipX1 + AREA_WIDTH / 2;
         int pivotY = clipY1 + AREA_HEIGHT / 2;
 
-        // unscaled мышь
+        // переводим мышь в unscaled
         int unscaledMouseX = (int)((mouseX - pivotX) / scale + pivotX);
         int unscaledMouseY = (int)((mouseY - pivotY) / scale + pivotY);
 
-        // если мышь ушла — сбрасываем удержание
+        // если мышь ушла с ноды — сбрасываем удержание
         if (!currentHoveredNode.containsPoint(unscaledMouseX, unscaledMouseY)) {
             mousePressTime = 0L;
             currentHoveredNode = null;
@@ -173,10 +169,9 @@ public class Render {
         }
 
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null) { mousePressTime = 0L; currentHoveredNode = null; return; }
+        if (mc.player == null) return;
 
-        // уровень затрат (сервер и клиент используют тот же REQUIRED_LEVELS)
-        final int REQUIRED_LEVELS = 5;
+        int REQUIRED_LEVELS = 5;
         if (mc.player.experienceLevel < REQUIRED_LEVELS) {
             triggerXpFailFlash(currentHoveredNode);
             mousePressTime = 0L;
@@ -188,34 +183,27 @@ public class Render {
         final long HOLD_MS = 1500L;
         float progress = Math.min(1f, (float)(now - mousePressTime) / HOLD_MS);
 
+        // Завершение изучения
         if (progress >= 1f) {
-            // Отправляем запрос на сервер об изучении/повышении уровня
             int activeTreeId = getActiveTreeIdViaReflection();
-            try {
-                ModNetwork.CHANNEL.sendToServer(new LearnNodePacket(activeTreeId, currentHoveredNode.id));
-            } catch (Throwable ignored) {}
+            ModNetwork.CHANNEL.sendToServer(new LearnNodePacket(activeTreeId, currentHoveredNode.id));
 
-            // Локально повышаем уровень на клиенте (визуальная быстрая реакция), НЕ выше maxLevel.
-            // Сначала пытаемся применить к node.level, затем обновим представление.
-            int newLevel = Math.min(currentHoveredNode.maxLevel, currentHoveredNode.level + 1);
-            if (newLevel != currentHoveredNode.level) {
-                currentHoveredNode.level = newLevel;
-            }
+            // Увеличиваем уровень с учетом maxLevel
+            currentHoveredNode.level = Math.min(currentHoveredNode.maxLevel, currentHoveredNode.level + 1);
 
-            // Рекалькулируем позиции/рендер (рефлексия, чтобы вызвать calculateAndUpdatePositions)
+            // Обновим расположение
             Object treeObj2 = invokePrivateGetCurrentTree();
             if (treeObj2 != null) {
                 invokePrivateCalculateAndUpdatePositions(treeObj2, currentPanelScreenX, currentPanelScreenY);
             }
 
-            // Сброс состояния удержания
             mousePressTime = 0L;
             currentHoveredNode = null;
             return;
         }
 
-        // Рисуем тултип с прогрессом удержания
-        Font font = Minecraft.getInstance().font;
+        // Рисуем тултип с текущим уровнем и maxLevel
+        Font font = mc.font;
         String baseKey = "damagecore.skilltree.node." + (currentHoveredNode.displayId != null ? currentHoveredNode.displayId : currentHoveredNode.id);
         String title = Component.translatable(baseKey).getString();
         String desc = Component.translatable(baseKey + ".desc").getString();

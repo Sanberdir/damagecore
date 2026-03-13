@@ -264,59 +264,35 @@ public final class SkillTreeRenderer {
         int areaX = panelScreenX + PANEL_DRAW_OFFSET_X_IN_PANEL;
         int areaY = panelScreenY + PANEL_DRAW_OFFSET_Y_IN_PANEL;
 
-        // если клик вне области — если были открыты опции, закроем их и вернёмся
-        if (!(mouseX >= areaX && mouseX <= areaX + AREA_WIDTH && mouseY >= areaY && mouseY <= areaY + AREA_HEIGHT)) {
+        if (!(mouseX>=areaX && mouseX<=areaX+AREA_WIDTH && mouseY>=areaY && mouseY<=areaY+AREA_HEIGHT)) {
             if (tree.activeOptionsNodeId != null) closeOptions(tree);
             return tree.activeOptionsNodeId != null;
         }
 
-        // расчёт unscaled координат (учёт scale + pivot)
-        int pivotX = areaX + AREA_WIDTH / 2;
-        int pivotY = areaY + AREA_HEIGHT / 2;
-        int unscaledX = (int)((mouseX - pivotX) / tree.scale + pivotX);
-        int unscaledY = (int)((mouseY - pivotY) / tree.scale + pivotY);
+        int pivotX = areaX + AREA_WIDTH/2;
+        int pivotY = areaY + AREA_HEIGHT/2;
+        int unscaledX = (int)((mouseX-pivotX)/tree.scale + pivotX);
+        int unscaledY = (int)((mouseY-pivotY)/tree.scale + pivotY);
 
-        // Если опции открыты — обработаем клик по ним в первую очередь
         if (tree.activeOptionsNodeId != null) {
             SkillTreeNode node = tree.nodes.get(tree.activeOptionsNodeId);
             if (node != null) {
                 int idx = optionIndexAtPoint(node, unscaledX, unscaledY, OPTION_SIZE);
-                if (idx >= 0) {
-                    node.applyVariant(idx);
-                    try { ModNetwork.CHANNEL.sendToServer(new SelectVariantPacket(activeTreeId, node.id, idx)); }
-                    catch (Throwable ignored) {}
-                    closeOptions(tree);
-                    return true;
-                }
+                if (idx >=0) { node.applyVariant(idx); try{ ModNetwork.CHANNEL.sendToServer(new SelectVariantPacket(activeTreeId,node.id,idx)); }catch(Throwable ignored){} }
             }
-            // клик вне опций — просто закроем их
             closeOptions(tree);
             return true;
         }
 
-        // Проверим, кликнули ли по ноде
         for (SkillTreeNode node : tree.nodes.values()) {
             if (node.containsPoint(unscaledX, unscaledY)) {
-                // Клик по ноде: не начинаем drag — это важно для механики "удержать для изучения".
-                // Открываем варианты (если есть) и отмечаем потребность в дальнейшей обработке (клиентская логика установки hold)
-                if (!node.isLearned() && node.options != null && !node.options.isEmpty()) {
-                    openOptionsForNode(tree, node);
-                }
-                // Возвращаем true — событие обработано
+                if (button==0) { tree.isDragging=true; tree.dragStartX=mouseX; tree.dragStartY=mouseY; tree.dragStartOffsetX=tree.offsetX; tree.dragStartOffsetY=tree.offsetY; }
+                if (!node.isLearned() && node.options!=null && !node.options.isEmpty()) { openOptionsForNode(tree,node); }
                 return true;
             }
         }
 
-        // Клик по пустому месту — начинаем drag (только в этом случае).
-        if (button == 0) {
-            tree.isDragging = true;
-            tree.dragStartX = mouseX;
-            tree.dragStartY = mouseY;
-            tree.dragStartOffsetX = tree.offsetX;
-            tree.dragStartOffsetY = tree.offsetY;
-            return true;
-        }
-
+        if (button==0) { tree.isDragging=true; tree.dragStartX=mouseX; tree.dragStartY=mouseY; tree.dragStartOffsetX=tree.offsetX; tree.dragStartOffsetY=tree.offsetY; return true; }
         return false;
     }
 

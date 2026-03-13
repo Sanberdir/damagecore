@@ -84,6 +84,23 @@ public final class SkillTreeNode {
     public boolean isLearned() { return level > 0; }
     public boolean isMaxLevel() { return level >= maxLevel; }
 
+    public boolean canLevelUp(java.util.Set<String> parentsThatAreAtLeastOne) {
+        if (isMaxLevel()) return false;
+        if (isRoot()) return true;
+
+        for (String parentId : parentIds) {
+            if (parentId == null || "start".equalsIgnoreCase(parentId)) continue;
+            if (!parentsThatAreAtLeastOne.contains(parentId)) {
+                return false; // хотя бы один родитель не достиг уровня ≥1
+            }
+        }
+        return true;
+    }
+
+    public void levelUp() {
+        if (level < maxLevel) level++;
+    }
+
     public void setGridPos(int gx, int gy) {
         this.hasGridPos = true;
         this.gridX = gx;
@@ -99,6 +116,8 @@ public final class SkillTreeNode {
             this.stack = stack;
         }
 
+        public ItemStack getItemStack() { return stack; }
+        public String getDisplayId() { return displayId; }
     }
 
     public final List<Variant> variants = new ArrayList<>();

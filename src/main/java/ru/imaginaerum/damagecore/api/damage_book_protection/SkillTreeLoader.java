@@ -18,8 +18,22 @@ import java.util.*;
 public final class SkillTreeLoader {
     private SkillTreeLoader() {}
 
+    public static void loadAllTrees(String folderPath) {
+        System.out.println("SkillTreeLoader.loadAllTrees() called");
+        SkillTreeRenderer.loadAllTrees(folderPath);
+    }
+
     private static final Gson GSON = new Gson();
 
+    /**
+     * Загружает JSON-файл дерева.
+     * Поддерживает:
+     * - множественных родителей (parents)
+     * - максимальный уровень узла (maxLevel)
+     * - начальный уровень узла (level)
+     * - варианты выбора (variants)
+     * - явные grid координаты
+     */
     @SuppressWarnings("unchecked")
     public static Object[] loadFromResource(String pathInNamespace) {
         List<SkillTreeNode> result = new ArrayList<>();
@@ -210,6 +224,9 @@ public final class SkillTreeLoader {
                 } catch (Exception ignored) {}
             }
 
+            // Здесь можно добавить загрузку NBT, если нужно
+            // if (obj.has("nbt")) { ... }
+
             return stack;
         }
 
@@ -240,4 +257,14 @@ public final class SkillTreeLoader {
         }
     }
 
+    /**
+     * Утилита для загрузки только узлов (для обратной совместимости)
+     */
+    public static List<SkillTreeNode> loadNodes(String pathInNamespace) {
+        Object[] result = loadFromResource(pathInNamespace);
+        if (result != null && result.length > 1 && result[1] instanceof List) {
+            return (List<SkillTreeNode>) result[1];
+        }
+        return new ArrayList<>();
+    }
 }
