@@ -26,18 +26,16 @@ public final class ModNetwork {
 
         );
         int packetId = 0;
-// сервер → клиент
         CHANNEL.registerMessage(id++, SyncNodeVariantsPacket.class,
                 SyncNodeVariantsPacket::encode,
                 SyncNodeVariantsPacket::decode,
                 SyncNodeVariantsPacket::handle);
-        // после других пакетов, например после SyncTreeXpPacket
         CHANNEL.registerMessage(id++,
                 SyncNodeLevelsPacket.class,
                 SyncNodeLevelsPacket::encode,
                 SyncNodeLevelsPacket::decode,
                 SyncNodeLevelsPacket::handle,
-                Optional.of(NetworkDirection.PLAY_TO_CLIENT)); // сервер → клиент
+                Optional.of(NetworkDirection.PLAY_TO_CLIENT));
         CHANNEL.registerMessage(
                 packetId++,
                 SelectVariantPacket.class,
@@ -45,14 +43,12 @@ public final class ModNetwork {
                 SelectVariantPacket::decode,
                 SelectVariantPacket::handle
         );
-        // В методе init() добавить:
         CHANNEL.registerMessage(id++,
                 SyncTreeXpPacket.class,
                 SyncTreeXpPacket::encode,
                 SyncTreeXpPacket::decode,
                 SyncTreeXpPacket::handle,
-                Optional.of(NetworkDirection.PLAY_TO_CLIENT)); // <- важно: с сервера на клиент
-//        ModNetwork.CHANNEL.sendToServer(new RequestFullSyncPacket());
+                Optional.of(NetworkDirection.PLAY_TO_CLIENT));
         CHANNEL.registerMessage(id++,
                 LearnNodePacket.class,
                 LearnNodePacket::encode,
@@ -63,7 +59,7 @@ public final class ModNetwork {
                 RequestFullSyncPacket::encode,
                 RequestFullSyncPacket::decode,
                 RequestFullSyncPacket::handle,
-                Optional.of(NetworkDirection.PLAY_TO_SERVER)); // <- важно
+                Optional.of(NetworkDirection.PLAY_TO_SERVER));
         CHANNEL.registerMessage(id++,
                 SyncLearnedNodesPacket.class,
                 SyncLearnedNodesPacket::encode,

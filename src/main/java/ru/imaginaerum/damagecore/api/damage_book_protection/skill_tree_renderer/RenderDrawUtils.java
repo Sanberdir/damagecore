@@ -53,8 +53,90 @@ public class RenderDrawUtils {
     // --- public entry points keep original semantics exactly ---
     public static void drawScaledTooltipWithProgress(GuiGraphics gui, Font font, SkillTreeNode n,
                                                      String title, String desc, int pivotX, int pivotY,
-                                                     float scale, float progress) {
-        drawTooltip(gui, font, n, title, desc, pivotX, pivotY, scale, /*isVariant=*/false, /*forceVariantYellowIfNodeHasVariants=*/true, progress);
+                                                     float scale, float serverProgress) {
+        // serverProgress — значение от 0 до 1, переданное с сервера
+        final int TEXT_MAX_PIXELS = 220;
+        List<String> titleLines = splitStringToPixelWidth(font, title, TEXT_MAX_PIXELS);
+        List<String> descLines  = splitStringToPixelWidth(font, desc, TEXT_MAX_PIXELS);
+        if (titleLines.isEmpty() && descLines.isEmpty()) return;
+
+        int frame = SkillTreeNode.FRAME_SIZE;
+        int maxWidth = 0;
+        for (String s : titleLines) maxWidth = Math.max(maxWidth, font.width(s));
+        for (String s : descLines)  maxWidth = Math.max(maxWidth, font.width(s));
+
+        int cellLeft = (n != null) ? n.x : 0;
+        int cellRight = (n != null) ? (n.x + frame) : frame;
+        int cellCenterY = (n != null) ? (n.y + frame / 2) : (frame / 2);
+
+        int stripLeft = cellLeft - TOOLTIP_LEFT_OVERHANG;
+        int textStartX = cellRight + 4;
+        int stripWidth = (textStartX - stripLeft) + maxWidth + TOOLTIP_RIGHT_PAD;
+
+        int titleHeight = Math.max(TOOLTIP_SRC_H, titleLines.size() * font.lineHeight + 6);
+        int descHeight  = descLines.isEmpty() ? 0 : Math.max(TOOLTIP_SRC_H, descLines.size() * font.lineHeight + 4);
+        int titleTop = cellCenterY - titleHeight / 2;
+        int descTop = titleTop + titleHeight - 4;
+
+        // базовый цвет заголовка
+        int titleSrcV;
+        if (n != null && n.isLearned()) {
+            titleSrcV = TOOLTIP_TITLE_GREEN_V; // изучена
+        } else if (n != null && n.variants != null && !n.variants.isEmpty()) {
+            titleSrcV = TOOLTIP_TITLE_YELLOW_V; // варианты
+        } else {
+            titleSrcV = TOOLTIP_TITLE_WHITE_V; // дефолт
+        }
+
+        PoseStack pose = gui.pose();
+
+        // description background
+        if (descHeight > 0) {
+            pushTransform(pose, pivotX, pivotY, Z_TOOLTIP_DESC_BG, scale);
+            drawNineSliceTiled(gui, TOOLTIP_TEXTURE, stripLeft, descTop, stripWidth, descHeight + 6,
+                    TOOLTIP_DESC_SRC_U, TOOLTIP_DESC_SRC_V, TOOLTIP_SRC_W, TOOLTIP_SRC_H, TOOLTIP_CAP);
+            popTransform(pose);
+        }
+
+        // title background
+        pushTransform(pose, pivotX, pivotY, Z_TOOLTIP_TITLE_BG, scale);
+        drawNineSliceTiled(gui, TOOLTIP_TEXTURE, stripLeft, titleTop, stripWidth, titleHeight,
+                TOOLTIP_TITLE_SRC_U, titleSrcV, TOOLTIP_SRC_W, TOOLTIP_SRC_H, TOOLTIP_CAP);
+        popTransform(pose);
+
+        // зеленый прогресс поверх заголовка (только для изучаемой ноды)
+        if (serverProgress > 0f && n != null && !n.isLearned()) {
+            pushTransform(pose, pivotX, pivotY, Z_TOOLTIP_TITLE_BG + 5, scale);
+            RenderSystem.enableBlend();
+            RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+
+            int greenWidth = Math.round(stripWidth * Math.min(serverProgress, 1f));
+            drawPartialProgressTooltip(gui, TOOLTIP_TEXTURE, stripLeft, titleTop, greenWidth, titleHeight,
+                    TOOLTIP_TITLE_SRC_U, TOOLTIP_TITLE_GREEN_V, TOOLTIP_SRC_W, TOOLTIP_SRC_H, TOOLTIP_CAP);
+
+            RenderSystem.disableBlend();
+            popTransform(pose);
+        }
+
+        // описание текста
+        if (!descLines.isEmpty()) {
+            pushTransform(pose, pivotX, pivotY, Z_TOOLTIP_DESC_TEXT, scale);
+            int descTextY = descTop + DESC_PADDING + 4;
+            for (String s : descLines) {
+                gui.drawString(font, s, stripLeft + 4, descTextY, 0xFFE0E0E0, false);
+                descTextY += font.lineHeight;
+            }
+            popTransform(pose);
+        }
+
+        // текст заголовка
+        pushTransform(pose, pivotX, pivotY, Z_TOOLTIP_TITLE_TEXT, scale);
+        int titleTextY = titleTop + (titleHeight - titleLines.size() * font.lineHeight) / 2;
+        for (String s : titleLines) {
+            gui.drawString(font, s, textStartX, titleTextY, 0xFFFFFFFF, true);
+            titleTextY += font.lineHeight;
+        }
+        popTransform(pose);
     }
 
     public static void drawScaledTooltip(GuiGraphics gui, Font font, SkillTreeNode n,
@@ -109,7 +191,19 @@ public class RenderDrawUtils {
         }
 
         PoseStack pose = gui.pose();
+// green progress overlay for non-learned nodes when progress>0
+        if (progress > 0f && n != null && !n.isLearned()) {
+            pushTransform(pose, pivotX, pivotY, Z_TOOLTIP_TITLE_BG + 5, scale);
+            RenderSystem.enableBlend();
+            RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
 
+            int greenWidth = Math.round(stripWidth * Math.min(progress, 1f));
+            drawPartialProgressTooltip(gui, TOOLTIP_TEXTURE, stripLeft, titleTop, greenWidth, titleHeight,
+                    TOOLTIP_TITLE_SRC_U, TOOLTIP_TITLE_GREEN_V, TOOLTIP_SRC_W, TOOLTIP_SRC_H, TOOLTIP_CAP);
+
+            RenderSystem.disableBlend();
+            popTransform(pose);
+        }
         // description background (below)
         if (descHeight > 0) {
             pushTransform(pose, pivotX, pivotY, Z_TOOLTIP_DESC_BG, scale);
@@ -191,7 +285,9 @@ public class RenderDrawUtils {
         while (x < maxX && remainingWidth > 0) {
             int tileW = Math.min(innerSrcW, remainingWidth);
             blitTex(gui, tex, x, destY, srcU + cap, srcV, tileW, cap);
-            x += tileW; remainingWidth -= tileW;
+            blitTex(gui, tex, x, destY + destH - cap, srcU + cap, srcV + srcH - cap, tileW, cap);
+            x += tileW;
+            remainingWidth -= tileW;
         }
 
         if (destH > cap) { x = destX + cap; remainingWidth = destW - cap; while (x < maxX && remainingWidth > 0) { int tileW = Math.min(innerSrcW, remainingWidth); blitTex(gui, tex, x, destY + destH - cap, srcU + cap, srcV + srcH - cap, tileW, cap); x += tileW; remainingWidth -= tileW; } }
@@ -235,7 +331,7 @@ public class RenderDrawUtils {
     }
 
     @SuppressWarnings({"unchecked","rawtypes"})
-    public static OptionHoverInfo drawOptions(GuiGraphics gui, SkillTreeNode node, Object treeObj, int mouseX, int mouseY) {
+    public static OptionHoverInfo drawOptions(GuiGraphics gui, SkillTreeNode node, Object treeObj, int mouseX, int mouseY, boolean canLearn) {
         try {
             if (node == null || node.locked) return null;
             List<?> opts = (List<?>) getFieldValue(node, "options");
@@ -285,7 +381,8 @@ public class RenderDrawUtils {
 
                 pose.pushPose(); pose.translate(0,0,Z_NODE_TOP);
                 RenderSystem.disableBlend(); RenderSystem.enableDepthTest(); RenderSystem.depthMask(true);
-                drawNode(gui, node, mouseX, mouseY);
+                // draw node with canLearn flag so it will blink if tree-XP missing
+                drawNode(gui, node, mouseX, mouseY, canLearn);
                 pose.popPose();
 
                 if (hovered && hoveredInfo == null) {
@@ -373,16 +470,49 @@ public class RenderDrawUtils {
         }
     }
 
+    // overload: legacy / compatibility -- delegates to new method with canLearn=true
     public static void drawNode(GuiGraphics gui, SkillTreeNode n, int mouseX, int mouseY) {
+        drawNode(gui, n, mouseX, mouseY, true);
+    }
+
+    // new: accepts canLearn - if false and hovered -> blink red (same effect as XP-fail)
+    public static void drawNode(GuiGraphics gui, SkillTreeNode n, int mouseX, int mouseY, boolean canLearn) {
         int frameSize = SkillTreeNode.FRAME_SIZE, padding = SkillTreeNode.FRAME_PADDING, ITEM_SIZE = 16;
-        PoseStack pose = gui.pose(); pose.pushPose(); pose.translate(0,0,Z_NODE);
+        PoseStack pose = gui.pose();
+        pose.pushPose();
+        pose.translate(0,0,Z_NODE);
+
         gui.fill(n.x, n.y, n.x + frameSize, n.y + frameSize, 0xFF333333);
         boolean hovered = n.containsPoint(mouseX, mouseY);
-        int innerColor = hovered ? (n.locked ? 0xFF444444 : 0xAAFFFFFF) : 0xFF777777;
-        gui.fill(n.x + padding, n.y + padding, n.x + frameSize - padding, n.y + frameSize - padding, innerColor);
+
+        int innerLeft = n.x + padding;
+        int innerTop = n.y + padding;
+        int innerRight = n.x + frameSize - padding;
+        int innerBottom = n.y + frameSize - padding;
+
+        int innerColor;
+
+        // if tree-XP missing (canLearn == false) and hovered -> blinking red (like player XP fail)
+        boolean blockedByXp = !canLearn; // недостаток опыта игрока
+        boolean blockedByTreeLevel = n.blockedByTreeLevel; // недостаток уровня вкладки
+
+        if ((blockedByXp || blockedByTreeLevel) && hovered) {
+            // Красное мигание для любого типа блокировки
+            int blink = (int)((System.currentTimeMillis() / 300) % 2);
+            if (blink == 0) {
+                gui.fill(innerLeft, innerTop, innerRight, innerBottom, 0xAAFF5555); // красный
+            } else {
+                gui.fill(innerLeft, innerTop, innerRight, innerBottom, 0xAA000000); // черный
+            }
+        } else {
+            innerColor = hovered ? (n.locked ? 0xFF444444 : 0xAAFFFFFF) : 0xFF777777;
+            gui.fill(innerLeft, innerTop, innerRight, innerBottom, innerColor);
+        }
+
         int itemX = n.x + (frameSize - ITEM_SIZE)/2, itemY = n.y + (frameSize - ITEM_SIZE)/2;
         gui.renderItem(n.itemStack, itemX, itemY);
         gui.renderItemDecorations(Minecraft.getInstance().font, n.itemStack, itemX, itemY);
+
         pose.popPose();
     }
 

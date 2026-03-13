@@ -8,6 +8,7 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.network.PacketDistributor;
 import ru.imaginaerum.damagecore.api.damage_book_protection.node_variant.SyncNodeVariantsPacket;
+import ru.imaginaerum.damagecore.events_tree.SkillTreeXpManager;
 import ru.imaginaerum.damagecore.events_tree.SyncTreeXpPacket;
 import ru.imaginaerum.damagecore.sounds.CustomSoundEvents;
 
@@ -131,6 +132,8 @@ public final class SkillTreeServerHandler {
     // Обновляем метод handleLearnRequest для проверки нескольких родителей
 
     public static void handleLearnRequest(ServerPlayer player, int treeId, String nodeId) {
+        if (player == null || nodeId == null) return;
+
         try {
             if (!SkillTreeRenderer.hasTreeForTab(treeId)) return;
 
@@ -141,50 +144,44 @@ public final class SkillTreeServerHandler {
             if (nodes == null || !nodes.containsKey(nodeId)) return;
 
             SkillTreeNode node = nodes.get(nodeId);
-            if (node == null) return;
+            if (node == null || node.locked) return;
 
-            if (node.locked) return;
-
-            // читаем текущие уровни на сервере
             Map<String, Integer> levels = getNodeLevels(player, treeId);
             int currentLevel = levels.getOrDefault(nodeId, 0);
-
-            // не даём учиться выше maxLevel
             if (currentLevel >= node.maxLevel) return;
 
-            // Проверяем всех родителей — каждый должен быть хотя бы level >= 1
+            // Проверка всех родителей
             for (String parentId : node.parentIds) {
                 if (parentId != null && !"start".equalsIgnoreCase(parentId)) {
                     int pLevel = levels.getOrDefault(parentId, 0);
-
-                    // если отсутствует в сохранённых — пробуем взять значение из server-side node (если есть)
                     if (pLevel <= 0) {
                         SkillTreeNode pnode = nodes.get(parentId);
                         if (pnode != null) pLevel = pnode.level;
                     }
-
-                    if (pLevel <= 0) {
-                        // хотя бы один родитель не изучен — нельзя изучить
-                        return;
-                    }
+                    if (pLevel <= 0) return; // родитель не изучен
                 }
             }
 
-            // Проверка уровня опыта
+            // Проверка опыта
             if (player.experienceLevel < REQUIRED_LEVELS) return;
             player.giveExperienceLevels(-REQUIRED_LEVELS);
 
             // увеличиваем уровень и сохраняем
             int newLevel = Math.min(node.maxLevel, currentLevel + 1);
             saveNodeLevel(player, treeId, nodeId, newLevel);
-
-            // Отправляем синхронизацию (можно отправить только изменённую ноду или весь map)
+            // Проверка уровня вкладки на сервере
+            int playerTreeLevel = SkillTreeXpManager.getLevel(player, treeId); // или через ваш менеджер
+            if (node.getRequiredTreeLevel() > playerTreeLevel) {
+                return; // Игнорируем запрос
+            }
+            // Синхронизация с клиентом
             Map<String, Integer> single = new HashMap<>();
             single.put(nodeId, newLevel);
             ModNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
                     new SyncNodeLevelsPacket(treeId, single));
 
             player.playNotifySound(CustomSoundEvents.LEARNING_SKILL.get(), SoundSource.PLAYERS, 1.5f, 1f);
+
         } catch (Throwable t) {
             t.printStackTrace();
         }
@@ -206,12 +203,6 @@ public final class SkillTreeServerHandler {
             t.printStackTrace();
             return null;
         }
-    }
-    @SuppressWarnings("unchecked")
-    public static Map<String, Object> getNodesMapAsObjects(Object treeObj) {
-        Map<String, SkillTreeNode> nodes = getNodesMap(treeObj);
-        if (nodes == null) return Collections.emptyMap();
-        return new HashMap<>(nodes); // автоматически приведется к Map<String,Object>
     }
     @SuppressWarnings("unchecked")
     public static Map<String, SkillTreeNode> getNodesMap(Object treeObj) {
@@ -247,43 +238,6 @@ public final class SkillTreeServerHandler {
         return null;
     }
 
-    // ------------------------------
-    // Сохранение/чтение изученных нод
-    // ------------------------------
-    private static Set<String> getLearnedSet(ServerPlayer player, int treeId) {
-        CompoundTag persisted = player.getPersistentData().getCompound(Player.PERSISTED_NBT_TAG);
-        player.getPersistentData().put(Player.PERSISTED_NBT_TAG, persisted);
-
-        CompoundTag mod = persisted.getCompound(ROOT_KEY);
-        persisted.put(ROOT_KEY, mod);
-
-        CompoundTag treeTag = mod.getCompound("tree_" + treeId);
-        mod.put("tree_" + treeId, treeTag);
-
-        Set<String> result = new HashSet<>();
-        if (treeTag.contains("learned")) {
-            ListTag listTag = treeTag.getList("learned", 8);
-            for (int i = 0; i < listTag.size(); i++) result.add(listTag.getString(i));
-        }
-        return result;
-    }
-
-    private static void saveLearnedSet(ServerPlayer player, int treeId, Set<String> learned) {
-        CompoundTag persisted = player.getPersistentData().getCompound(Player.PERSISTED_NBT_TAG);
-        player.getPersistentData().put(Player.PERSISTED_NBT_TAG, persisted);
-
-        CompoundTag mod = persisted.getCompound(ROOT_KEY);
-        persisted.put(ROOT_KEY, mod);
-
-        CompoundTag treeTag = mod.getCompound("tree_" + treeId);
-        mod.put("tree_" + treeId, treeTag);
-
-        ListTag list = new ListTag();
-        for (String s : learned) list.add(StringTag.valueOf(s));
-        treeTag.put("learned", list);
-
-        player.getPersistentData().put(Player.PERSISTED_NBT_TAG, persisted);
-    }
 
     // ------------------------------
     // Полная синхронизация прогресса

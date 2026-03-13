@@ -131,6 +131,17 @@ public final class SkillTreeClientSync {
                     }
                     shouldBeLocked = !allParentsAtLeastOne;
                 }
+                try {
+                    int clientTreeLevel = DamageBookRenderer.getLevel(treeId);
+                    if (node.getRequiredTreeLevel() > clientTreeLevel) {
+                        shouldBeLocked = true;
+                        node.blockedByTreeLevel = true; // УСТАНАВЛИВАЕМ ФЛАГ
+                    } else {
+                        node.blockedByTreeLevel = false;
+                    }
+                } catch (Throwable ignored) {
+                    node.blockedByTreeLevel = false;
+                }
 
                 if (node.locked != shouldBeLocked) {
                     node.locked = shouldBeLocked;
@@ -148,7 +159,33 @@ public final class SkillTreeClientSync {
             t.printStackTrace();
         }
     }
+    /**
+     * Полная очистка всех кэшей при смене мира/выходе
+     */
+    public static void clearAllCaches() {
+        System.out.println("[SkillTreeClientSync] Clearing all caches");
+        levelCache.clear();
+        variantCache.clear();
 
+        // Сброс состояния узлов в загруженных деревьях
+        Map<?,?> trees = getTreesMap();
+        for (Object treeObj : trees.values()) {
+            try {
+                Field nodesField = treeObj.getClass().getDeclaredField("nodes");
+                nodesField.setAccessible(true);
+                Map<String, SkillTreeNode> nodes = (Map<String, SkillTreeNode>) nodesField.get(treeObj);
+
+                for (SkillTreeNode node : nodes.values()) {
+                    node.level = 0;
+                    node.locked = true; // По умолчанию заблокировано
+                    node.selectedOption = -1;
+                    node.blockedByTreeLevel = false;
+                }
+            } catch (Throwable t) {
+                t.printStackTrace();
+            }
+        }
+    }
     /**
      * Apply variants (node selected options) for a specific tree.
      */

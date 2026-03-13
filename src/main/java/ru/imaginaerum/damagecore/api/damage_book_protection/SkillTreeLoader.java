@@ -124,7 +124,14 @@ public final class SkillTreeLoader {
                                 System.err.println("Invalid maxLevel for node " + id + ": " + e.getMessage());
                             }
                         }
-
+                        if (obj.has("requiredTreeLevel")) {
+                            try {
+                                int req = obj.get("requiredTreeLevel").getAsInt();
+                                node.setRequiredTreeLevel(Math.max(0, req));
+                            } catch (Exception e) {
+                                System.err.println("Invalid requiredTreeLevel for node " + id + ": " + e.getMessage());
+                            }
+                        }
                         // ===== ВАЖНО: загружаем начальный уровень =====
                         if (obj.has("level")) {
                             try {

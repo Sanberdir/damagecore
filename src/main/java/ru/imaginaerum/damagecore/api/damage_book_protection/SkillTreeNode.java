@@ -15,6 +15,7 @@ import java.util.UUID;
  */
 public final class SkillTreeNode {
     public enum Side { START, LEFT, RIGHT, TOP, BOTTOM }
+    public boolean blockedByTreeLevel = false; // true если не хватает уровня вкладки
 
     public boolean optionsVisible = false;
     public final String id;
@@ -26,7 +27,12 @@ public final class SkillTreeNode {
     // сделаны public чтобы старый код (который обращается напрямую) компилировался
     public int level = 0;
     public int maxLevel = 1;
+    // Добавление требований к уровню
+    // требование по уровню вкладки (0 = нет требования)
+    public int requiredTreeLevel = 0;
 
+    public int getRequiredTreeLevel() { return requiredTreeLevel; }
+    public void setRequiredTreeLevel(int lvl) { this.requiredTreeLevel = Math.max(0, lvl); }
     // Изменяем с одного родителя на список
     public final List<String> parentIds;
     public final Side side;

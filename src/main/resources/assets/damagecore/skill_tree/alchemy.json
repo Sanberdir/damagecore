@@ -6,7 +6,8 @@
       "item": "minecraft:cauldron",
       "parents": ["start"],
       "gridX": 0,
-      "gridY": 0
+      "gridY": 0,
+      "requiredTreeLevel": 2
     },
     {
       "id": "swift_brewing",

@@ -7,10 +7,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
-import ru.imaginaerum.damagecore.api.damage_book_protection.LearnNodePacket;
-import ru.imaginaerum.damagecore.api.damage_book_protection.ModNetwork;
-import ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeClientSync;
-import ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeNode;
+import ru.imaginaerum.damagecore.api.damage_book_protection.*;
 import ru.imaginaerum.damagecore.api.damage_book_protection.node_variant.SelectVariantPacket;
 
 import java.lang.reflect.Field;
@@ -34,7 +31,6 @@ public class Render {
 
     public static int currentPanelScreenX = 0;
     public static int currentPanelScreenY = 0;
-    private static float lastScale = -1f;
     public static SkillTreeNode currentHoveredNode = null;
     public static long mousePressTime = 0L;
     private static final long FAIL_FLASH_DURATION = 250L;
@@ -46,7 +42,6 @@ public class Render {
     public static void triggerXpFailFlash(SkillTreeNode node) {
         node.xpFailFlashUntil = System.currentTimeMillis() + FAIL_FLASH_DURATION;
     }
-    // Заменить текущее renderXpFailFlash на этот метод
     private static void renderXpFailFlash(GuiGraphics gui, SkillTreeNode node) {
         if (node == null) return;
         try {
@@ -171,14 +166,19 @@ public class Render {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
 
+// Проверяем оба условия: опыт игрока И уровень вкладки
         int REQUIRED_LEVELS = 5;
-        if (mc.player.experienceLevel < REQUIRED_LEVELS) {
+        int treeId = getActiveTreeIdViaReflection();
+        int playerTreeLevel = DamageBookRenderer.getLevel(treeId);
+
+        if (mc.player.experienceLevel < REQUIRED_LEVELS ||
+                currentHoveredNode.getRequiredTreeLevel() > playerTreeLevel) {
+
             triggerXpFailFlash(currentHoveredNode);
             mousePressTime = 0L;
             currentHoveredNode = null;
             return;
         }
-
         long now = System.currentTimeMillis();
         final long HOLD_MS = 1500L;
         float progress = Math.min(1f, (float)(now - mousePressTime) / HOLD_MS);
@@ -401,7 +401,7 @@ public class Render {
 
                 // Рисуем опции для активного узла (если они открыты)
                 if (optionsOpen && activeOptionsNodeId != null && activeOptionsNodeId.equals(n.id)) {
-                    RenderDrawUtils.OptionHoverInfo hi = RenderDrawUtils.drawOptions(gui, n, treeObj, unscaledMouseX, unscaledMouseY);
+                    RenderDrawUtils.OptionHoverInfo hi = RenderDrawUtils.drawOptions(gui, n, treeObj, unscaledMouseX, unscaledMouseY, false);
                     if (hi != null) hoveredOption = hi;
                 }
             }
