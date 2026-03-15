@@ -29,8 +29,8 @@ public class RenderDrawUtils {
     private static final int TOOLTIP_SRC_W = 200;
     private static final int TOOLTIP_SRC_H = 20;
     private static final int TOOLTIP_CAP = 4;
-    private static final int TOOLTIP_LEFT_OVERHANG = 4;
-    private static final int TOOLTIP_RIGHT_PAD = 4;
+    public static final int TOOLTIP_LEFT_OVERHANG = 4;
+    public static final int TOOLTIP_RIGHT_PAD = 4;
     private static final int TOOLTIP_TITLE_GREEN_V = 252;
     private static final int TOOLTIP_TITLE_YELLOW_V = 273;
     private static final int TOOLTIP_TITLE_WHITE_V  = 314;
@@ -45,7 +45,12 @@ public class RenderDrawUtils {
     private static final float Z_TOOLTIP_DESC_TEXT = 470f;
     private static final float Z_TOOLTIP_TITLE_BG = 480f;
     private static final float Z_TOOLTIP_TITLE_TEXT = 490f;
-
+    private static final int PROGRESS_BAR_WIDTH = 158;
+    private static final int PROGRESS_BAR_HEIGHT = 5;
+    private static final int PROGRESS_BAR_EMPTY_U = 0;
+    private static final int PROGRESS_BAR_EMPTY_V = 342;
+    private static final int PROGRESS_BAR_FILLED_U = 0;
+    private static final int PROGRESS_BAR_FILLED_V = 336;
     public static void blitTex(GuiGraphics gui, ResourceLocation tex, int x, int y, int u, int v, int w, int h) {
         gui.blit(tex, x, y, u, v, w, h, 512, 512);
     }
@@ -54,7 +59,7 @@ public class RenderDrawUtils {
     public static void drawScaledTooltipWithProgress(GuiGraphics gui, Font font, SkillTreeNode n,
                                                      String title, String desc, int pivotX, int pivotY,
                                                      float scale, float serverProgress) {
-        // serverProgress — значение от 0 до 1, переданное с сервера
+        // serverProgress игнорируем - прогресс больше не рисуем в тултипе
         final int TEXT_MAX_PIXELS = 220;
         List<String> titleLines = splitStringToPixelWidth(font, title, TEXT_MAX_PIXELS);
         List<String> descLines  = splitStringToPixelWidth(font, desc, TEXT_MAX_PIXELS);
@@ -98,25 +103,11 @@ public class RenderDrawUtils {
             popTransform(pose);
         }
 
-        // title background
+        // title background (без зелёного прогресса!)
         pushTransform(pose, pivotX, pivotY, Z_TOOLTIP_TITLE_BG, scale);
         drawNineSliceTiled(gui, TOOLTIP_TEXTURE, stripLeft, titleTop, stripWidth, titleHeight,
                 TOOLTIP_TITLE_SRC_U, titleSrcV, TOOLTIP_SRC_W, TOOLTIP_SRC_H, TOOLTIP_CAP);
         popTransform(pose);
-
-        // зеленый прогресс поверх заголовка (только для изучаемой ноды)
-        if (serverProgress > 0f && n != null && !n.isLearned()) {
-            pushTransform(pose, pivotX, pivotY, Z_TOOLTIP_TITLE_BG + 5, scale);
-            RenderSystem.enableBlend();
-            RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
-
-            int greenWidth = Math.round(stripWidth * Math.min(serverProgress, 1f));
-            drawPartialProgressTooltip(gui, TOOLTIP_TEXTURE, stripLeft, titleTop, greenWidth, titleHeight,
-                    TOOLTIP_TITLE_SRC_U, TOOLTIP_TITLE_GREEN_V, TOOLTIP_SRC_W, TOOLTIP_SRC_H, TOOLTIP_CAP);
-
-            RenderSystem.disableBlend();
-            popTransform(pose);
-        }
 
         // описание текста
         if (!descLines.isEmpty()) {
@@ -137,6 +128,49 @@ public class RenderDrawUtils {
             titleTextY += font.lineHeight;
         }
         popTransform(pose);
+    }
+
+    private static final int PROGRESS_BAR_CAP = 2; // скругление углов полоски
+
+    public static void drawProgressBarUnderNode(GuiGraphics gui, SkillTreeNode node, float progress, int pivotX, int pivotY, float scale, int tooltipWidth) {
+        if (node == null || progress <= 0f) return;
+
+        int frameSize = SkillTreeNode.FRAME_SIZE;
+        // Полоска начинается сразу от правого края ноды
+        int barX = node.x + frameSize;
+        int barY = node.y + frameSize - PROGRESS_BAR_HEIGHT;
+
+        // Вычисляем правый край тултипа (используем те же отступы, что и в тултипе)
+        int stripLeft = node.x - TOOLTIP_LEFT_OVERHANG;
+        int rightEdge = stripLeft + tooltipWidth;
+
+        // Ширина полоски = расстояние от правого края ноды до правого края тултипа
+        int width = rightEdge - barX;
+        if (width <= 0) return; // Не рисуем, если полоска не умещается
+
+        PoseStack pose = gui.pose();
+        pose.pushPose();
+        pose.translate(pivotX, pivotY, 1000f);
+        pose.scale(scale, scale, 1f);
+        pose.translate(-pivotX, -pivotY, 0);
+
+        // Пустая шкала (растягивается с помощью nine-slice)
+        drawNineSliceTiled(gui, TOOLTIP_TEXTURE,
+                barX, barY, width, PROGRESS_BAR_HEIGHT,
+                PROGRESS_BAR_EMPTY_U, PROGRESS_BAR_EMPTY_V, PROGRESS_BAR_WIDTH, PROGRESS_BAR_HEIGHT,
+                PROGRESS_BAR_CAP);
+
+        // Заполненная часть
+        if (progress > 0f) {
+            int filledWidth = (int)(width * Math.min(progress, 1f));
+            if (filledWidth > 0) {
+                drawNineSliceTiled(gui, TOOLTIP_TEXTURE,
+                        barX, barY, filledWidth, PROGRESS_BAR_HEIGHT,
+                        PROGRESS_BAR_FILLED_U, PROGRESS_BAR_FILLED_V, PROGRESS_BAR_WIDTH, PROGRESS_BAR_HEIGHT,
+                        PROGRESS_BAR_CAP);
+            }
+        }
+        pose.popPose();
     }
 
     public static void drawScaledTooltip(GuiGraphics gui, Font font, SkillTreeNode n,

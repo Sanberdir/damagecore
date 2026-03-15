@@ -6,7 +6,6 @@ import ru.imaginaerum.damagecore.api.damage_book_protection.node_variant.SelectV
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 public final class SkillTreeRenderer {
     private SkillTreeRenderer() {}
@@ -25,7 +24,6 @@ public final class SkillTreeRenderer {
     public static final int PANEL_DRAW_OFFSET_X_IN_PANEL = AREA_TEX_X0 - PANEL_TEXTURE_U;
     public static final int PANEL_DRAW_OFFSET_Y_IN_PANEL = AREA_TEX_Y0 - PANEL_TEXTURE_V;
 
-    private static final int GAP = 6;
     private static final int GRID_STEP = SkillTreeNode.FRAME_SIZE + 1;
     private static final int OPTION_SIZE = 18;
     private static final int OPTION_BASE_RADIUS = 28;
@@ -64,7 +62,6 @@ public final class SkillTreeRenderer {
         }
     }
     public static void clearAllCaches() {
-        System.out.println("[DamageCore] SkillTreeRenderer.clearAllCaches() called");
 
         // 1) Сначала сбросим состояния нод (level, selectedOption) чтобы UI точно не показывал старые значения
         for (SkillTreeData tree : trees.values()) {
@@ -80,9 +77,7 @@ public final class SkillTreeRenderer {
         // 2) Если есть клиентский кэш - почистим его (SkillTreeClientSync реализуй ниже)
         try {
             SkillTreeClientSync.clearCache();
-            System.out.println("[DamageCore] SkillTreeClientSync.clearCache() done");
         } catch (Throwable t) {
-            System.out.println("[DamageCore] SkillTreeClientSync.clearCache() threw:");
             t.printStackTrace();
         }
 
@@ -93,8 +88,6 @@ public final class SkillTreeRenderer {
 
         activeTreeId = 0;
         treesLoaded = false;
-
-        System.out.println("[DamageCore] SkillTreeRenderer caches cleared (trees=" + trees.size() + ")");
     }
 
     public static void resetAllNodes() {

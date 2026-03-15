@@ -13,6 +13,7 @@ import ru.imaginaerum.damagecore.api.damage_book_protection.node_variant.SelectV
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 public class Render {
@@ -166,7 +167,7 @@ public class Render {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
 
-// Проверяем оба условия: опыт игрока И уровень вкладки
+        // Проверяем оба условия: опыт игрока И уровень вкладки
         int REQUIRED_LEVELS = 5;
         int treeId = getActiveTreeIdViaReflection();
         int playerTreeLevel = DamageBookRenderer.getLevel(treeId);
@@ -211,6 +212,25 @@ public class Render {
 
         String titleWithLevel = title + " " + currentHoveredNode.level + "/" + currentHoveredNode.maxLevel;
 
+        // --- Вычисляем ширину тултипа для полоски прогресса ---
+        final int TEXT_MAX_PIXELS = 220;
+        List<String> titleLines = RenderDrawUtils.splitStringToPixelWidth(font, titleWithLevel, TEXT_MAX_PIXELS);
+        List<String> descLines = RenderDrawUtils.splitStringToPixelWidth(font, desc, TEXT_MAX_PIXELS);
+        int maxWidth = 0;
+        for (String s : titleLines) maxWidth = Math.max(maxWidth, font.width(s));
+        for (String s : descLines)  maxWidth = Math.max(maxWidth, font.width(s));
+
+        int frame = SkillTreeNode.FRAME_SIZE;
+        int cellLeft = currentHoveredNode.x;
+        int cellRight = currentHoveredNode.x + frame;
+        int textStartX = cellRight + 4;
+        int stripLeft = cellLeft - RenderDrawUtils.TOOLTIP_LEFT_OVERHANG;
+        int stripWidth = (textStartX - stripLeft) + maxWidth + RenderDrawUtils.TOOLTIP_RIGHT_PAD;
+
+        // Рисуем полоску прогресса с вычисленной шириной
+        RenderDrawUtils.drawProgressBarUnderNode(gui, currentHoveredNode, progress, pivotX, pivotY, scale, stripWidth);
+
+        // Рисуем сам тултип
         RenderDrawUtils.drawScaledTooltipWithProgress(gui, font, currentHoveredNode, titleWithLevel, desc, pivotX, pivotY, scale, progress);
     }
     private static int getActiveTreeIdViaReflection() {
@@ -267,8 +287,11 @@ public class Render {
             int clipX2 = clipX1 + AREA_WIDTH;
             int clipY2 = clipY1 + AREA_HEIGHT;
 
-            if (clipX2 > clipX1 && clipY2 > clipY1)
+            boolean scissorEnabled = false;
+            if (clipX2 > clipX1 && clipY2 > clipY1) {
                 gui.enableScissor(clipX1, clipY1, clipX2, clipY2);
+                scissorEnabled = true;
+            }
 
             PoseStack pose = gui.pose();
             int pivotX = clipX1 + AREA_WIDTH / 2;
@@ -406,6 +429,7 @@ public class Render {
                 }
             }
             pose.popPose();
+
             // =============================
             // 4) hovered узел поверх остальных (только если варианты закрыты)
             // =============================
@@ -423,9 +447,18 @@ public class Render {
                 // точно так же, как рисуется зелёный прогресс ниже.
                 renderXpFailFlash(gui, hoveredNode);
             }
+
+            // =============================
+            // ОТКЛЮЧАЕМ SCISSOR ПЕРЕД ПРОГРЕСС-БАРОМ И ТУЛТИПАМИ
+            // =============================
+            if (scissorEnabled) {
+                gui.disableScissor();
+            }
+
             if (!optionsOpen && hoveredNode != null) {
                 renderHoldProgressOverlay(gui, mouseX, mouseY);
             }
+
             // =============================
             // 5) ДОПОЛНИТЕЛЬНОЕ ЗАТЕМНЕНИЕ (только если варианты открыты)
             // =============================
@@ -433,9 +466,6 @@ public class Render {
                 // Затемняем весь экран поверх всего (кроме опций)
                 gui.fill(0, 0, screen.width, screen.height, 0x88000000);
             }
-
-            if (clipX2 > clipX1 && clipY2 > clipY1)
-                gui.disableScissor();
 
             // =============================
             // 6) ТУЛТИП ДЛЯ ОПЦИИ (всегда, если есть наведенная опция)
