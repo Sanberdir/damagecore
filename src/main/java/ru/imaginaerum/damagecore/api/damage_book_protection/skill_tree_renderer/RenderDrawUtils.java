@@ -83,12 +83,12 @@ public class RenderDrawUtils {
         int titleTop = cellCenterY - titleHeight / 2;
         int descTop = titleTop + titleHeight - 4;
 
-        // базовый цвет заголовка
+        // базовый цвет заголовка — теперь жёлтый при наличии вариантов имеет приоритет над learned
         int titleSrcV;
-        if (n != null && n.isLearned()) {
+        if (n != null && n.variants != null && !n.variants.isEmpty()) {
+            titleSrcV = TOOLTIP_TITLE_YELLOW_V; // варианты — всегда жёлтый (даже если изучена)
+        } else if (n != null && n.isLearned()) {
             titleSrcV = TOOLTIP_TITLE_GREEN_V; // изучена
-        } else if (n != null && n.variants != null && !n.variants.isEmpty()) {
-            titleSrcV = TOOLTIP_TITLE_YELLOW_V; // варианты
         } else {
             titleSrcV = TOOLTIP_TITLE_WHITE_V; // дефолт
         }
