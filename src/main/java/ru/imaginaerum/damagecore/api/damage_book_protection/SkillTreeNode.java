@@ -79,7 +79,11 @@ public final class SkillTreeNode {
     public boolean isRoot() {
         return parentIds.isEmpty() || (parentIds.size() == 1 && "start".equalsIgnoreCase(parentIds.get(0)));
     }
-
+    public void resetNode() {
+        this.level = 0;
+        this.selectedOption = -1;
+        // не трогаем locked, grid-pos и прочие статичные конфигурации
+    }
     /** Вспомогательные геттеры/сеттеры */
     public int getLevel() { return level; }
     public void setLevel(int lvl) { this.level = Math.max(0, Math.min(lvl, maxLevel)); }

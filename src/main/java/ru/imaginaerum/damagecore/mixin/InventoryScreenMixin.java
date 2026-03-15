@@ -25,8 +25,6 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
     private static final ResourceLocation DAMAGE_TYPE_BUTTON = new ResourceLocation("damagecore", "textures/gui/damage_type_button.png");
     private static final ResourceLocation SKILL_TREE_BUTTON = new ResourceLocation("damagecore", "textures/gui/skill_tree_button.png");
     @Unique
-    private static boolean syncRequested = false;
-    @Unique
     private ImageButton damagecore$button;
     @Unique
     private ImageButton damagecore$recipeButton;
@@ -52,7 +50,6 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
 
     @Unique
     private int selectedSmall = 0;
-
     @Override
     public boolean damagecore$isSkillTreeVisible() {
         return this.skillTreeVisible;
@@ -198,11 +195,15 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
         ((ScreenInvoker) screen).damagecore$addRenderableWidget(this.damagecore$skillTreeButton);
 
         // Запрашиваем синхронизацию только один раз
-        if (Minecraft.getInstance().player != null && !syncRequested) {
+        if (Minecraft.getInstance().player != null && !ClientSyncState.syncRequested) {
             System.out.println("Requesting full sync from server after tree load");
             ModNetwork.CHANNEL.sendToServer(new RequestFullSyncPacket());
-            syncRequested = true; // Нужно добавить поле
+            ClientSyncState.syncRequested = true;
         }
+    }
+    @Inject(method = "init", at = @At("HEAD"))
+    private void damagecore$resetSyncFlagOnInit(CallbackInfo ci) {
+        ClientSyncState.syncRequested = false;
     }
 
     @Inject(method = "mouseClicked", at = @At("TAIL"))

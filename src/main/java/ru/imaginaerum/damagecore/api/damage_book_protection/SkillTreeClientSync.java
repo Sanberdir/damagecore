@@ -23,7 +23,8 @@ public final class SkillTreeClientSync {
 
     // treeId -> (nodeId -> level)
     private static final Map<Integer, Map<String, Integer>> levelCache = new ConcurrentHashMap<>();
-
+    private static final Map<Integer, Map<String, Integer>> cachedLevels = new HashMap<>();
+    private static final Map<Integer, Map<String, Integer>> cachedVariants = new HashMap<>();
     // treeId -> (nodeId -> selectedOption)
     private static final Map<Integer, Map<String, Integer>> variantCache = new ConcurrentHashMap<>();
 
@@ -43,6 +44,37 @@ public final class SkillTreeClientSync {
             t.printStackTrace();
         }
         return Collections.emptyMap();
+    }
+    public static void clearCache() {
+        levelCache.clear();
+        variantCache.clear();
+        cachedLevels.clear();
+        cachedVariants.clear();
+
+        Map<?, ?> trees = getTreesMap();
+        if (trees == null || trees.isEmpty()) {
+            return;
+        }
+
+        for (Object treeObj : trees.values()) {
+            try {
+                Field nodesField = treeObj.getClass().getDeclaredField("nodes");
+                nodesField.setAccessible(true);
+                Object nodesObj = nodesField.get(treeObj);
+                if (!(nodesObj instanceof Map<?, ?> nodesMap)) continue;
+
+                for (Object nodeObj : nodesMap.values()) {
+                    if (!(nodeObj instanceof SkillTreeNode node)) continue;
+                    node.level = 0;
+                    node.selectedOption = -1;
+                    node.locked = true;
+                    node.blockedByTreeLevel = false;
+                }
+            } catch (Throwable t) {
+                t.printStackTrace();
+            }
+        }
+
     }
 
     /** Public getter for level cache for a tree (may return null) */
@@ -163,7 +195,6 @@ public final class SkillTreeClientSync {
      * Полная очистка всех кэшей при смене мира/выходе
      */
     public static void clearAllCaches() {
-        System.out.println("[SkillTreeClientSync] Clearing all caches");
         levelCache.clear();
         variantCache.clear();
 
@@ -247,18 +278,25 @@ public final class SkillTreeClientSync {
      * Called after SkillTreeRenderer.loadAllTrees()
      */
     public static void reapplyCachedForAllTrees() {
-        Map<?,?> trees = getTreesMap();
-        for (Object key : trees.keySet()) {
-            if (!(key instanceof Integer)) continue;
-            int treeId = (Integer) key;
+        Map<?, ?> trees = getTreesMap();
+        if (trees == null || trees.isEmpty()) {
+            return;
+        }
 
-            if (levelCache.containsKey(treeId)) {
-                applyNodeLevels(treeId, levelCache.get(treeId));
+        for (Object key : trees.keySet()) {
+            if (!(key instanceof Integer treeId)) continue;
+
+
+            Map<String, Integer> levels = levelCache.get(treeId);
+            if (levels != null && !levels.isEmpty()) {
+                applyNodeLevels(treeId, levels);
             }
 
-            if (variantCache.containsKey(treeId)) {
+            Map<String, Integer> variants = variantCache.get(treeId);
+            if (variants != null && !variants.isEmpty()) {
                 applyVariantsToTree(treeId);
             }
         }
     }
+
 }

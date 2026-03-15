@@ -63,13 +63,61 @@ public final class SkillTreeRenderer {
             this.displayName = displayName;
         }
     }
+    public static void clearAllCaches() {
+        System.out.println("[DamageCore] SkillTreeRenderer.clearAllCaches() called");
 
+        // 1) Сначала сбросим состояния нод (level, selectedOption) чтобы UI точно не показывал старые значения
+        for (SkillTreeData tree : trees.values()) {
+            for (SkillTreeNode node : tree.nodes.values()) {
+                node.resetNode(); // должен обнулять level и selectedOption
+            }
+            tree.activeOptionsNodeId = null;
+            tree.offsetX = 0;
+            tree.offsetY = 0;
+            tree.scale = 1.0f;
+        }
+
+        // 2) Если есть клиентский кэш - почистим его (SkillTreeClientSync реализуй ниже)
+        try {
+            SkillTreeClientSync.clearCache();
+            System.out.println("[DamageCore] SkillTreeClientSync.clearCache() done");
+        } catch (Throwable t) {
+            System.out.println("[DamageCore] SkillTreeClientSync.clearCache() threw:");
+            t.printStackTrace();
+        }
+
+        // 3) Теперь окончательно удалим структуры (чтобы loadAllTrees мог перезагрузить их)
+        trees.clear();
+        fileNameToTabId.clear();
+        sortedFileNames.clear();
+
+        activeTreeId = 0;
+        treesLoaded = false;
+
+        System.out.println("[DamageCore] SkillTreeRenderer caches cleared (trees=" + trees.size() + ")");
+    }
+
+    public static void resetAllNodes() {
+        for (var treeEntry : trees.entrySet()) {
+            var tree = treeEntry.getValue();
+            for (var node : tree.nodes.values()) {
+                node.resetNode(); // сброс уровня, выбранного варианта
+            }
+        }
+    }
     // --- Работа с активным деревом ---
     private static SkillTreeData getCurrentTree() {
         return trees.computeIfAbsent(activeTreeId,
                 id -> new SkillTreeData("empty", "Empty Tree " + (activeTreeId + 1)));
     }
-
+    public static void clearLearnedData() {
+        for (SkillTreeData tree : trees.values()) {
+            for (SkillTreeNode node : tree.nodes.values()) {
+                node.resetNode(); // сбросить уровень, изученные варианты, флаги изучения
+            }
+            tree.activeOptionsNodeId = null;
+        }
+    }
     public static void setActiveTree(int tabId) {
         if (trees.containsKey(tabId)) activeTreeId = tabId;
     }
