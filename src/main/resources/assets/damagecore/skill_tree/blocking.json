@@ -12,6 +12,7 @@
       "id": "reliable_material",
       "item": "minecraft:redstone",
       "parents": ["shield_bearer"],
+      "lock": true,
       "gridX": 0,
       "gridY": 1
     },
@@ -19,6 +20,7 @@
       "id": "cornered",
       "item": "minecraft:arrow",
       "parents": ["reliable_material"],
+      "lock": true,
       "gridX": -2,
       "gridY": 3
     },
@@ -26,6 +28,8 @@
       "id": "second_wind",
       "item": "minecraft:crossbow",
       "parents": ["reliable_material"],
+      "lock": true,
+      "maxLevel": 3,
       "gridX": 2,
       "gridY": 3
     }
