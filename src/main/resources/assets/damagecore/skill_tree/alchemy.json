@@ -6,8 +6,7 @@
       "item": "minecraft:cauldron",
       "parents": ["start"],
       "gridX": 0,
-      "gridY": 0,
-      "requiredTreeLevel": 2
+      "gridY": 0
     },
     {
       "id": "swift_brewing",
@@ -16,7 +15,8 @@
       "lock": true,
       "gridX": -2,
       "gridY": 2,
-      "maxLevel": 3
+      "maxLevel": 3,
+      "requiredTreeLevel": 2
     },
     {
       "id": "potion_master",
