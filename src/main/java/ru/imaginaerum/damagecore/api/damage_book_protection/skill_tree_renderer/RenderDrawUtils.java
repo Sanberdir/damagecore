@@ -341,7 +341,6 @@ public class RenderDrawUtils {
                 y += tileH;
             }
         }
-        // Note: right corners intentionally not drawn for partial progress (same as original).
     }
 
     public static void drawNodeDimmed(GuiGraphics gui, SkillTreeNode n) {

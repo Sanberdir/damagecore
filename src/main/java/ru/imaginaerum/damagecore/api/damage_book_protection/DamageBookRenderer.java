@@ -20,7 +20,6 @@ public final class DamageBookRenderer {
 
     public static final int TAB_WIDTH = 150;
 
-    public static final int XP_PER_LEVEL = 3;
     private static final Map<Integer, Integer> TREE_XP = new HashMap<>();
     private static final Map<Integer, Integer> TREE_LEVEL = new HashMap<>();
     private static final int BASE_XP_PER_LEVEL = 3; // Можно настроить

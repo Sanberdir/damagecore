@@ -77,6 +77,13 @@
 
   "item.damagecore.birch_leaf": "Лист берёзы",
   "item.damagecore.heavy_belt": "Тяжёлый пояс",
+  "item.damagecore.golden_ring": "Золотое кольцо",
+  "item.damagecore.bandage": "Бинт",
+  "item.damagecore.decorated_leather_belt": "Декоративный кожаный пояс",
+  "item.damagecore.golden_amulet": "Золотой амулет",
+  "item.damagecore.potion_bag": "Сумка для зелий",
+  "item.damagecore.travel_bag": "Походная сумка",
+  "item.damagecore.potion_belt": "Пояс для зелий",
   "item.damagecore.chlorophilosynthetic_belt": "Хлорофилосинтезный пояс",
   "item.damagecore.scarlet_stapler_ring": "Кольцо Алого Сшивателя"
 }

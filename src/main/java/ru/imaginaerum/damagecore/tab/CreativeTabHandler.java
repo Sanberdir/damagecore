@@ -39,6 +39,41 @@ public class CreativeTabHandler {
                     DCItems.HEAVY_BELT.get().getDefaultInstance(),
                     CreativeModeTab.TabVisibility.PARENT_AND_SEARCH_TABS
             );
+            event.getEntries().putBefore(
+                    DCItems.HEAVY_BELT.get().getDefaultInstance(),
+                    DCItems.GOLDEN_RING.get().getDefaultInstance(),
+                    CreativeModeTab.TabVisibility.PARENT_AND_SEARCH_TABS
+            );
+            event.getEntries().putBefore(
+                    DCItems.GOLDEN_RING.get().getDefaultInstance(),
+                    DCItems.BANDAGE.get().getDefaultInstance(),
+                    CreativeModeTab.TabVisibility.PARENT_AND_SEARCH_TABS
+            );
+            event.getEntries().putBefore(
+                    DCItems.BANDAGE.get().getDefaultInstance(),
+                    DCItems.DECORATED_LEATHER_BELT.get().getDefaultInstance(),
+                    CreativeModeTab.TabVisibility.PARENT_AND_SEARCH_TABS
+            );
+            event.getEntries().putBefore(
+                    DCItems.DECORATED_LEATHER_BELT.get().getDefaultInstance(),
+                    DCItems.GOLDEN_AMULET.get().getDefaultInstance(),
+                    CreativeModeTab.TabVisibility.PARENT_AND_SEARCH_TABS
+            );
+            event.getEntries().putBefore(
+                    DCItems.GOLDEN_AMULET.get().getDefaultInstance(),
+                    DCItems.POTION_BAG.get().getDefaultInstance(),
+                    CreativeModeTab.TabVisibility.PARENT_AND_SEARCH_TABS
+            );
+            event.getEntries().putBefore(
+                    DCItems.POTION_BAG.get().getDefaultInstance(),
+                    DCItems.POTION_BELT.get().getDefaultInstance(),
+                    CreativeModeTab.TabVisibility.PARENT_AND_SEARCH_TABS
+            );
+            event.getEntries().putBefore(
+                    DCItems.POTION_BELT.get().getDefaultInstance(),
+                    DCItems.TRAVEL_BAG.get().getDefaultInstance(),
+                    CreativeModeTab.TabVisibility.PARENT_AND_SEARCH_TABS
+            );
         }
     }
 }

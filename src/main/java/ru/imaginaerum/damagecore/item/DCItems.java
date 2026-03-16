@@ -18,6 +18,20 @@ public class DCItems {
             () -> new ScarletStaplerRing(new Item.Properties().stacksTo(1).rarity(Rarity.UNCOMMON)));
     public static final RegistryObject<Item> HEAVY_BELT = ITEMS.register("heavy_belt",
             () -> new Item(new Item.Properties()));
+    public static final RegistryObject<Item> GOLDEN_RING = ITEMS.register("golden_ring",
+            () -> new Item(new Item.Properties()));
+    public static final RegistryObject<Item> BANDAGE = ITEMS.register("bandage",
+            () -> new Item(new Item.Properties()));
+    public static final RegistryObject<Item> DECORATED_LEATHER_BELT = ITEMS.register("decorated_leather_belt",
+            () -> new Item(new Item.Properties()));
+    public static final RegistryObject<Item> GOLDEN_AMULET = ITEMS.register("golden_amulet",
+            () -> new Item(new Item.Properties()));
+    public static final RegistryObject<Item> POTION_BAG = ITEMS.register("potion_bag",
+            () -> new Item(new Item.Properties()));
+    public static final RegistryObject<Item> POTION_BELT = ITEMS.register("potion_belt",
+            () -> new Item(new Item.Properties()));
+    public static final RegistryObject<Item> TRAVEL_BAG = ITEMS.register("travel_bag",
+            () -> new Item(new Item.Properties()));
     public static final RegistryObject<Item> CHLOROPHILOSYNTHETIC_BELT = ITEMS.register("chlorophilosynthetic_belt",
             () -> new Item(new Item.Properties()));
 }
