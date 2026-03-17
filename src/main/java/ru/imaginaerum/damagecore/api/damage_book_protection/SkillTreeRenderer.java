@@ -33,6 +33,9 @@ public final class SkillTreeRenderer {
     private static final float MAX_SCALE = 2.0f;
     private static final float ZOOM_STEP = 0.1f;
 
+    private static long lastClickTime = 0;
+    private static final long DOUBLE_CLICK_MS = 300;
+
     private static final Map<Integer, SkillTreeData> trees = new ConcurrentHashMap<>();
     private static final Map<String, Integer> fileNameToTabId = new HashMap<>();
     private static List<String> sortedFileNames = new ArrayList<>();
@@ -327,8 +330,27 @@ public final class SkillTreeRenderer {
 
         for (SkillTreeNode node : tree.nodes.values()) {
             if (node.containsPoint(unscaledX, unscaledY)) {
-                if (button==0) { tree.isDragging=true; tree.dragStartX=mouseX; tree.dragStartY=mouseY; tree.dragStartOffsetX=tree.offsetX; tree.dragStartOffsetY=tree.offsetY; }
-                if (!node.isLearned() && node.options!=null && !node.options.isEmpty()) { openOptionsForNode(tree,node); }
+                if (button==0) {
+                    tree.isDragging=true;
+                    tree.dragStartX=mouseX;
+                    tree.dragStartY=mouseY;
+                    tree.dragStartOffsetX=tree.offsetX;
+                    tree.dragStartOffsetY=tree.offsetY;
+                }
+
+                // ИСПРАВЛЕНИЕ: двойной клик для открытия/закрытия опций
+                if (!node.isLearned() && node.options!=null && !node.options.isEmpty()) {
+                    long now = System.currentTimeMillis();
+                    if (now - lastClickTime < DOUBLE_CLICK_MS) {
+                        // Двойной клик - переключаем видимость опций
+                        if (tree.activeOptionsNodeId != null && tree.activeOptionsNodeId.equals(node.id)) {
+                            closeOptions(tree);
+                        } else {
+                            openOptionsForNode(tree, node);
+                        }
+                    }
+                    lastClickTime = now;
+                }
                 return true;
             }
         }

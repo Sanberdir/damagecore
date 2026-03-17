@@ -550,20 +550,9 @@ public class RenderDrawUtils {
         boolean hovered = n.containsPoint(mouseX, mouseY);
 
         int innerColor;
-        boolean blockedByXp = !canLearn;
-        boolean blockedByTreeLevel = n.blockedByTreeLevel;
-
-        if ((blockedByXp || blockedByTreeLevel) && hovered) {
-            int blink = (int)((System.currentTimeMillis() / 300) % 2);
-            if (blink == 0) {
-                gui.fill(innerLeft, innerTop, innerRight, innerBottom, 0xAAFF5555);
-            } else {
-                gui.fill(innerLeft, innerTop, innerRight, innerBottom, 0xAA000000);
-            }
-        } else {
-            innerColor = hovered ? (n.locked ? 0xFF444444 : 0xAAFFFFFF) : 0xFF777777;
+            innerColor = hovered ? (n.locked ? 0xFF444444 : 0xFFDDDDDD) : 0xFF777777;
             gui.fill(innerLeft, innerTop, innerRight, innerBottom, innerColor);
-        }
+
 
         int itemX = n.x + (frameSize - ITEM_SIZE)/2, itemY = n.y + (frameSize - ITEM_SIZE)/2;
         gui.renderItem(n.itemStack, itemX, itemY);

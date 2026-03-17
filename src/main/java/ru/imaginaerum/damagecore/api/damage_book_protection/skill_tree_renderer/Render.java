@@ -142,7 +142,13 @@ public class Render {
             currentHoveredNode = null;
             return;
         }
-
+        if (currentHoveredNode.variants != null && !currentHoveredNode.variants.isEmpty()
+                && currentHoveredNode.selectedOption == -1) {
+            // Показываем подсказку, что нужно выбрать вариант
+            mousePressTime = 0L;
+            currentHoveredNode = null;
+            return;
+        }
         Object treeObj = invokePrivateGetCurrentTree();
         if (treeObj == null) return;
 
@@ -344,7 +350,7 @@ public class Render {
 
                     int childLevel = (levels != null) ? levels.getOrDefault(child.id, child.level) : child.level;
 
-                    if (childLevel >= child.maxLevel) {
+                    if (childLevel >= 1) {  // Изучена хотя бы 1 раз
                         color = LINE_COLOR_LEARNED;
                     } else if (child.locked) {
                         color = LINE_COLOR_LOCKED;
@@ -410,20 +416,25 @@ public class Render {
             pose.scale(scale, scale, 1f);
             pose.translate(-pivotX, -pivotY, 0);
 
+            // В Render.render(), секция отрисовки узлов - ИСПРАВЛЕННЫЙ КОД
             for (SkillTreeNode n : nodes.values()) {
-                // Пропускаем hovered узел (если он есть и варианты закрыты)
-                if (!optionsOpen && n == hoveredNode) continue;
+                boolean isActiveNode = optionsOpen && activeOptionsNodeId != null && activeOptionsNodeId.equals(n.id);
 
-                if (optionsOpen) {
-                    // При открытых вариантах все узлы рисуются затемненными
+                // Для активного узла - всегда затемненный, без эффектов
+                if (isActiveNode) {
                     RenderDrawUtils.drawNodeDimmed(gui, n);
-                } else {
-                    // При закрытых вариантах - обычная отрисовка
+                }
+                // Для неактивных узлов при открытых опциях - тоже затемненные
+                else if (optionsOpen) {
+                    RenderDrawUtils.drawNodeDimmed(gui, n);
+                }
+                // Для закрытых опций - обычная отрисовка (кроме hovered, который рисуется позже)
+                else if (n != hoveredNode) {
                     RenderDrawUtils.drawNode(gui, n, unscaledMouseX, unscaledMouseY);
                 }
 
-                // Рисуем опции для активного узла (если они открыты)
-                if (optionsOpen && activeOptionsNodeId != null && activeOptionsNodeId.equals(n.id)) {
+                // Рисуем опции для активного узла
+                if (isActiveNode) {
                     RenderDrawUtils.OptionHoverInfo hi = RenderDrawUtils.drawOptions(gui, n, treeObj, unscaledMouseX, unscaledMouseY, false);
                     if (hi != null) hoveredOption = hi;
                 }
