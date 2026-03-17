@@ -509,33 +509,56 @@ public class RenderDrawUtils {
     }
 
     // new: accepts canLearn - if false and hovered -> blink red (same effect as XP-fail)
+    // В классе RenderDrawUtils, метод drawNode (примерно строка 244)
+
     public static void drawNode(GuiGraphics gui, SkillTreeNode n, int mouseX, int mouseY, boolean canLearn) {
         int frameSize = SkillTreeNode.FRAME_SIZE, padding = SkillTreeNode.FRAME_PADDING, ITEM_SIZE = 16;
         PoseStack pose = gui.pose();
         pose.pushPose();
         pose.translate(0,0,Z_NODE);
 
-        gui.fill(n.x, n.y, n.x + frameSize, n.y + frameSize, 0xFF333333);
-        boolean hovered = n.containsPoint(mouseX, mouseY);
+        // Определяем цвет рамки (внешней обводки) в зависимости от состояния узла
+        int borderColor;
+        // СНАЧАЛА проверяем наличие вариантов (они имеют приоритет)
+        if (n.variants != null && !n.variants.isEmpty()) {
+            borderColor = 0xFFFFFF66; // Желтый (как заголовок узла с вариантами) - даже если изучен
+        } else if (n.isLearned()) {
+            borderColor = 0xFF66FF66; // Ярко-зеленый (как изученный заголовок)
+        } else if (n.locked) {
+            borderColor = 0xFF333333; // Темно-серый для заблокированных
+        } else {
+            borderColor = 0xFFDDDDDD; // Светло-серый/белый для доступных (как обычный заголовок)
+        }
 
+        // Рисуем внешнюю рамку цветом состояния
+        int borderThickness = 3;
+        // Верх
+        gui.fill(n.x, n.y, n.x + frameSize, n.y + borderThickness, borderColor);
+        // Низ
+        gui.fill(n.x, n.y + frameSize - borderThickness, n.x + frameSize, n.y + frameSize, borderColor);
+        // Лево
+        gui.fill(n.x, n.y + borderThickness, n.x + borderThickness, n.y + frameSize - borderThickness, borderColor);
+        // Право
+        gui.fill(n.x + frameSize - borderThickness, n.y + borderThickness, n.x + frameSize, n.y + frameSize - borderThickness, borderColor);
+
+        // Внутренняя заливка (немного темнее для контраста)
         int innerLeft = n.x + padding;
         int innerTop = n.y + padding;
         int innerRight = n.x + frameSize - padding;
         int innerBottom = n.y + frameSize - padding;
 
-        int innerColor;
+        boolean hovered = n.containsPoint(mouseX, mouseY);
 
-        // if tree-XP missing (canLearn == false) and hovered -> blinking red (like player XP fail)
-        boolean blockedByXp = !canLearn; // недостаток опыта игрока
-        boolean blockedByTreeLevel = n.blockedByTreeLevel; // недостаток уровня вкладки
+        int innerColor;
+        boolean blockedByXp = !canLearn;
+        boolean blockedByTreeLevel = n.blockedByTreeLevel;
 
         if ((blockedByXp || blockedByTreeLevel) && hovered) {
-            // Красное мигание для любого типа блокировки
             int blink = (int)((System.currentTimeMillis() / 300) % 2);
             if (blink == 0) {
-                gui.fill(innerLeft, innerTop, innerRight, innerBottom, 0xAAFF5555); // красный
+                gui.fill(innerLeft, innerTop, innerRight, innerBottom, 0xAAFF5555);
             } else {
-                gui.fill(innerLeft, innerTop, innerRight, innerBottom, 0xAA000000); // черный
+                gui.fill(innerLeft, innerTop, innerRight, innerBottom, 0xAA000000);
             }
         } else {
             innerColor = hovered ? (n.locked ? 0xFF444444 : 0xAAFFFFFF) : 0xFF777777;
