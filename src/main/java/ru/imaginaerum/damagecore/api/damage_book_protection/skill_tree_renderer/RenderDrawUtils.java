@@ -523,7 +523,7 @@ public class RenderDrawUtils {
         if (n.variants != null && !n.variants.isEmpty()) {
             borderColor = 0xFFFFFF66; // Желтый (как заголовок узла с вариантами) - даже если изучен
         } else if (n.isLearned()) {
-            borderColor = 0xFF66FF66; // Ярко-зеленый (как изученный заголовок)
+            borderColor = 0xFF95E674; // лесной (как изученный заголовок)
         } else if (n.locked) {
             borderColor = 0xFF333333; // Темно-серый для заблокированных
         } else {

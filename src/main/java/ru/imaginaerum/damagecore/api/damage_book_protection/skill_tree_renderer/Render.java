@@ -39,7 +39,7 @@ public class Render {
 
     private static final int LINE_COLOR_LOCKED = 0xFF222222; // тёмно-серый
     private static final int LINE_COLOR_LEARNABLE = 0xFFDDDDDD; // светло-серый / белый
-    private static final int LINE_COLOR_LEARNED = 0xFF66FF66; // светло-зелёный (салатовый)
+    private static final int LINE_COLOR_LEARNED = 0xFF95E674; // светло-зелёный (салатовый)
     public static void triggerXpFailFlash(SkillTreeNode node) {
         node.xpFailFlashUntil = System.currentTimeMillis() + FAIL_FLASH_DURATION;
     }
