@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import ru.imaginaerum.damagecore.api.implementation_skills.AlchemyXpHandler;
+import ru.imaginaerum.damagecore.api.implementation_skills.alchemy.AlchemyXpHandler;
 
 @Mixin(BrewingStandMenu.class)
 public class BrewingStandMixin {

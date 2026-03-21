@@ -1,4 +1,4 @@
-package ru.imaginaerum.damagecore.api.implementation_skills;
+package ru.imaginaerum.damagecore.api.implementation_skills.alchemy;
 
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.inventory.BrewingStandMenu;

@@ -25,7 +25,19 @@ public final class SkillTreeServerHandler {
     private static final String XP_KEY = "tree_xp";
     private static final String LEVEL_KEY = "tree_level";
     private static final String NODE_LEVEL_PREFIX = "node_level_";
+    public static boolean isNodeLearned(ServerPlayer player, String nodeId) {
+        if (player == null || nodeId == null) return false;
 
+        Map<Integer, Object> trees = getTreesMap();
+        for (Map.Entry<Integer, Object> entry : trees.entrySet()) {
+            int treeId = entry.getKey();
+            Map<String, Integer> levels = getNodeLevels(player, treeId);
+            if (levels.getOrDefault(nodeId, 0) > 0) {
+                return true;
+            }
+        }
+        return false;
+    }
     private SkillTreeServerHandler() {}
     private static Map<String, Integer> getNodeLevels(ServerPlayer player, int treeId) {
         CompoundTag persisted = player.getPersistentData().getCompound(Player.PERSISTED_NBT_TAG);
