@@ -4,6 +4,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.network.NetworkDirection;
 import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.simple.SimpleChannel;
+import ru.imaginaerum.damagecore.api.damage_book_protection.node_variant.SelectNodeVariantPacket;
 import ru.imaginaerum.damagecore.api.damage_book_protection.node_variant.SelectVariantPacket;
 import ru.imaginaerum.damagecore.api.damage_book_protection.node_variant.SyncNodeVariantsPacket;
 import ru.imaginaerum.damagecore.events_tree.SyncTreeXpPacket;
@@ -36,12 +37,18 @@ public final class ModNetwork {
                 SyncNodeLevelsPacket::decode,
                 SyncNodeLevelsPacket::handle,
                 Optional.of(NetworkDirection.PLAY_TO_CLIENT));
+        CHANNEL.registerMessage(id++, SyncNodeVariantsPacket.class,
+                SyncNodeVariantsPacket::encode,
+                SyncNodeVariantsPacket::decode,
+                SyncNodeVariantsPacket::handle,
+                Optional.of(NetworkDirection.PLAY_TO_CLIENT)
+        );
         CHANNEL.registerMessage(
-                packetId++,
-                SelectVariantPacket.class,
-                SelectVariantPacket::encode,
-                SelectVariantPacket::decode,
-                SelectVariantPacket::handle
+                id++,
+                SelectNodeVariantPacket.class,
+                SelectNodeVariantPacket::encode,
+                SelectNodeVariantPacket::decode,
+                SelectNodeVariantPacket::handle
         );
         CHANNEL.registerMessage(id++,
                 SyncTreeXpPacket.class,

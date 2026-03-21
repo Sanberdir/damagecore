@@ -1,0 +1,25 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "show_notification": true,
+  "group": "damage core",
+  "pattern": [
+    " G ",
+    "LTL",
+    " G "
+  ],
+  "key": {
+    "T": {
+      "item": "damagecore:travel_bag"
+    },
+    "G": {
+      "item": "minecraft:glass_bottle"
+    },
+    "L": {
+      "item": "minecraft:leather"
+    }
+  },
+  "result": {
+    "item": "damagecore:potion_bag",
+    "count": 1
+  }
+}

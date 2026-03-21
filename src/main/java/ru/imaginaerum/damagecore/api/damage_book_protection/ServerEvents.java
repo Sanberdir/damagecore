@@ -10,15 +10,11 @@ import ru.imaginaerum.damagecore.events_tree.SkillTreeXpManager;
 public class ServerEvents {
     @SubscribeEvent
     public static void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {
-        if (event.getEntity() instanceof ServerPlayer sp) {
-            System.out.println("Player logged in, sending full sync");
+        if (!(event.getEntity() instanceof ServerPlayer player)) return;
 
-            // Загружаем XP из persistentData
-            SkillTreeXpManager.loadFromPersistentData(sp);
-
-            // Отправляем изученные узлы и варианты
-            SkillTreeServerHandler.sendFullSyncToPlayer(sp);
-        }
+        player.server.execute(() -> {
+            SkillTreeServerHandler.sendFullSyncToPlayer(player);
+        });
     }
 
     @SubscribeEvent

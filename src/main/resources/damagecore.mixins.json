@@ -15,6 +15,7 @@
     "AbstractContainerScreenMixin",
     "InventoryScreenMixin",
     "ScreenInvoker",
+    "event_trees.BrewingStandMixin",
     "effects_mixins.LivingEntityMixin",
     "enchanted.LivingEntityMagicAbsorbMixin",
     "enchanted.LivingEntityFallMagicAbsorbMixin",

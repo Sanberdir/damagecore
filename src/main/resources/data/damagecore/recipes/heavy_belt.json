@@ -1,0 +1,22 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "show_notification": true,
+  "group": "damage core",
+  "pattern": [
+    " I ",
+    "IDI",
+    " I "
+  ],
+  "key": {
+    "I": {
+      "item": "minecraft:iron_ingot"
+    },
+    "D": {
+      "item": "damagecore:decorated_leather_belt"
+    }
+  },
+  "result": {
+    "item": "damagecore:heavy_belt",
+    "count": 1
+  }
+}

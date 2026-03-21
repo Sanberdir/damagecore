@@ -2,7 +2,6 @@ package ru.imaginaerum.damagecore.mixin;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.gui.components.ImageButton;
@@ -196,7 +195,6 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
 
         // Запрашиваем синхронизацию только один раз
         if (Minecraft.getInstance().player != null && !ClientSyncState.syncRequested) {
-            System.out.println("Requesting full sync from server after tree load");
             ModNetwork.CHANNEL.sendToServer(new RequestFullSyncPacket());
             ClientSyncState.syncRequested = true;
         }

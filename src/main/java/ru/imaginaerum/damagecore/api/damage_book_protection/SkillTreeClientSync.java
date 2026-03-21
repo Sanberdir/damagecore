@@ -222,22 +222,22 @@ public final class SkillTreeClientSync {
      */
     public static void applyVariants(int treeId, Map<String, Integer> variants) {
         if (variants == null || variants.isEmpty()) return;
+
         variantCache.put(treeId, new HashMap<>(variants));
 
         Object treeObj = getTreesMap().get(treeId);
-        if (treeObj == null) {
-            // will apply when tree loads
-            return;
+        System.out.println("[Client] ApplyVariants tree=" + treeId + " " + variants);
+        // если дерево уже есть — применяем сразу
+        if (treeObj != null) {
+            applyVariantsToTree(treeId);
         }
-
-        applyVariantsToTree(treeId);
     }
 
     // internal: apply cached variants to a loaded tree
     private static void applyVariantsToTree(int treeId) {
         Map<String,Integer> variants = variantCache.get(treeId);
         if (variants == null || variants.isEmpty()) return;
-
+        System.out.println("[Client] Applying to loaded tree " + treeId);
         Object treeObj = getTreesMap().get(treeId);
         if (treeObj == null) return;
 

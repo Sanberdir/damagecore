@@ -15,8 +15,8 @@
       "lock": true,
       "gridX": -2,
       "gridY": 2,
-      "maxLevel": 3,
-      "requiredTreeLevel": 2
+      "maxLevel": 3
+
     },
     {
       "id": "potion_master",
@@ -25,7 +25,8 @@
       "lock": true,
       "gridX": 2,
       "gridY": 2,
-      "maxLevel": 5
+      "maxLevel": 5,
+      "requiredTreeLevel": 2
     },
     {
       "id": "adept_insight",

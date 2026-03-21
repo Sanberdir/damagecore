@@ -111,25 +111,38 @@ public final class SkillTreeServerHandler {
     // ------------------------------
     public static void saveNodeVariant(ServerPlayer player, SkillTreeNode node, int treeId) {
         if (player == null || node == null) return;
-        System.out.println("Saving variant for node " + node.id + " = " + node.selectedOption);
-        CompoundTag persisted = player.getPersistentData().getCompound(Player.PERSISTED_NBT_TAG);
-        player.getPersistentData().put(Player.PERSISTED_NBT_TAG, persisted);
+        System.out.println("!!! SAVE VARIANT CALLED !!!");
+        CompoundTag root = player.getPersistentData();
 
+        // 1. persisted
+        CompoundTag persisted = root.getCompound(Player.PERSISTED_NBT_TAG);
+        if (!root.contains(Player.PERSISTED_NBT_TAG)) {
+            root.put(Player.PERSISTED_NBT_TAG, persisted);
+        }
+
+        // 2. mod
         CompoundTag mod = persisted.getCompound(ROOT_KEY);
-        persisted.put(ROOT_KEY, mod);
+        if (!persisted.contains(ROOT_KEY)) {
+            persisted.put(ROOT_KEY, mod);
+        }
 
+        // 3. tree
         CompoundTag treeTag = mod.getCompound("tree_" + treeId);
-        mod.put("tree_" + treeId, treeTag);
+        if (!mod.contains("tree_" + treeId)) {
+            mod.put("tree_" + treeId, treeTag);
+        }
 
+        // 4. SAVE
         treeTag.putInt("node_variant_" + node.id, node.selectedOption);
 
-        player.getPersistentData().put(Player.PERSISTED_NBT_TAG, persisted);
+        // ❗ КРИТИЧНО: вернуть всё обратно вверх
+        mod.put("tree_" + treeId, treeTag);
+        persisted.put(ROOT_KEY, mod);
+        root.put(Player.PERSISTED_NBT_TAG, persisted);
+
+        System.out.println("[Server] Saved variant: " + node.id + " = " + node.selectedOption);
     }
 
-    // ------------------------------
-    // Изучение ноды
-    // ------------------------------
-    // Обновляем метод handleLearnRequest для проверки нескольких родителей
 
     public static void handleLearnRequest(ServerPlayer player, int treeId, String nodeId) {
         if (player == null || nodeId == null) return;
@@ -270,6 +283,7 @@ public final class SkillTreeServerHandler {
                 }
 
                 // --- варианты нод (как было) ---
+                // --- варианты нод ---
                 Map<String, Integer> variants = new HashMap<>();
                 for (String varKey : treeTag.getAllKeys()) {
                     if (varKey.startsWith("node_variant_")) {
@@ -277,6 +291,20 @@ public final class SkillTreeServerHandler {
                         variants.put(nodeId, treeTag.getInt(varKey));
                     }
                 }
+                System.out.println("[Server] Sending variants packet: " + variants);
+// 💥 ВАЖНО: применяем на сервере
+                Object treeObj = getTreeObject(treeId);
+                Map<String, SkillTreeNode> nodes = getNodesMap(treeObj);
+                if (nodes != null) {
+                    for (Map.Entry<String, Integer> entry : variants.entrySet()) {
+                        SkillTreeNode node = nodes.get(entry.getKey());
+                        if (node != null) {
+                            node.applyVariant(entry.getValue());
+                        }
+                    }
+                }
+
+// отправка клиенту
                 if (!variants.isEmpty()) {
                     ModNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
                             new SyncNodeVariantsPacket(treeId, variants));

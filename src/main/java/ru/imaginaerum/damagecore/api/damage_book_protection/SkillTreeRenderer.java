@@ -2,6 +2,7 @@ package ru.imaginaerum.damagecore.api.damage_book_protection;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.item.ItemStack;
+import ru.imaginaerum.damagecore.api.damage_book_protection.node_variant.SelectNodeVariantPacket;
 import ru.imaginaerum.damagecore.api.damage_book_protection.node_variant.SelectVariantPacket;
 
 import java.util.*;
@@ -318,16 +319,27 @@ public final class SkillTreeRenderer {
         int unscaledX = (int)((mouseX-pivotX)/tree.scale + pivotX);
         int unscaledY = (int)((mouseY-pivotY)/tree.scale + pivotY);
 
+
         if (tree.activeOptionsNodeId != null) {
             SkillTreeNode node = tree.nodes.get(tree.activeOptionsNodeId);
             if (node != null) {
                 int idx = optionIndexAtPoint(node, unscaledX, unscaledY, OPTION_SIZE);
-                if (idx >=0) { node.applyVariant(idx); try{ ModNetwork.CHANNEL.sendToServer(new SelectVariantPacket(activeTreeId,node.id,idx)); }catch(Throwable ignored){} }
+                if (idx >= 0) {
+                    node.applyVariant(idx); // применяем сразу на клиенте
+
+                    // Отправляем на сервер, чтобы сохранилось и синхронизировалось обратно
+                    try {
+                        ModNetwork.CHANNEL.sendToServer(new SelectNodeVariantPacket(
+                                activeTreeId,
+                                node.id,
+                                idx
+                        ));
+                    } catch (Throwable ignored) {}
+                }
             }
             closeOptions(tree);
             return true;
         }
-
         for (SkillTreeNode node : tree.nodes.values()) {
             if (node.containsPoint(unscaledX, unscaledY)) {
                 if (button==0) {

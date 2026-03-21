@@ -3,9 +3,12 @@ package ru.imaginaerum.damagecore.api.damage_book_protection.node_variant;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.network.NetworkEvent;
+import net.minecraftforge.network.PacketDistributor;
+import ru.imaginaerum.damagecore.api.damage_book_protection.ModNetwork;
 import ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeNode;
 import ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeServerHandler;
 
+import java.util.Map;
 import java.util.function.Supplier;
 
 public class SelectVariantPacket {
@@ -36,10 +39,14 @@ public class SelectVariantPacket {
 
             SkillTreeNode node = SkillTreeServerHandler.getNodeForPlayer(player, pkt.nodeId);
             if (node != null && pkt.variantIndex >= 0 && pkt.variantIndex < node.options.size()) {
-                node.applyVariant(pkt.variantIndex);
 
-                // Теперь передаём treeId
+                node.applyVariant(pkt.variantIndex);
                 SkillTreeServerHandler.saveNodeVariant(player, node, pkt.treeId);
+
+                // 💥 Сразу синхронизируем клиент
+                ModNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
+                        new SyncNodeVariantsPacket(pkt.treeId,
+                                Map.of(node.id, node.selectedOption)));
             }
         });
         ctx.get().setPacketHandled(true);
