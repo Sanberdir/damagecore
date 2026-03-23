@@ -1,6 +1,7 @@
 package ru.imaginaerum.damagecore.api.implementation_skills.alchemy;
 
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.effect.MobEffectCategory;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.projectile.ThrownPotion;
@@ -61,7 +62,10 @@ public class AdeptInsightEvent {
         // Только обычные/длительные зелья с баффами
         if (!stack.isEmpty() && PotionUtils.getPotion(stack) != Potions.EMPTY) {
             for (MobEffectInstance effect : PotionUtils.getMobEffects(stack)) {
-                if (effect.getDuration() <= 0) continue; // instant эффекты пропускаем
+                if (effect.getDuration() <= 0) continue;
+
+                // Проверяем, что эффект полезный (BENEFICIAL), а не HARMFUL или NEUTRAL
+                if (effect.getEffect().getCategory() != MobEffectCategory.BENEFICIAL) continue;
 
                 MobEffectInstance extended = new MobEffectInstance(
                         effect.getEffect(),
