@@ -59,11 +59,6 @@ public class StaminaControlHandler {
             // Стамина в норме - восстанавливаем скорость
             speedAttribute.setBaseValue(originalSpeed);
         }
-
-        // Визуальный эффект (можно раскомментировать при наличии нужных методов)
-        // if (currentStamina < STAMINA_LOW && player.level().isClientSide()) {
-        //     applyVisualEffect(player, currentStamina);
-        // }
     }
 
     // Опционально: метод для сброса скорости при выходе из игры
