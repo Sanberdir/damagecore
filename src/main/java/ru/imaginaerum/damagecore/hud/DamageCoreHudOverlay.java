@@ -66,11 +66,19 @@ public class DamageCoreHudOverlay {
         boolean sprinting = mc.player.isSprinting();
         boolean moving = mc.player.zza != 0 || mc.player.xxa != 0;
 
-        if (sprinting && moving) {
-            // Бег - тратим стамину
-            stamina -= 0.1f;
+        // Проверка, находится ли игрок в лодке И движется ли лодка
+        boolean isInMovingBoat = false;
+        if (mc.player.getVehicle() instanceof net.minecraft.world.entity.vehicle.Boat boat) {
+            // Проверяем, движется ли лодка (есть горизонтальная скорость)
+            isInMovingBoat = boat.getDeltaMovement().horizontalDistanceSqr() > 0.001;
+        }
+
+        if ((sprinting && moving) || isInMovingBoat) {
+            // Бег или плавание на движущейся лодке - тратим стамину
+            float staminaCost = isInMovingBoat ? 0.03f : 0.1f; // Лодка тратит медленнее
+            stamina -= staminaCost;
         } else {
-            // Не бежим - восстанавливаем стамину
+            // Не тратим стамину - восстанавливаем
             if (moving) {
                 // Идём - медленное восстановление
                 stamina += 0.04f;

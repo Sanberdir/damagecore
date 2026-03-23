@@ -13,7 +13,6 @@ import ru.imaginaerum.damagecore.mixin.InventoryScreenMixin;
 public class ClientEvents {
     @SubscribeEvent
     public static void onClientLoggedIn(ClientPlayerNetworkEvent.LoggingIn event) {
-        System.out.println("[DamageCore] Client logged in — FULL RESET before requesting sync");
 
         // Полная очистка состояния (деревья + кэш)
         SkillTreeRenderer.clearAllCaches();      // очистит деревья и вызовет SkillTreeClientSync.clearCache()
@@ -26,13 +25,11 @@ public class ClientEvents {
         if (Minecraft.getInstance().player != null) {
             ModNetwork.CHANNEL.sendToServer(new RequestFullSyncPacket());
             ClientSyncState.syncRequested = true;
-            System.out.println("[DamageCore] RequestFullSyncPacket sent");
         }
     }
 
     @SubscribeEvent
     public static void onClientLoggedOut(ClientPlayerNetworkEvent.LoggingOut event) {
-        System.out.println("[DamageCore] Client logged out — clearing everything");
         SkillTreeRenderer.clearAllCaches();
         ClientSyncState.syncRequested = false;
     }

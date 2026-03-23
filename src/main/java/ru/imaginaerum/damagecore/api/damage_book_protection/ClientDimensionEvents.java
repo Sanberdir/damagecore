@@ -20,7 +20,5 @@ public class ClientDimensionEvents {
             ModNetwork.CHANNEL.sendToServer(new RequestFullSyncPacket());
             ClientSyncState.syncRequested = true;
         }
-
-        System.out.println("[DamageCore] Dimension changed — skill trees reset and sync requested");
     }
 }
