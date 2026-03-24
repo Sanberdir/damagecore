@@ -15,21 +15,16 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import ru.imaginaerum.damagecore.api.damage_book_protection.*;
-import ru.imaginaerum.damagecore.api.damage_book_protection.pages_book.RenderActiveEffects;
-import ru.imaginaerum.damagecore.api.damage_book_protection.pages_book.RenderDamageIconsAndTexts;
 import ru.imaginaerum.damagecore.api.damage_book_protection.skill_tree_renderer.Render;
 
 @Mixin(InventoryScreen.class)
 public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
-    private static final ResourceLocation DAMAGE_TYPE_BUTTON = new ResourceLocation("damagecore", "textures/gui/damage_type_button.png");
     private static final ResourceLocation SKILL_TREE_BUTTON = new ResourceLocation("damagecore", "textures/gui/skill_tree_button.png");
-    @Unique
-    private ImageButton damagecore$button;
+
     @Unique
     private ImageButton damagecore$recipeButton;
     @Unique
     private ImageButton damagecore$skillTreeButton;
-
     @Unique
     private static final int BUTTON_WIDTH = 20;
     @Unique
@@ -46,13 +41,14 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
     private int recipeButtonOffsetX = 0;
     @Unique
     private int recipeButtonOffsetY = 0;
-
     @Unique
     private int selectedSmall = 0;
+
     @Override
     public boolean damagecore$isSkillTreeVisible() {
         return this.skillTreeVisible;
     }
+
     // Клик по вкладкам внизу
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     private void damagecore$bottomTabsClick(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
@@ -61,11 +57,11 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
         AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
 
         int guiLeft = ((AbstractContainerScreenAccessor) screen).getLeftPos();
-        int guiTop  = ((AbstractContainerScreenAccessor) screen).getTopPos();
+        int guiTop = ((AbstractContainerScreenAccessor) screen).getTopPos();
         int imageWidth = ((AbstractContainerScreenAccessor) screen).damagecore$getImageWidth();
 
         int panelLeft = guiLeft + imageWidth + 2;
-        int panelTop  = guiTop;
+        int panelTop = guiTop;
 
         int PANEL_W = 289;
         int TAB_W = 28;
@@ -90,11 +86,11 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
             cir.setReturnValue(true);
         }
     }
+
     @Unique
     private boolean clickTab(double mx, double my, int x, int y, int w, int globalId) {
         if (!inside(mx, my, x, y - 3, w, 32)) return false;
 
-        // globalId уже глобальный (с учётом страницы)
         if (DamageBookRenderer.selectedBottomTab != globalId) {
             DamageBookRenderer.setBottomTab(globalId);
             SkillTreeRenderer.setActiveTree(globalId);
@@ -131,6 +127,7 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
         int globalRight = DamageBookRenderer.globalIdForSlot(slotRight);
         return SkillTreeRenderer.hasTreeForTab(globalRight) && clickTab(mx, my, panelLeft + panelW - tabW, y, tabW, globalRight);
     }
+
     // Проверка попадания мыши в прямоугольник
     private static boolean inside(double mx, double my, int x, int y, int w, int h) {
         return mx >= x && mx < x + w && my >= y && my < y + h;
@@ -151,21 +148,6 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
                 break;
             }
         }
-
-        this.damagecore$button = new ImageButton(
-                0, 0, BUTTON_WIDTH, BUTTON_HEIGHT, 0, 0, 19, DAMAGE_TYPE_BUTTON, btn -> {
-            InventoryScreen s = (InventoryScreen) (Object) this;
-            this.damageBookVisible = !this.damageBookVisible;
-
-            if (this.damageBookVisible) {
-                if (s.getRecipeBookComponent().isVisible()) {
-                    s.getRecipeBookComponent().toggleVisibility();
-                }
-                this.skillTreeVisible = false;
-            }
-
-            this.damagecore$updateInventoryPosition(s);
-        });
 
         this.damagecore$skillTreeButton = new ImageButton(
                 0, 0, BUTTON_WIDTH, BUTTON_HEIGHT, 0, 0, 19, SKILL_TREE_BUTTON, btn -> {
@@ -190,7 +172,6 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
             this.damagecore$updateInventoryPosition(s);
         });
 
-        ((ScreenInvoker) screen).damagecore$addRenderableWidget(this.damagecore$button);
         ((ScreenInvoker) screen).damagecore$addRenderableWidget(this.damagecore$skillTreeButton);
 
         // Запрашиваем синхронизацию только один раз
@@ -199,6 +180,7 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
             ClientSyncState.syncRequested = true;
         }
     }
+
     @Inject(method = "init", at = @At("HEAD"))
     private void damagecore$resetSyncFlagOnInit(CallbackInfo ci) {
         ClientSyncState.syncRequested = false;
@@ -230,7 +212,7 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
     @Inject(method = "renderBg", at = @At("TAIL"))
     private void damagecore$updateButtonPosition(GuiGraphics gui, float partialTicks, int mouseX, int mouseY, CallbackInfo ci) {
         InventoryScreen screen = (InventoryScreen) (Object) this;
-        if (this.damagecore$recipeButton == null || this.damagecore$button == null || this.damagecore$skillTreeButton == null) return;
+        if (this.damagecore$recipeButton == null || this.damagecore$skillTreeButton == null) return;
 
         int guiLeft = ((AbstractContainerScreenAccessor) screen).getLeftPos();
         int guiTop = ((AbstractContainerScreenAccessor) screen).getTopPos();
@@ -239,12 +221,8 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
         int newRecipeY = guiTop + this.recipeButtonOffsetY;
         this.damagecore$recipeButton.setPosition(newRecipeX, newRecipeY);
 
-        int buttonX = newRecipeX + this.damagecore$recipeButton.getWidth() + 2;
-        int buttonY = newRecipeY;
-        this.damagecore$button.setPosition(buttonX, buttonY);
-
-        int skillX = buttonX + this.damagecore$button.getWidth() + 2;
-        int skillY = buttonY;
+        int skillX = newRecipeX + this.damagecore$recipeButton.getWidth() + 2;
+        int skillY = newRecipeY;
         this.damagecore$skillTreeButton.setPosition(skillX, skillY);
     }
 
@@ -255,27 +233,7 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
         InventoryScreen screen = (InventoryScreen) (Object) this;
 
         int guiLeft = ((AbstractContainerScreenAccessor) screen).getLeftPos();
-        int guiTop  = ((AbstractContainerScreenAccessor) screen).getTopPos();
-
-        if (this.damageBookVisible) {
-            int tabX = guiLeft - TAB_WIDTH;
-            int tabY = guiTop;
-
-            DamageBookRenderer.renderMainTab(gui, screen, tabX, tabY);
-            DamageBookRenderer.renderSmallTabs(gui, screen, tabX, tabY, this.selectedSmall);
-
-            if (this.selectedSmall == 0) {
-                DamageBookStateCollector.ProtectionData protectionData =
-                        DamageBookStateCollector.collectProtectionData(Minecraft.getInstance().player);
-
-                RenderDamageIconsAndTexts.renderDamageIconsAndTexts(gui, tabX, tabY, protectionData, mouseX, mouseY);
-            } else if (this.selectedSmall == 1) {
-                DamageBookStateCollector.ProtectionData protectionData =
-                        DamageBookStateCollector.collectProtectionData(Minecraft.getInstance().player);
-
-                RenderActiveEffects.renderActiveEffects(gui, tabX, tabY, protectionData, mouseX, mouseY);
-            }
-        }
+        int guiTop = ((AbstractContainerScreenAccessor) screen).getTopPos();
 
         if (this.skillTreeVisible) {
             int imageWidth = ((AbstractContainerScreenAccessor) screen).damagecore$getImageWidth();
@@ -298,6 +256,7 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
 
         this.selectedSmall = DamageBookInputHandler.handleSmallTabsClick(mouseX, mouseY, screen, this.selectedSmall, tabX, tabY);
     }
+
     @Inject(method = "render", at = @At("TAIL"))
     private void damagecore$renderSkillTreeHold(GuiGraphics gui, int mouseX, int mouseY, float partialTicks, CallbackInfo ci) {
         if (!this.skillTreeVisible) return;
@@ -311,8 +270,8 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
         SkillTreeRenderer.mouseDragged((int) mouseX, (int) mouseY, 0, panelScreenX, panelScreenY);
 
         Render.currentHoveredNode = Render.getHoveredNodeUnderMouse(mouseX, mouseY);
-
     }
+
     // --- mousePressed (заменяет текущую реализацию) ---
     @Inject(method = "mouseClicked", at = @At("TAIL"), cancellable = true)
     private void damagecore$skillTree_mousePressed(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
@@ -321,7 +280,7 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
         InventoryScreen screen = (InventoryScreen) (Object) this;
 
         int guiLeft = ((AbstractContainerScreenAccessor) screen).getLeftPos();
-        int guiTop  = ((AbstractContainerScreenAccessor) screen).getTopPos();
+        int guiTop = ((AbstractContainerScreenAccessor) screen).getTopPos();
         int imageWidth = ((AbstractContainerScreenAccessor) screen).damagecore$getImageWidth();
 
         int panelScreenX = guiLeft + imageWidth + 2;

@@ -46,9 +46,6 @@ public final class DamageBookRenderer {
     // selectedBottomTab теперь хранит глобальный ID (index среди всех загруженных деревьев)
     public static int selectedBottomTab = 0;
 
-    private static final ResourceLocation DAMAGE_BOOK_TAB =
-            new ResourceLocation("damagecore", "textures/gui/container/creative_inventory/damage_book.png");
-
     private static final ResourceLocation DAMAGE_CORE_INTERFACE =
             new ResourceLocation("damagecore", "textures/gui/container/creative_inventory/damage_core_interface.png");
 
@@ -161,37 +158,7 @@ public final class DamageBookRenderer {
         return startX + i * (tabW + gap) + 1;
     }
 
-    // ---------- левая книга ----------
-    public static void renderMainTab(GuiGraphics gui, InventoryScreen screen, int tabX, int tabY) {
-        gui.blit(DAMAGE_BOOK_TAB, tabX, tabY - 1, 0, 0, TAB_WIDTH,
-                ((ru.imaginaerum.damagecore.mixin.AbstractContainerScreenAccessor) screen).damagecore$getImageHeight());
-    }
 
-    public static void renderSmallTabs(GuiGraphics gui, InventoryScreen screen, int tabX, int tabY, int selectedSmall) {
-        int[] smallYOffsets = {3, 30};
-
-        for (int i = 0; i < 2; i++) {
-            boolean active = (i == selectedSmall);
-            int renderX = tabX - 29 - (active ? 2 : 0);
-            int renderY = tabY + smallYOffsets[i];
-            int texX = active ? 188 : 153;
-            int width = active ? 35 : 30;
-
-            gui.blit(DAMAGE_BOOK_TAB, renderX, renderY, texX, 2, width, 26);
-
-            if (i == 0) {
-                ItemStack helm = new ItemStack(Items.NETHERITE_HELMET);
-                gui.renderItem(helm, renderX + (width - 16)/2, renderY + 5);
-            } else {
-                ItemStack bread = new ItemStack(Items.BREAD);
-                ItemStack potion = new ItemStack(Items.POTION);
-                PotionUtils.setPotion(potion, Potions.STRENGTH);
-
-                gui.renderItem(bread, renderX + 5, renderY + 5);
-                gui.renderItem(potion, renderX + 13, renderY + 5);
-            }
-        }
-    }
 
     // ---------- правая панель ----------
     public static void renderRightInterface(
