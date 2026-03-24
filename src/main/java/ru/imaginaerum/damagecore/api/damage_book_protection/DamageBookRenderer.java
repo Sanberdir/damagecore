@@ -223,7 +223,6 @@ public final class DamageBookRenderer {
         drawSideTab(gui, panelLeft, TOP_Y, TAB_W, globalIdForSlot(topLeft()), false, 89, 1, mouseX, mouseY);
         drawMiddleRow(gui, panelLeft, PANEL_W, TOP_Y, TAB_W, false, mouseX, mouseY);
         drawSideTab(gui, panelLeft + PANEL_W - TAB_W, TOP_Y, TAB_W, globalIdForSlot(topRight()), false, 145, 1, mouseX, mouseY);
-
         // стрелочки и индикатор страниц (если нужно)
         int totalTrees = SkillTreeRenderer.getTotalTrees();
         int pageCount = Math.max(1, (totalTrees + PAGE_SIZE - 1) / PAGE_SIZE);
