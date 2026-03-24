@@ -268,7 +268,6 @@ public class DamageCoreHudOverlay {
             }
         }
     }
-
     // ===== HP-полоска с растягиванием под health_boost =====
     private static void renderHealthAndAbsorptionBars(GuiGraphics gui, Minecraft mc) {
         float health = mc.player.getHealth();
