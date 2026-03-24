@@ -24,14 +24,15 @@ public class DamageCoreHudOverlay {
     private static final int STAMINA_TEXTURE_X = 38;
     private static final int STAMINA_TEXTURE_Y = 97;
     private static final int STAMINA_TEXTURE_EMPTY_Y = 193;
-
+    private static final int STAMINA_BASE_BAR_WIDTH = 52; // в 2 раза меньше 104
     // ===== MANA =====
-    private static float mana = 40f;
-    private static final float MAX_MANA = 40f;
     private static final int MANA_TEXTURE_X = 45;
     private static final int MANA_TEXTURE_Y = 89;
     private static final int MANA_TEXTURE_EMPTY_Y = 185;
+    private static float mana = 10f;
+    private static final float MAX_MANA = 10f;
 
+    private static final int MANA_BASE_BAR_WIDTH = 26;
     @SubscribeEvent
     public static void onRenderGui(RenderGuiEvent.Post event) {
         GuiGraphics gui = event.getGuiGraphics();
@@ -123,11 +124,149 @@ public class DamageCoreHudOverlay {
         if (stamina < 0) stamina = 0;
     }
     private static void renderStaminaBar(GuiGraphics gui) {
-        renderSimpleBar(gui, 38, 33, STAMINA_TEXTURE_X, STAMINA_TEXTURE_Y, STAMINA_TEXTURE_EMPTY_Y, stamina, MAX_STAMINA);
+        int barW = STAMINA_BASE_BAR_WIDTH;
+        int barH = 6;
+
+        int barX = 38;
+        int barY = 33;
+
+        int textureX = STAMINA_TEXTURE_X;
+        int textureYFull = STAMINA_TEXTURE_Y;
+        int textureYEmpty = STAMINA_TEXTURE_EMPTY_Y;
+
+        int filledWidth = Math.max(0, Math.min(barW, (int)(barW * stamina / MAX_STAMINA)));
+
+        int remaining = barW;
+        int drawX = barX;
+
+        // ===== ПУСТАЯ ПОЛОСКА (со скосами) =====
+        int leftSkew = Math.min(EDGE_WIDTH, remaining);
+        gui.blit(HUD_TEXTURE, drawX, barY, textureX, textureYEmpty, leftSkew, barH, 160, 208);
+        drawX += leftSkew;
+        remaining -= leftSkew;
+
+        if (remaining > EDGE_WIDTH) {
+            int mid = remaining - EDGE_WIDTH;
+            gui.blit(HUD_TEXTURE, drawX, barY, textureX + EDGE_WIDTH, textureYEmpty, mid, barH, 160, 208);
+            drawX += mid;
+            remaining -= mid;
+        }
+
+        if (remaining > 0) {
+            gui.blit(HUD_TEXTURE, drawX, barY,
+                    textureX + TEXTURE_BAR_WIDTH - EDGE_WIDTH,
+                    textureYEmpty,
+                    remaining, barH, 160, 208);
+        }
+
+        // ===== ЗАПОЛНЕНИЕ =====
+        if (filledWidth > 0) {
+            int fillX = barX;
+            int width = filledWidth;
+
+            // Левый скос
+            int left = Math.min(EDGE_WIDTH, width);
+            gui.blit(HUD_TEXTURE, fillX, barY,
+                    textureX, textureYFull,
+                    left, barH, 160, 208);
+
+            fillX += left;
+            width -= left;
+
+            // Середина
+            int middleMax = barW - EDGE_WIDTH * 2;
+            if (width > 0) {
+                int mid = Math.min(width, middleMax);
+                gui.blit(HUD_TEXTURE, fillX, barY,
+                        textureX + EDGE_WIDTH, textureYFull,
+                        mid, barH, 160, 208);
+
+                fillX += mid;
+                width -= mid;
+            }
+
+            // Правый скос
+            if (width > 0) {
+                int right = Math.min(width, EDGE_WIDTH);
+                gui.blit(HUD_TEXTURE, fillX, barY,
+                        textureX + TEXTURE_BAR_WIDTH - EDGE_WIDTH,
+                        textureYFull,
+                        right, barH, 160, 208);
+            }
+        }
     }
 
     private static void renderManaBar(GuiGraphics gui) {
-        renderSimpleBar(gui, 45, 25, MANA_TEXTURE_X, MANA_TEXTURE_Y, MANA_TEXTURE_EMPTY_Y, mana, MAX_MANA);
+        int barW = MANA_BASE_BAR_WIDTH;
+        int barH = 6;
+
+        int barX = 45;
+        int barY = 25;
+
+        int textureX = MANA_TEXTURE_X;
+        int textureYFull = MANA_TEXTURE_Y;
+        int textureYEmpty = MANA_TEXTURE_EMPTY_Y;
+
+        int filledWidth = Math.max(0, Math.min(barW, (int)(barW * mana / MAX_MANA)));
+
+        int remaining = barW;
+        int drawX = barX;
+
+        // ===== Пустая полоска =====
+        int leftSkew = Math.min(EDGE_WIDTH, remaining);
+        gui.blit(HUD_TEXTURE, drawX, barY, textureX, textureYEmpty, leftSkew, barH, 160, 208);
+        drawX += leftSkew;
+        remaining -= leftSkew;
+
+        if (remaining > EDGE_WIDTH) {
+            int mid = remaining - EDGE_WIDTH;
+            gui.blit(HUD_TEXTURE, drawX, barY, textureX + EDGE_WIDTH, textureYEmpty, mid, barH, 160, 208);
+            drawX += mid;
+            remaining -= mid;
+        }
+
+        if (remaining > 0) {
+            gui.blit(HUD_TEXTURE, drawX, barY,
+                    textureX + TEXTURE_BAR_WIDTH - EDGE_WIDTH,
+                    textureYEmpty,
+                    remaining, barH, 160, 208);
+        }
+
+        // ===== Заполнение =====
+        if (filledWidth > 0) {
+            int fillX = barX;
+            int width = filledWidth;
+
+            // Левый скос
+            int left = Math.min(EDGE_WIDTH, width);
+            gui.blit(HUD_TEXTURE, fillX, barY,
+                    textureX, textureYFull,
+                    left, barH, 160, 208);
+
+            fillX += left;
+            width -= left;
+
+            // Середина
+            int middleMax = barW - EDGE_WIDTH * 2;
+            if (width > 0) {
+                int mid = Math.min(width, middleMax);
+                gui.blit(HUD_TEXTURE, fillX, barY,
+                        textureX + EDGE_WIDTH, textureYFull,
+                        mid, barH, 160, 208);
+
+                fillX += mid;
+                width -= mid;
+            }
+
+            // Правый скос
+            if (width > 0) {
+                int right = Math.min(width, EDGE_WIDTH);
+                gui.blit(HUD_TEXTURE, fillX, barY,
+                        textureX + TEXTURE_BAR_WIDTH - EDGE_WIDTH,
+                        textureYFull,
+                        right, barH, 160, 208);
+            }
+        }
     }
 
     // ===== HP-полоска с растягиванием под health_boost =====
