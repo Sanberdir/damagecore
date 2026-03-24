@@ -276,8 +276,8 @@ public class DamageCoreHudOverlay {
         float absorption = mc.player.getAbsorptionAmount();
 
         int baseBarW = 52;
-        float baseMaxHealth = 20f; // стандартное здоровье
-        int barW = (int)(baseBarW * (maxHealth / baseMaxHealth)); // растягиваем под health_boost
+        float baseMaxHealth = 20f;
+        int barW = (int)(baseBarW * (maxHealth / baseMaxHealth));
         int barH = 6;
 
         int barX = 45;
@@ -338,51 +338,69 @@ public class DamageCoreHudOverlay {
                 width -= mid;
             }
 
-            // 3. Правый скос — заполняется постепенно (последние 6px)
-            // 3. Правый край
-            if (width > 0) {
+            // 3. Правый скос - рисуем только если нет жёлтой полоски
+            if (width > 0 && !hasAbsorption) {
                 int right = Math.min(width, EDGE_WIDTH);
-
-                if (hasAbsorption) {
-                    // Если есть absorption — используем середину вместо правого скоса
-                    gui.blit(HUD_TEXTURE, fillX, barY,
-                            textureX + EDGE_WIDTH,
-                            textureYHealth,
-                            right, barH, 160, 208);
-                } else {
-                    // Если absorption нет — обычный правый скос
-                    gui.blit(HUD_TEXTURE, fillX, barY,
-                            textureX + TEXTURE_BAR_WIDTH - EDGE_WIDTH,
-                            textureYHealth,
-                            right, barH, 160, 208);
-                }
+                gui.blit(HUD_TEXTURE, fillX, barY,
+                        textureX + TEXTURE_BAR_WIDTH - EDGE_WIDTH,
+                        textureYHealth,
+                        right, barH, 160, 208);
+            } else if (width > 0 && hasAbsorption) {
+                // Если есть жёлтая, то используем середину для последней части красной
+                gui.blit(HUD_TEXTURE, fillX, barY,
+                        textureX + EDGE_WIDTH,
+                        textureYHealth,
+                        width, barH, 160, 208);
             }
         }
 
         // ===== Жёлтая полоска (Absorption) =====
         if (hasAbsorption) {
-            boolean hasHealth = healthWidth > 0;
-            int goldX = hasHealth ? barX + healthWidth : barX;
+            int goldStartX = barX + healthWidth;
+            int barEnd = barX + barW;
+            int rightSkewStart = barEnd - EDGE_WIDTH;
 
-            remaining = absorptionWidth;
-            drawX = goldX;
+            int absorptionEnd = goldStartX + absorptionWidth;
 
-            if (!hasHealth && remaining > 0) {
-                leftSkew = Math.min(EDGE_WIDTH, remaining);
-                gui.blit(HUD_TEXTURE, drawX, barY, textureX, textureYAbsorption, leftSkew, barH, 160, 208);
-                drawX += leftSkew;
-                remaining -= leftSkew;
+            int leftLen = 0;
+            int rightLen = 0;
+
+            // Левый скос только если начинается с самого начала бара
+            if (goldStartX == barX) {
+                leftLen = Math.min(EDGE_WIDTH, absorptionWidth);
             }
 
-            if (remaining > EDGE_WIDTH) {
-                int mid = remaining - EDGE_WIDTH;
-                gui.blit(HUD_TEXTURE, drawX, barY, textureX + EDGE_WIDTH, textureYAbsorption, mid, barH, 160, 208);
-                drawX += mid;
-                remaining -= mid;
+            // Правый скос если доходим до конца бара
+            if (absorptionEnd > rightSkewStart) {
+                rightLen = Math.min(EDGE_WIDTH, absorptionEnd - rightSkewStart);
             }
 
-            if (remaining > 0) {
-                gui.blit(HUD_TEXTURE, drawX, barY, textureX + TEXTURE_BAR_WIDTH - EDGE_WIDTH, textureYAbsorption, remaining, barH, 160, 208);
+            int midLen = absorptionWidth - leftLen - rightLen;
+            if (midLen < 0) midLen = 0;
+
+            drawX = goldStartX;
+
+            // Левый
+            if (leftLen > 0) {
+                gui.blit(HUD_TEXTURE, drawX, barY,
+                        textureX, textureYAbsorption,
+                        leftLen, barH, 160, 208);
+                drawX += leftLen;
+            }
+
+            // Середина
+            if (midLen > 0) {
+                gui.blit(HUD_TEXTURE, drawX, barY,
+                        textureX + EDGE_WIDTH, textureYAbsorption,
+                        midLen, barH, 160, 208);
+                drawX += midLen;
+            }
+
+            // Правый скос
+            if (rightLen > 0) {
+                gui.blit(HUD_TEXTURE, drawX, barY,
+                        textureX + TEXTURE_BAR_WIDTH - EDGE_WIDTH, textureYAbsorption,
+                        rightLen, barH, 160, 208);
             }
         }
     }
