@@ -16,11 +16,18 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import ru.imaginaerum.damagecore.api.damage_book_protection.*;
 import ru.imaginaerum.damagecore.api.damage_book_protection.skill_tree_renderer.Render;
+import ru.imaginaerum.damagecore.api.damage_book_protection.stats_field.ArmorStatsFieldRenderer;
 
 @Mixin(InventoryScreen.class)
 public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
     private static final ResourceLocation SKILL_TREE_BUTTON = new ResourceLocation("damagecore", "textures/gui/skill_tree_button.png");
+    private static final ResourceLocation ARMOR_STATS = new ResourceLocation("damagecore", "textures/gui/armor_statistics.png");
+    @Unique
+    private static final ResourceLocation ARMOR_STATS_FIELD =
+            new ResourceLocation("damagecore", "textures/gui/container/creative_inventory/armor_statistic_field.png");
 
+    @Unique
+    private boolean armorStatsVisible = false;
     @Unique
     private ImageButton damagecore$recipeButton;
     @Unique
@@ -43,6 +50,32 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
     private int recipeButtonOffsetY = 0;
     @Unique
     private int selectedSmall = 0;
+
+
+    @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
+    private void damagecore$toggleArmorStats(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
+        if (button != 0) return;
+
+        InventoryScreen screen = (InventoryScreen)(Object)this;
+
+        if (ru.imaginaerum.damagecore.api.damage_book_protection.stats_field.ArmorStatsFieldRenderer
+                .isButtonHovered(mouseX, mouseY, screen)) {
+
+            this.armorStatsVisible = !this.armorStatsVisible;
+
+            Minecraft.getInstance().getSoundManager().play(
+                    SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F)
+            );
+
+            cir.setReturnValue(true);
+        }
+    }
+    @Inject(method = "render", at = @At("TAIL"))
+    private void damagecore$renderArmorStatsField(GuiGraphics gui, int mouseX, int mouseY, float partialTicks, CallbackInfo ci) {
+        if (!this.armorStatsVisible) return;
+        InventoryScreen screen = (InventoryScreen)(Object)this;
+        ArmorStatsFieldRenderer.render(gui, screen);
+    }
 
     @Override
     public boolean damagecore$isSkillTreeVisible() {
@@ -329,7 +362,29 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
             cir.setReturnValue(true);
         }
     }
+    @Inject(method = "render", at = @At("TAIL"))
+    private void damagecore$renderArmorStatsIcon(GuiGraphics gui, int mouseX, int mouseY, float partialTicks, CallbackInfo ci) {
+        InventoryScreen screen = (InventoryScreen)(Object)this;
 
+        int guiLeft = ((AbstractContainerScreenAccessor) screen).getLeftPos();
+        int guiTop = ((AbstractContainerScreenAccessor) screen).getTopPos();
+
+        int x = guiLeft + 62;
+        int y = guiTop + 10;
+
+        int iconW = 10;
+        int iconH = 9;
+
+        boolean hover =
+                mouseX >= x && mouseX < x + iconW &&
+                        mouseY >= y && mouseY < y + iconH;
+
+        if (hover) {
+            gui.blit(ARMOR_STATS, x, y, 0, 10, iconW, iconH, 10, 19);
+        } else {
+            gui.blit(ARMOR_STATS, x, y, 0, 0, iconW, iconH, 10, 19);
+        }
+    }
     @Unique
     private void damagecore$updateInventoryPosition(InventoryScreen screen) {
         DamageBookPositionHelper.updateInventoryPosition(screen, this.damageBookVisible, this.skillTreeVisible, TAB_WIDTH, RIGHT_INTERFACE_WIDTH);
