@@ -7,6 +7,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.ItemStack;
 import ru.imaginaerum.damagecore.library_damage.DamageType;
 import ru.imaginaerum.damagecore.libraty_effects.FoodProtectionCapability;
@@ -21,7 +22,7 @@ import java.util.Set;
 public final class ArmorStatsFieldRenderer {
     public static final ResourceLocation TEXTURE =
             new ResourceLocation("damagecore", "textures/gui/container/creative_inventory/armor_statistic_field.png");
-
+    private static ItemStack hoveredArmor = ItemStack.EMPTY;
     private static final int TEX_W = 200;
     private static final int TEX_H = 20;
     private static final int EDGE = 2;
@@ -34,7 +35,17 @@ public final class ArmorStatsFieldRenderer {
 
     private ArmorStatsFieldRenderer() {
     }
+    public static void setHoveredArmor(ItemStack stack) {
+        if (stack.getItem() instanceof ArmorItem) {
+            hoveredArmor = stack;
+        } else {
+            hoveredArmor = ItemStack.EMPTY;
+        }
+    }
 
+    public static ItemStack getHoveredArmor() {
+        return hoveredArmor;
+    }
     public static boolean isButtonHovered(double mouseX, double mouseY, InventoryScreen screen) {
         int guiLeft = ((AbstractContainerScreenAccessor) screen).getLeftPos();
         int guiTop = ((AbstractContainerScreenAccessor) screen).getTopPos();
@@ -68,6 +79,8 @@ public final class ArmorStatsFieldRenderer {
 
         Map<DamageType, Float> armorOnlyProtections =
                 ArmorStatsCalculator.getArmorOnlyProtectionPercent(mc.player);
+        Map<DamageType, Float> baseProtections =
+                ArmorStatsCalculator.getPlayerTotalProtectionPercentWithoutHover(mc.player);
 
         int iconSize = 8;
         float scale = 2f / 3f;
@@ -90,9 +103,15 @@ public final class ArmorStatsFieldRenderer {
 
             gui.blit(icon, x, yTop, 0, 0, iconSize, iconSize, iconSize, iconSize);
 
-            int color = 0xEEEEEE;
-            if (totalPercent > armorPercent + 0.001f) {
-                color = 0xFFD700;
+            float basePercent = baseProtections.getOrDefault(type, 0f);
+            float diff = totalPercent - basePercent;
+
+            int color = 0xEEEEEE; // без изменений
+
+            if (diff > 0.001f) {
+                color = 0x7FD6FF; // светло-синий (лучше)
+            } else if (diff < -0.001f) {
+                color = 0xFF8A8A; // красноватый (хуже)
             }
 
             gui.pose().pushPose();

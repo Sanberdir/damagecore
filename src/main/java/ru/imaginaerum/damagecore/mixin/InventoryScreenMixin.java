@@ -1,5 +1,6 @@
 package ru.imaginaerum.damagecore.mixin;
 
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -8,6 +9,8 @@ import net.minecraft.client.gui.components.ImageButton;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -51,7 +54,22 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
     @Unique
     private int selectedSmall = 0;
 
+    @Unique
+    private static ItemStack damagecore$getHoveredStack(InventoryScreen screen, double mouseX, double mouseY) {
+        int guiLeft = ((AbstractContainerScreenAccessor) screen).getLeftPos();
+        int guiTop = ((AbstractContainerScreenAccessor) screen).getTopPos();
 
+        for (var slot : screen.getMenu().slots) {
+            int slotX = guiLeft + slot.x;
+            int slotY = guiTop + slot.y;
+
+            if (mouseX >= slotX && mouseX < slotX + 16 &&
+                    mouseY >= slotY && mouseY < slotY + 16) {
+                return slot.getItem();
+            }
+        }
+        return ItemStack.EMPTY;
+    }
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     private void damagecore$toggleArmorStats(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
         if (button != 0) return;
@@ -73,10 +91,28 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
     @Inject(method = "render", at = @At("TAIL"))
     private void damagecore$renderArmorStatsField(GuiGraphics gui, int mouseX, int mouseY, float partialTicks, CallbackInfo ci) {
         if (!this.armorStatsVisible) return;
+
         InventoryScreen screen = (InventoryScreen)(Object)this;
+
+        ItemStack hovered = damagecore$getHoveredStack(screen, mouseX, mouseY);
+
+        ArmorStatsFieldRenderer.setHoveredArmor(hovered);
+
         ArmorStatsFieldRenderer.render(gui, screen);
     }
+    @Inject(method = "render", at = @At("HEAD"))
+    private void damagecore$detectHoveredArmor(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
+        AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>)(Object)this;
 
+        Slot hoveredSlot = ((AbstractContainerScreenAccessor)screen).getHoveredSlot();
+
+        if (hoveredSlot != null && hoveredSlot.hasItem()) {
+            ItemStack stack = hoveredSlot.getItem();
+            ArmorStatsFieldRenderer.setHoveredArmor(stack);
+        } else {
+            ArmorStatsFieldRenderer.setHoveredArmor(ItemStack.EMPTY);
+        }
+    }
     @Override
     public boolean damagecore$isSkillTreeVisible() {
         return this.skillTreeVisible;

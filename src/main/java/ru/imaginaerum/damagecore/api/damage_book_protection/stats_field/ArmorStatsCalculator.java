@@ -23,7 +23,7 @@ public class ArmorStatsCalculator {
         Map<DamageType, Float> result = new EnumMap<>(DamageType.class);
 
         // ===== 1. БРОНЯ =====
-        for (ItemStack stack : player.getArmorSlots()) {
+        for (ItemStack stack : getEffectiveArmor(player)) {
             if (stack.getItem() instanceof ArmorItem armorItem) {
 
                 Map<DamageType, DamageResistance> resistances =
@@ -90,14 +90,48 @@ public class ArmorStatsCalculator {
 
         return result;
     }
+    private static Iterable<ItemStack> getEffectiveArmor(Player player) {
+        ItemStack hovered = ArmorStatsFieldRenderer.getHoveredArmor();
 
+        java.util.List<ItemStack> result = new java.util.ArrayList<>(4);
+
+        // получаем hovered слот
+        net.minecraft.world.entity.EquipmentSlot hoveredSlot = null;
+        if (!hovered.isEmpty() && hovered.getItem() instanceof ArmorItem hoveredArmor) {
+            hoveredSlot = hoveredArmor.getEquipmentSlot();
+        }
+
+        // перебираем ВСЕ слоты брони
+        for (net.minecraft.world.entity.EquipmentSlot slot : net.minecraft.world.entity.EquipmentSlot.values()) {
+            if (slot.getType() != net.minecraft.world.entity.EquipmentSlot.Type.ARMOR) continue;
+
+            ItemStack equipped = player.getItemBySlot(slot);
+
+            if (hoveredSlot != null && slot == hoveredSlot) {
+                result.add(hovered); // подмена
+            } else {
+                result.add(equipped);
+            }
+        }
+
+        return result;
+    }
+    public static Map<DamageType, Float> getPlayerTotalProtectionPercentWithoutHover(Player player) {
+        ItemStack hoveredBackup = ArmorStatsFieldRenderer.getHoveredArmor();
+        ArmorStatsFieldRenderer.setHoveredArmor(ItemStack.EMPTY);
+
+        Map<DamageType, Float> result = getPlayerTotalProtectionPercent(player);
+
+        ArmorStatsFieldRenderer.setHoveredArmor(hoveredBackup);
+        return result;
+    }
     /**
      * Только защита от брони (без еды)
      */
     public static Map<DamageType, Float> getArmorOnlyProtectionPercent(Player player) {
         Map<DamageType, Float> result = new EnumMap<>(DamageType.class);
 
-        for (ItemStack stack : player.getArmorSlots()) {
+        for (ItemStack stack : getEffectiveArmor(player)) {
             if (stack.getItem() instanceof ArmorItem armorItem) {
 
                 Map<DamageType, DamageResistance> resistances =

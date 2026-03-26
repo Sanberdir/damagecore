@@ -14,6 +14,8 @@
     "TridentItemMixin",
     "AbstractContainerScreenMixin",
     "InventoryScreenMixin",
+    "HudNoIconPotionEffectsMixin",
+    "NoIconPotionEffectsMixin",
     "ScreenInvoker",
     "event_trees.BrewingStandMixin",
     "effects_mixins.LivingEntityMixin",
