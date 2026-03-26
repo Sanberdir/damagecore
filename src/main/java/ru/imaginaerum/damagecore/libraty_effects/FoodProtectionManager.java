@@ -3,6 +3,7 @@ package ru.imaginaerum.damagecore.libraty_effects;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import ru.imaginaerum.damagecore.library_damage.DamageType;
 
 import java.util.*;
@@ -23,6 +24,15 @@ public class FoodProtectionManager {
 
     public FoodProtectionManager(Player player) {
         this.player = player;
+    }
+    public List<ItemStack> getUniqueActiveFoods() {
+        Set<ItemStack> uniqueStacks = new HashSet<>();
+        for (FoodProtectionEffect effect : getAllEffects()) {
+            if (effect.getProtectionPercent() > 0) { // только реально дающие бонус
+                uniqueStacks.add(new ItemStack(effect.getItem())); // создаём ItemStack из Item
+            }
+        }
+        return List.copyOf(uniqueStacks);
     }
 
     /**
