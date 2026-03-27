@@ -56,6 +56,8 @@ public final class ArmorStatsFieldRenderer {
         return mouseX >= x && mouseX < x + 10 && mouseY >= y && mouseY < y + 9;
     }
 
+    // В методе render, после получения всех защит, добавляем сортировку
+
     public static void render(GuiGraphics gui, InventoryScreen screen) {
         int guiLeft = ((AbstractContainerScreenAccessor) screen).getLeftPos();
         int guiTop = ((AbstractContainerScreenAccessor) screen).getTopPos();
@@ -82,6 +84,28 @@ public final class ArmorStatsFieldRenderer {
         Map<DamageType, Float> baseProtections =
                 ArmorStatsCalculator.getPlayerTotalProtectionPercentWithoutHover(mc.player);
 
+        // ===== НОВАЯ СОРТИРОВКА =====
+        // Создаем список записей для сортировки
+        java.util.List<Map.Entry<DamageType, Float>> sortedEntries =
+                new java.util.ArrayList<>(totalProtections.entrySet());
+
+        // Сортируем: сначала положительная разница, потом отрицательная
+        sortedEntries.sort((e1, e2) -> {
+            float diff1 = totalProtections.get(e1.getKey()) - baseProtections.getOrDefault(e1.getKey(), 0f);
+            float diff2 = totalProtections.get(e2.getKey()) - baseProtections.getOrDefault(e2.getKey(), 0f);
+
+            // Положительные разницы идут первыми
+            boolean isPositive1 = diff1 > 0.001f;
+            boolean isPositive2 = diff2 > 0.001f;
+
+            if (isPositive1 && !isPositive2) return -1;
+            if (!isPositive1 && isPositive2) return 1;
+
+            // Если одинаковый знак, сортируем по абсолютной величине разницы (больше изменений - выше)
+            return Float.compare(Math.abs(diff2), Math.abs(diff1));
+        });
+        // ===== КОНЕЦ СОРТИРОВКИ =====
+
         int iconSize = 8;
         float scale = 2f / 3f;
         int startX = guiLeft + 6;
@@ -89,8 +113,8 @@ public final class ArmorStatsFieldRenderer {
 
         int x = startX;
 
-        // Рисуем иконки и проценты
-        for (Map.Entry<DamageType, Float> entry : totalProtections.entrySet()) {
+        // Рисуем иконки и проценты с использованием отсортированного списка
+        for (Map.Entry<DamageType, Float> entry : sortedEntries) {
             DamageType type = entry.getKey();
             float totalPercent = entry.getValue();
             float armorPercent = armorOnlyProtections.getOrDefault(type, 0f);
@@ -125,13 +149,10 @@ public final class ArmorStatsFieldRenderer {
             x += iconSize + 1 + textWidth + 4;
         }
 
-        // Источники защиты
+        // Остальной код без изменений...
         renderProtectionSources(gui, screen, bottomFieldY, drawH);
-
-        // Обрабатываем ховер для детального окна
         handleHoverLogic(screen);
 
-        // ДЕТАЛЬНОЕ ОКНО
         if (showDetails && selectedDamageType != null) {
             renderDetailsWindow(gui, screen, topFieldY, drawW, drawH);
         }
@@ -331,20 +352,29 @@ public final class ArmorStatsFieldRenderer {
         Component effectText = Component.translatable("armor_stat.effect");
         Component totalText = Component.translatable("armor_stat.total");
 
+        int nonZeroCount = 0;
+
         if (armorPercent > 0.01f) {
             lines.add(Component.literal(armorText.getString() + ": " + String.format("%.1f", armorPercent) + "%"));
+            nonZeroCount++;
         }
         if (enchantPercent > 0.01f) {
             lines.add(Component.literal(enchantText.getString() + ": " + String.format("%.1f", enchantPercent) + "%"));
+            nonZeroCount++;
         }
         if (foodPercent > 0.01f) {
             lines.add(Component.literal(foodText.getString() + ": " + String.format("%.1f", foodPercent) + "%"));
+            nonZeroCount++;
         }
         if (effectPercent > 0.01f) {
             lines.add(Component.literal(effectText.getString() + ": " + String.format("%.1f", effectPercent) + "%"));
+            nonZeroCount++;
         }
-        // Итог показываем всегда, даже если 0%
-        lines.add(Component.literal(totalText.getString() + ": " + String.format("%.1f", totalPercent) + "%"));
+
+        // Итог показываем только если есть 2 или более источника защиты
+        if (nonZeroCount >= 2) {
+            lines.add(Component.literal(totalText.getString() + ": " + String.format("%.1f", totalPercent) + "%"));
+        }
 
         // Рассчитываем высоту окна с учётом только отображаемых строк
         int linesCount = lines.size();
@@ -376,10 +406,11 @@ public final class ArmorStatsFieldRenderer {
         gui.drawString(mc.font, damageTitle, windowX + (fieldWidth - titleWidth) / 2, textY, 0xFFFFFF, false);
         textY += titleHeight;
 
-        // Рисуем только ненулевые строки
+        // Рисуем строки
         for (int i = 0; i < lines.size(); i++) {
             Component line = lines.get(i);
-            int color = (i == lines.size() - 1) ? 0xFFD700 : 0xEEEEEE; // последняя строка (итог) золотая
+            // Если итоговая строка есть и это последняя, делаем её золотой
+            int color = (nonZeroCount >= 2 && i == lines.size() - 1) ? 0xFFD700 : 0xEEEEEE;
             gui.drawString(mc.font, line.getString(), textX, textY, color, false);
             textY += lineHeight;
         }
@@ -443,9 +474,28 @@ public final class ArmorStatsFieldRenderer {
         int x = startX;
 
         Map<DamageType, Float> totalProtections = ArmorStatsCalculator.getPlayerTotalProtectionPercent(mc.player);
+        Map<DamageType, Float> baseProtections = ArmorStatsCalculator.getPlayerTotalProtectionPercentWithoutHover(mc.player);
         float scale = 2f / 3f;
 
-        for (Map.Entry<DamageType, Float> entry : totalProtections.entrySet()) {
+        // ===== ТА ЖЕ СОРТИРОВКА =====
+        java.util.List<Map.Entry<DamageType, Float>> sortedEntries =
+                new java.util.ArrayList<>(totalProtections.entrySet());
+
+        sortedEntries.sort((e1, e2) -> {
+            float diff1 = totalProtections.get(e1.getKey()) - baseProtections.getOrDefault(e1.getKey(), 0f);
+            float diff2 = totalProtections.get(e2.getKey()) - baseProtections.getOrDefault(e2.getKey(), 0f);
+
+            boolean isPositive1 = diff1 > 0.001f;
+            boolean isPositive2 = diff2 > 0.001f;
+
+            if (isPositive1 && !isPositive2) return -1;
+            if (!isPositive1 && isPositive2) return 1;
+
+            return Float.compare(Math.abs(diff2), Math.abs(diff1));
+        });
+        // ===== КОНЕЦ СОРТИРОВКИ =====
+
+        for (Map.Entry<DamageType, Float> entry : sortedEntries) {
             DamageType type = entry.getKey();
             float totalPercent = entry.getValue();
             if (totalPercent <= 0) continue;
