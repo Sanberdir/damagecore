@@ -7,6 +7,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.ItemStack;
 import ru.imaginaerum.damagecore.library_damage.DamageType;
@@ -15,6 +16,7 @@ import ru.imaginaerum.damagecore.libraty_effects.FoodProtectionEffect;
 import ru.imaginaerum.damagecore.libraty_effects.FoodProtectionManager;
 import ru.imaginaerum.damagecore.mixin.AbstractContainerScreenAccessor;
 
+import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -69,93 +71,188 @@ public final class ArmorStatsFieldRenderer {
         int topFieldY = guiTop - drawH + 1;
         int bottomFieldY = guiTop + 165;
 
-        // Рисуем обе полоски статистики
         drawStretchBar(gui, TEXTURE, guiLeft, topFieldY, drawW, drawH);
         drawStretchBar(gui, TEXTURE, guiLeft, bottomFieldY, drawW, drawH);
 
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
 
-        Map<DamageType, Float> totalProtections =
-                ArmorStatsCalculator.getPlayerTotalProtectionPercent(mc.player);
+        ItemStack hoveredArmor = getHoveredArmor();
+        boolean compareMode = !hoveredArmor.isEmpty();
 
-        Map<DamageType, Float> armorOnlyProtections =
-                ArmorStatsCalculator.getArmorOnlyProtectionPercent(mc.player);
-        Map<DamageType, Float> baseProtections =
-                ArmorStatsCalculator.getPlayerTotalProtectionPercentWithoutHover(mc.player);
+        // Текущая броня
+        Map<DamageType, Float> currentTotalProtections =
+                ArmorStatsCalculator.getPlayerTotalProtectionPercent(mc.player, ItemStack.EMPTY);
 
-        // ===== НОВАЯ СОРТИРОВКА =====
-        // Создаем список записей для сортировки
+        Map<DamageType, Float> currentArmorOnlyProtections =
+                ArmorStatsCalculator.getArmorOnlyProtectionPercent(mc.player, ItemStack.EMPTY);
+
+        // Гипотетическая броня под курсором
+        Map<DamageType, Float> hoveredTotalProtections = compareMode
+                ? ArmorStatsCalculator.getPlayerTotalProtectionPercent(mc.player, hoveredArmor)
+                : currentTotalProtections;
+
+        Map<DamageType, Float> hoveredArmorOnlyProtections = compareMode
+                ? ArmorStatsCalculator.getArmorOnlyProtectionPercent(mc.player, hoveredArmor)
+                : currentArmorOnlyProtections;
+
+        Map<DamageType, Float> baseProtections = currentTotalProtections;
+        Map<DamageType, Float> totalProtections = hoveredTotalProtections;
+        Map<DamageType, Float> armorOnlyProtections = hoveredArmorOnlyProtections;
+
         java.util.List<Map.Entry<DamageType, Float>> sortedEntries =
                 new java.util.ArrayList<>(totalProtections.entrySet());
 
-        // Сортируем: сначала положительная разница, потом отрицательная
         sortedEntries.sort((e1, e2) -> {
             float diff1 = totalProtections.get(e1.getKey()) - baseProtections.getOrDefault(e1.getKey(), 0f);
             float diff2 = totalProtections.get(e2.getKey()) - baseProtections.getOrDefault(e2.getKey(), 0f);
 
-            // Положительные разницы идут первыми
-            boolean isPositive1 = diff1 > 0.001f;
-            boolean isPositive2 = diff2 > 0.001f;
+            boolean pos1 = diff1 > 0.001f;
+            boolean pos2 = diff2 > 0.001f;
 
-            if (isPositive1 && !isPositive2) return -1;
-            if (!isPositive1 && isPositive2) return 1;
+            if (pos1 && !pos2) return -1;
+            if (!pos1 && pos2) return 1;
 
-            // Если одинаковый знак, сортируем по абсолютной величине разницы (больше изменений - выше)
             return Float.compare(Math.abs(diff2), Math.abs(diff1));
         });
-        // ===== КОНЕЦ СОРТИРОВКИ =====
 
         int iconSize = 8;
         float scale = 2f / 3f;
         int startX = guiLeft + 6;
         int yTop = topFieldY + (drawH - iconSize) / 2;
-
         int x = startX;
 
-        // Рисуем иконки и проценты с использованием отсортированного списка
+        Map<DamageType, Float> armorOnlyBase =
+                ArmorStatsCalculator.getArmorOnlyProtectionPercent(mc.player, ItemStack.EMPTY);
+
         for (Map.Entry<DamageType, Float> entry : sortedEntries) {
             DamageType type = entry.getKey();
             float totalPercent = entry.getValue();
-            float armorPercent = armorOnlyProtections.getOrDefault(type, 0f);
 
             if (totalPercent <= 0) continue;
 
             ResourceLocation icon = new ResourceLocation(
-                    "damagecore","textures/gui/damage_types/" + type.getDamageName() + "_damage.png"
+                    "damagecore", "textures/gui/damage_types/" + type.getDamageName() + "_damage.png"
             );
 
             gui.blit(icon, x, yTop, 0, 0, iconSize, iconSize, iconSize, iconSize);
 
             float basePercent = baseProtections.getOrDefault(type, 0f);
             float diff = totalPercent - basePercent;
+            float armorOnly = armorOnlyProtections.getOrDefault(type, 0f);
 
-            int color = 0xEEEEEE; // без изменений
+            int color;
+            float EPS = 0.001f;
 
-            if (diff > 0.001f) {
-                color = 0x7FD6FF; // светло-синий (лучше)
-            } else if (diff < -0.001f) {
-                color = 0xFF8A8A; // красноватый (хуже)
+            if (compareMode) {
+                // ===== РЕЖИМ СРАВНЕНИЯ =====
+                if (diff > EPS) {
+                    color = 0x7FD6FF; // лучше
+                } else if (diff < -EPS) {
+                    color = 0xFF8A8A; // хуже
+                } else {
+                    color = 0xEEEEEE;
+                }
+            } else {
+                // ===== ОБЫЧНЫЙ РЕЖИМ =====
+
+                boolean hasExtra = (totalPercent - armorOnly) > EPS;
+
+                if (hasExtra) {
+                    color = 0xFFD700; // реально есть бонус (еда/чары/эффект)
+                } else {
+                    color = 0xEEEEEE;
+                }
             }
+
+            String text = (int)(totalPercent * 100) + "%";
 
             gui.pose().pushPose();
             int percentY = yTop + (iconSize / 2) - (int)((mc.font.lineHeight * scale) / 2f) + 1;
             gui.pose().translate(x + iconSize + 1, percentY, 0);
             gui.pose().scale(scale, scale, 1.0f);
-            gui.drawString(mc.font, (int)(totalPercent * 100) + "%", 0, 0, color, false);
+            gui.drawString(mc.font, text, 0, 0, color, false);
             gui.pose().popPose();
 
-            int textWidth = (int)(mc.font.width((int)(totalPercent * 100) + "%") * scale);
+            int textWidth = (int)(mc.font.width(text) * scale);
             x += iconSize + 1 + textWidth + 4;
         }
 
-        // Остальной код без изменений...
         renderProtectionSources(gui, screen, bottomFieldY, drawH);
         handleHoverLogic(screen);
 
         if (showDetails && selectedDamageType != null) {
             renderDetailsWindow(gui, screen, topFieldY, drawW, drawH);
         }
+    }
+    /**
+     * Определяет, для каких типов урона есть не-броневые бонусы (зачарования или эффекты)
+     */
+    private static Map<DamageType, Boolean> getNonArmorBonusMap(Player player) {
+        Map<DamageType, Boolean> result = new EnumMap<>(DamageType.class);
+
+        // Инициализируем все типы как false
+        for (DamageType type : DamageType.values()) {
+            result.put(type, false);
+        }
+
+        // 1. Проверяем зачарования на броне
+        for (ItemStack stack : player.getArmorSlots()) {
+            if (stack.isEmpty()) continue;
+
+            net.minecraft.nbt.ListTag enchantments = stack.getEnchantmentTags();
+            if (enchantments != null && !enchantments.isEmpty()) {
+                for (int i = 0; i < enchantments.size(); i++) {
+                    net.minecraft.nbt.CompoundTag enchantTag = enchantments.getCompound(i);
+                    String enchantId = enchantTag.getString("id");
+
+                    // Определяем, какие типы урона дает это зачарование
+                    if (enchantId.equals("minecraft:fire_protection")) {
+                        result.put(DamageType.FIRE, true);
+                    } else if (enchantId.equals("minecraft:projectile_protection")) {
+                        result.put(DamageType.PIERCING, true);
+                    } else if (enchantId.equals("minecraft:blast_protection")) {
+                        result.put(DamageType.BLUDGEONING, true);
+                    } else if (enchantId.equals("minecraft:feather_falling")) {
+                        result.put(DamageType.BLUDGEONING, true);
+                    } else if (enchantId.equals("minecraft:protection")) {
+                        // Protection работает на все физические типы
+                        result.put(DamageType.PIERCING, true);
+                        result.put(DamageType.SLASHING, true);
+                        result.put(DamageType.BLUDGEONING, true);
+                    }
+                }
+            }
+        }
+
+        // 2. Проверяем эффекты (зелья)
+        for (MobEffectInstance effectInstance : player.getActiveEffects()) {
+            // Здесь можно добавить проверку на эффекты, которые дают защиту
+            // Например, Resistance
+            if (effectInstance.getEffect().getDescriptionId().contains("resistance")) {
+                for (DamageType type : DamageType.values()) {
+                    result.put(type, true);
+                }
+            }
+        }
+
+        // 3. Проверяем защиту от еды (если есть активные эффекты от еды)
+        FoodProtectionManager foodManager = FoodProtectionCapability.get(player);
+        if (foodManager != null) {
+            for (FoodProtectionEffect effect : foodManager.getAllEffects()) {
+                if (effect.getProtectionPercent() > 0) {
+                    // Получаем тип урона, от которого защищает эта еда
+                    // Если в FoodProtectionEffect есть метод getDamageType(), используем его
+                    // Иначе - помечаем все типы
+                    for (DamageType type : DamageType.values()) {
+                        result.put(type, true);
+                    }
+                    break;
+                }
+            }
+        }
+
+        return result;
     }
 
     private static void handleHoverLogic(InventoryScreen screen) {
