@@ -30,19 +30,12 @@ public class DamageArmorModifier extends SimpleJsonResourceReloadListener {
     private static final Logger LOGGER = LogManager.getLogger();
     private static final Gson GSON = new GsonBuilder().create();
 
-    private static DamageArmorModifier INSTANCE;
 
     private final Map<String, ArmorMaterialConfig> materialConfigs = new ConcurrentHashMap<>();
     private final Map<ArmorMaterial, Map<ArmorItem.Type, Map<DamageType, DamageResistance>>> cachedModifiers = new ConcurrentHashMap<>();
 
     public DamageArmorModifier() {
         super(GSON, "damage_armor_modifiers");
-        INSTANCE = this;
-    }
-
-    @SubscribeEvent
-    public static void onAddReloadListeners(AddReloadListenerEvent event) {
-        event.addListener(new DamageArmorModifier());
     }
 
     @Override
@@ -50,9 +43,14 @@ public class DamageArmorModifier extends SimpleJsonResourceReloadListener {
         materialConfigs.clear();
         cachedModifiers.clear();
 
+        LOGGER.info("=== DamageArmorModifier RELOAD ===");
+        LOGGER.info("Found {} files", resources.size()); // <-- сколько файлов нашёл?
+
         resources.forEach((resourceLocation, jsonElement) -> {
+            LOGGER.info("Processing: {}", resourceLocation); // <-- какие пути?
             try {
                 ArmorMaterialConfig config = GSON.fromJson(jsonElement, ArmorMaterialConfig.class);
+                LOGGER.info("Material name from JSON: '{}'", config.material); // <-- что в material?
                 materialConfigs.put(resourceLocation.getPath(), config);
                 cacheMaterialModifiers(config);
             } catch (Exception e) {
@@ -60,7 +58,6 @@ public class DamageArmorModifier extends SimpleJsonResourceReloadListener {
             }
         });
 
-        // Загружаем стандартные модификаторы как fallback
         initializeDefaultModifiers();
     }
 
@@ -238,10 +235,10 @@ public class DamageArmorModifier extends SimpleJsonResourceReloadListener {
     }
 
     public static Map<DamageType, DamageResistance> getDamageResistances(ArmorMaterial material, ArmorItem.Type type) {
-        if (INSTANCE == null) return Map.of();
+        if (DamageCore.ARMOR_MODIFIER == null) return Map.of();
 
         Map<ArmorItem.Type, Map<DamageType, DamageResistance>> materialModifiers =
-                INSTANCE.cachedModifiers.get(material);
+                DamageCore.ARMOR_MODIFIER.cachedModifiers.get(material);
 
         if (materialModifiers != null) {
             return materialModifiers.getOrDefault(type, Map.of());
@@ -250,11 +247,12 @@ public class DamageArmorModifier extends SimpleJsonResourceReloadListener {
     }
 
     public static DamageResistance getDamageResistance(ArmorMaterial material, ArmorItem.Type type, DamageType damageType) {
-        Map<DamageType, DamageResistance> resistances = getDamageResistances(material, type);
-        return resistances.getOrDefault(damageType, new DamageResistance(0, 0));
+        return getDamageResistances(material, type)
+                .getOrDefault(damageType, new DamageResistance(0, 0));
     }
 
     public static boolean hasModifiers(ArmorMaterial material) {
-        return INSTANCE != null && INSTANCE.cachedModifiers.containsKey(material);
+        return DamageCore.ARMOR_MODIFIER != null
+                && DamageCore.ARMOR_MODIFIER.cachedModifiers.containsKey(material);
     }
 }

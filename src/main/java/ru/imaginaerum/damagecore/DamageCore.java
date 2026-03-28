@@ -2,6 +2,7 @@ package ru.imaginaerum.damagecore;
 
 import com.mojang.logging.LogUtils;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.RegisterClientReloadListenersEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.data.event.GatherDataEvent;
 import net.minecraftforge.event.AddReloadListenerEvent;
@@ -17,6 +18,7 @@ import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import org.slf4j.Logger;
 import ru.imaginaerum.damagecore.api.damage_book_protection.ModNetwork;
 import ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeMouseHandler;
+import ru.imaginaerum.damagecore.armor.DamageArmorModifier;
 import ru.imaginaerum.damagecore.datagen.DamageTypeProvider;
 import ru.imaginaerum.damagecore.effect.DCEffects;
 import ru.imaginaerum.damagecore.item.DCItems;
@@ -60,6 +62,7 @@ public class DamageCore {
         forgeEventBus.addListener(this::onAddReloadListeners);
         // Register ourselves for server and other game events we are interested in
         MinecraftForge.EVENT_BUS.register(this);
+        modEventBus.addListener(this::onRegisterClientReloadListeners);
 
         // Register the item to a creative tab
 
@@ -67,10 +70,13 @@ public class DamageCore {
         // Register our mod's ForgeConfigSpec so that Forge can create and load the config file for us
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, Config.SPEC);
     }
-
+    public static final DamageArmorModifier ARMOR_MODIFIER = new DamageArmorModifier();
+    private void onRegisterClientReloadListeners(RegisterClientReloadListenersEvent event) {
+        event.registerReloadListener(ARMOR_MODIFIER);
+    }
     private void onAddReloadListeners(AddReloadListenerEvent event) {
         event.addListener(WEAPON_DAMAGE_MANAGER);
-
+        event.addListener(ARMOR_MODIFIER); // добавь это
     }
     private void commonSetup(final FMLCommonSetupEvent event) {
         event.enqueueWork(() -> {
