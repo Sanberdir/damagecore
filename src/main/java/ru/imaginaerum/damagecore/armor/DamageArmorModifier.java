@@ -43,18 +43,13 @@ public class DamageArmorModifier extends SimpleJsonResourceReloadListener {
         materialConfigs.clear();
         cachedModifiers.clear();
 
-        LOGGER.info("=== DamageArmorModifier RELOAD ===");
-        LOGGER.info("Found {} files", resources.size()); // <-- сколько файлов нашёл?
 
         resources.forEach((resourceLocation, jsonElement) -> {
-            LOGGER.info("Processing: {}", resourceLocation); // <-- какие пути?
             try {
                 ArmorMaterialConfig config = GSON.fromJson(jsonElement, ArmorMaterialConfig.class);
-                LOGGER.info("Material name from JSON: '{}'", config.material); // <-- что в material?
                 materialConfigs.put(resourceLocation.getPath(), config);
                 cacheMaterialModifiers(config);
             } catch (Exception e) {
-                LOGGER.error("Failed to load armor modifiers from: {}", resourceLocation, e);
             }
         });
 
@@ -249,10 +244,5 @@ public class DamageArmorModifier extends SimpleJsonResourceReloadListener {
     public static DamageResistance getDamageResistance(ArmorMaterial material, ArmorItem.Type type, DamageType damageType) {
         return getDamageResistances(material, type)
                 .getOrDefault(damageType, new DamageResistance(0, 0));
-    }
-
-    public static boolean hasModifiers(ArmorMaterial material) {
-        return DamageCore.ARMOR_MODIFIER != null
-                && DamageCore.ARMOR_MODIFIER.cachedModifiers.containsKey(material);
     }
 }
