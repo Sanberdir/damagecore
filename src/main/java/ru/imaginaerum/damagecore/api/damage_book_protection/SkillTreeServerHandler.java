@@ -189,6 +189,10 @@ public final class SkillTreeServerHandler {
                         if (lvl > 0) levels.put(nid, lvl);
                     }
                 }
+
+                // *** Пересчитываем locked на основе сохранённых уровней ***
+                recalculateLocks(treeId, levels, player);
+
                 if (!levels.isEmpty()) {
                     ModNetwork.CHANNEL.send(
                             PacketDistributor.PLAYER.with(() -> player),
@@ -205,14 +209,12 @@ public final class SkillTreeServerHandler {
                     }
                 }
 
-                // Применяем варианты на сервере
                 Map<String, SkillTreeNode> nodes = SkillTreeServerRegistry.getNodes(treeId);
                 for (Map.Entry<String, Integer> entry : variants.entrySet()) {
                     SkillTreeNode node = nodes.get(entry.getKey());
                     if (node != null) node.applyVariant(entry.getValue());
                 }
 
-                // Отправляем варианты клиенту
                 if (!variants.isEmpty()) {
                     ModNetwork.CHANNEL.send(
                             PacketDistributor.PLAYER.with(() -> player),
@@ -223,7 +225,38 @@ public final class SkillTreeServerHandler {
             } catch (NumberFormatException ignored) {}
         }
     }
+    private static void recalculateLocks(int treeId, Map<String, Integer> learnedLevels, ServerPlayer player) {
+        Map<String, SkillTreeNode> nodes = SkillTreeServerRegistry.getNodes(treeId);
+        if (nodes == null) return;
 
+        int playerTreeLevel = SkillTreeXpManager.getLevel(player, treeId);
+
+        for (SkillTreeNode node : nodes.values()) {
+            // Корневые ноды всегда разблокированы
+            if (node.isRoot()) {
+                node.locked = false;
+                continue;
+            }
+
+            // Проверка requiredTreeLevel
+            if (node.getRequiredTreeLevel() > playerTreeLevel) {
+                node.locked = true;
+                continue;
+            }
+
+            // Проверяем все родители
+            boolean allParentsLearned = true;
+            for (String parentId : node.parentIds) {
+                if (parentId == null || "start".equalsIgnoreCase(parentId)) continue;
+                if (learnedLevels.getOrDefault(parentId, 0) <= 0) {
+                    allParentsLearned = false;
+                    break;
+                }
+            }
+
+            node.locked = !allParentsLearned;
+        }
+    }
     // --------------------------------------------------
     // NBT helpers
     // --------------------------------------------------

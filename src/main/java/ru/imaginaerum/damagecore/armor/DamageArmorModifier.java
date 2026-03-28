@@ -40,19 +40,30 @@ public class DamageArmorModifier extends SimpleJsonResourceReloadListener {
 
     @Override
     protected void apply(Map<ResourceLocation, JsonElement> resources, ResourceManager manager, ProfilerFiller profiler) {
+        if (resources.isEmpty()) {
+            System.out.println("=== DamageArmorModifier: no files, skipping reload ===");
+            return;
+        }
+
         materialConfigs.clear();
         cachedModifiers.clear();
 
+        System.out.println("=== DamageArmorModifier apply() called, found " + resources.size() + " files ===");
 
         resources.forEach((resourceLocation, jsonElement) -> {
             try {
                 ArmorMaterialConfig config = GSON.fromJson(jsonElement, ArmorMaterialConfig.class);
                 materialConfigs.put(resourceLocation.getPath(), config);
                 cacheMaterialModifiers(config);
+                System.out.println("Loaded armor config: " + resourceLocation);
             } catch (Exception e) {
+                System.out.println("Failed to load: " + resourceLocation);
+                e.printStackTrace();
             }
         });
-
+        cachedModifiers.forEach((material, types) -> {
+            System.out.println("Material: " + material.getName() + " -> types: " + types.keySet());
+        });
         initializeDefaultModifiers();
     }
 
@@ -230,7 +241,12 @@ public class DamageArmorModifier extends SimpleJsonResourceReloadListener {
     }
 
     public static Map<DamageType, DamageResistance> getDamageResistances(ArmorMaterial material, ArmorItem.Type type) {
-        if (DamageCore.ARMOR_MODIFIER == null) return Map.of();
+        if (DamageCore.ARMOR_MODIFIER == null) {
+            System.out.println("ARMOR_MODIFIER is null!");
+            return Map.of();
+        }
+
+        System.out.println("getDamageResistances called, cachedModifiers size: " + DamageCore.ARMOR_MODIFIER.cachedModifiers.size());
 
         Map<ArmorItem.Type, Map<DamageType, DamageResistance>> materialModifiers =
                 DamageCore.ARMOR_MODIFIER.cachedModifiers.get(material);
