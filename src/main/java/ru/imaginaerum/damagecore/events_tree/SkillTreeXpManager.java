@@ -6,6 +6,8 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.network.PacketDistributor;
 import ru.imaginaerum.damagecore.api.damage_book_protection.DamageBookRenderer;
 import ru.imaginaerum.damagecore.api.damage_book_protection.ModNetwork;
+import ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeNode;
+import ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeServerRegistry;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -95,6 +97,29 @@ public class SkillTreeXpManager {
 
             System.out.println("[SkillTreeXpManager] Player " + player.getName().getString() +
                     " leveled up tree " + treeId + " to level " + currentLevel);
+
+            // Пересчитываем разблокировку нод при повышении уровня дерева
+            final int finalLevel = currentLevel;
+            Map<String, SkillTreeNode> nodes = SkillTreeServerRegistry.getNodes(treeId);
+            if (nodes != null) {
+                Map<String, Integer> nodeLevels = getNBTNodeLevels(player, treeId);
+                for (SkillTreeNode node : nodes.values()) {
+                    if (!node.locked) continue;
+                    if (node.getRequiredTreeLevel() > finalLevel) continue;
+
+                    boolean allParentsLearned = true;
+                    for (String parentId : node.parentIds) {
+                        if (parentId == null || "start".equalsIgnoreCase(parentId)) continue;
+                        if (nodeLevels.getOrDefault(parentId, 0) <= 0) {
+                            allParentsLearned = false;
+                            break;
+                        }
+                    }
+                    if (allParentsLearned) {
+                        node.locked = false;
+                    }
+                }
+            }
         }
 
         xpMap.put(treeId, currentXp);
@@ -110,7 +135,21 @@ public class SkillTreeXpManager {
                 " tree " + treeId + " XP: " + currentXp + "/" + xpRequired +
                 " Level: " + currentLevel);
     }
+    private static Map<String, Integer> getNBTNodeLevels(ServerPlayer player, int treeId) {
+        CompoundTag persisted = player.getPersistentData().getCompound(Player.PERSISTED_NBT_TAG);
+        CompoundTag mod = persisted.getCompound(ROOT_KEY);
+        CompoundTag treeTag = mod.getCompound("tree_" + treeId);
 
+        Map<String, Integer> result = new HashMap<>();
+        for (String key : treeTag.getAllKeys()) {
+            if (key.startsWith("node_level_")) {
+                String nodeId = key.substring("node_level_".length());
+                int lvl = treeTag.getInt(key);
+                if (lvl > 0) result.put(nodeId, lvl);
+            }
+        }
+        return result;
+    }
     private static int getXpRequiredForLevel(int level) {
         if (level < 0) return 0;
         return (int) Math.floor(BASE_XP_PER_LEVEL * Math.pow(XP_GROWTH_FACTOR, level));

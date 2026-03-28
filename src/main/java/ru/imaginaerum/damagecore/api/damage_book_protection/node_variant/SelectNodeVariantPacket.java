@@ -7,6 +7,7 @@ import net.minecraftforge.network.PacketDistributor;
 import ru.imaginaerum.damagecore.api.damage_book_protection.ModNetwork;
 import ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeNode;
 import ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeServerHandler;
+import ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeServerRegistry;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -44,24 +45,17 @@ public class SelectNodeVariantPacket {
             ServerPlayer player = ctx.getSender();
             if (player == null) return;
 
-            Object treeObj = SkillTreeServerHandler.getTreeObject(pkt.treeId);
-            Map<String, SkillTreeNode> nodes = SkillTreeServerHandler.getNodesMap(treeObj);
-
-            if (nodes == null) return;
+            Map<String, SkillTreeNode> nodes = SkillTreeServerRegistry.getNodes(pkt.treeId);
+            if (nodes == null || nodes.isEmpty()) return;
 
             SkillTreeNode node = nodes.get(pkt.nodeId);
             if (node == null) return;
 
-            // применяем
             node.applyVariant(pkt.variant);
-
-            // сохраняем
             SkillTreeServerHandler.saveNodeVariant(player, node, pkt.treeId);
 
-            // синхронизируем обратно
             Map<String, Integer> sync = new HashMap<>();
             sync.put(pkt.nodeId, pkt.variant);
-
             ModNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
                     new SyncNodeVariantsPacket(pkt.treeId, sync));
 

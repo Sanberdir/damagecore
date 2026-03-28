@@ -1,6 +1,8 @@
 package ru.imaginaerum.damagecore.api.damage_book_protection;
 
 import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.event.server.ServerStartingEvent;
+import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraft.server.level.ServerPlayer;
@@ -16,7 +18,15 @@ public class ServerEvents {
             SkillTreeServerHandler.sendFullSyncToPlayer(player);
         });
     }
+    @SubscribeEvent
+    public static void onServerStarting(ServerStartingEvent event) {
+        SkillTreeServerRegistry.load(event.getServer());
+    }
 
+    @SubscribeEvent
+    public static void onServerStopping(ServerStoppingEvent event) {
+        SkillTreeServerRegistry.reset();
+    }
     @SubscribeEvent
     public static void onPlayerLogout(PlayerEvent.PlayerLoggedOutEvent event) {
         if (event.getEntity() instanceof ServerPlayer sp) {

@@ -35,23 +35,9 @@ public class LearnNodePacket {
             ServerPlayer player = ctx.getSender();
             if (player == null) return;
 
-            // НОВОЕ: дополнительная проверка на сервере через рефлексию
-            try {
-                Object treeObj = SkillTreeServerHandler.getTreeObject(pkt.treeId);
-                if (treeObj == null) return;
-
-                Map<?, ?> nodes = SkillTreeServerHandler.getNodesMap(treeObj);
-                if (nodes == null) return;
-
-                Object nodeObj = nodes.get(pkt.nodeId);
-                if (nodeObj instanceof SkillTreeNode) {
-                    SkillTreeNode node = (SkillTreeNode) nodeObj;
-                    // Если нода заблокирована - игнорируем запрос
-                    if (node.locked) return;
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            // Проверка через серверный реестр (без рефлексии)
+            SkillTreeNode node = SkillTreeServerRegistry.getNode(pkt.treeId, pkt.nodeId);
+            if (node == null || node.locked) return;
 
             SkillTreeServerHandler.handleLearnRequest(player, pkt.treeId, pkt.nodeId);
         });
