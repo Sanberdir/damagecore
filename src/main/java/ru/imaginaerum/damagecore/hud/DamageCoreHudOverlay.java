@@ -94,36 +94,13 @@ public class DamageCoreHudOverlay {
         stamina = Math.max(0, Math.min(MAX_STAMINA, stamina));
     }
 
-    // ===== Рисование полоски стамины и маны без скосов =====
-    private static void renderSimpleBar(GuiGraphics gui, int barX, int barY,
-                                        int textureX, int textureYFull, int textureYEmpty,
-                                        float value, float maxValue) {
-        int barW = TEXTURE_BAR_WIDTH;
-        int barH = 6;
 
-        // Сначала пустая
-        gui.blit(HUD_TEXTURE, barX, barY, textureX, textureYEmpty, barW, barH, 160, 208);
-        // Потом заполнение
-        int filled = (int) (barW * (value / maxValue));
-        if (filled > 0) {
-            gui.blit(HUD_TEXTURE, barX, barY, textureX, textureYFull, filled, barH, 160, 208);
-        }
-    }
     // Добавьте этот метод в конец класса DamageCoreHudOverlay
     public static float getStamina() {
         return stamina;
     }
 
-    // Если нужен также сеттер для изменения стамины извне
-    public static void setStamina(float value) {
-        stamina = Math.max(0, Math.min(MAX_STAMINA, value));
-    }
 
-    // Метод для расходования стамины при беге
-    public static void consumeStaminaForSprint(float amount) {
-        stamina -= amount;
-        if (stamina < 0) stamina = 0;
-    }
     private static void renderStaminaBar(GuiGraphics gui) {
         int barW = STAMINA_BASE_BAR_WIDTH;
         int barH = 6;
@@ -371,9 +348,12 @@ public class DamageCoreHudOverlay {
                 leftLen = Math.min(EDGE_WIDTH, absorptionWidth);
             }
 
-            // Правый скос если доходим до конца бара
+            // Правый скос - плавно уменьшается по мере убывания absorption
             if (absorptionEnd > rightSkewStart) {
-                rightLen = Math.min(EDGE_WIDTH, absorptionEnd - rightSkewStart);
+                // absorptionEnd заходит в зону правого скоса
+                rightLen = absorptionEnd - rightSkewStart; // сколько пикселей скоса видно
+                rightLen = Math.min(rightLen, EDGE_WIDTH);
+                rightLen = Math.min(rightLen, absorptionWidth - leftLen); // не больше чем есть
             }
 
             int midLen = absorptionWidth - leftLen - rightLen;
@@ -397,10 +377,12 @@ public class DamageCoreHudOverlay {
                 drawX += midLen;
             }
 
-            // Правый скос
+            // Правый скос - рисуем только видимую часть, смещая UV вправо
             if (rightLen > 0) {
+                int uvOffset = EDGE_WIDTH - rightLen; // смещение в текстуре
                 gui.blit(HUD_TEXTURE, drawX, barY,
-                        textureX + TEXTURE_BAR_WIDTH - EDGE_WIDTH, textureYAbsorption,
+                        textureX + TEXTURE_BAR_WIDTH - EDGE_WIDTH + uvOffset,
+                        textureYAbsorption,
                         rightLen, barH, 160, 208);
             }
         }
