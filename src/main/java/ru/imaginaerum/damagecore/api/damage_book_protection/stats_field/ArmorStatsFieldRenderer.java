@@ -28,7 +28,12 @@ public final class ArmorStatsFieldRenderer {
     private static final int TEX_W = 200;
     private static final int TEX_H = 20;
     private static final int EDGE = 2;
-
+    private static final java.util.List<DamageType> DISPLAY_ORDER = java.util.List.of(
+            DamageType.SLASHING,
+            DamageType.PIERCING,
+            DamageType.BLUDGEONING,
+            DamageType.FIRE
+    );
     // Состояние детального окна
     private static DamageType selectedDamageType = null;
     private static boolean showDetails = false;
@@ -80,89 +85,58 @@ public final class ArmorStatsFieldRenderer {
         ItemStack hoveredArmor = getHoveredArmor();
         boolean compareMode = !hoveredArmor.isEmpty();
 
-        // Текущая броня
-        Map<DamageType, Float> currentTotalProtections =
+        Map<DamageType, Float> baseProtections =
                 ArmorStatsCalculator.getPlayerTotalProtectionPercent(mc.player, ItemStack.EMPTY);
-
-        Map<DamageType, Float> currentArmorOnlyProtections =
-                ArmorStatsCalculator.getArmorOnlyProtectionPercent(mc.player, ItemStack.EMPTY);
-
-        // Гипотетическая броня под курсором
-        Map<DamageType, Float> hoveredTotalProtections = compareMode
+        Map<DamageType, Float> totalProtections = compareMode
                 ? ArmorStatsCalculator.getPlayerTotalProtectionPercent(mc.player, hoveredArmor)
-                : currentTotalProtections;
-
-        Map<DamageType, Float> hoveredArmorOnlyProtections = compareMode
+                : baseProtections;
+        Map<DamageType, Float> armorOnlyProtections = compareMode
                 ? ArmorStatsCalculator.getArmorOnlyProtectionPercent(mc.player, hoveredArmor)
-                : currentArmorOnlyProtections;
+                : ArmorStatsCalculator.getArmorOnlyProtectionPercent(mc.player, ItemStack.EMPTY);
 
-        Map<DamageType, Float> baseProtections = currentTotalProtections;
-        Map<DamageType, Float> totalProtections = hoveredTotalProtections;
-        Map<DamageType, Float> armorOnlyProtections = hoveredArmorOnlyProtections;
-
-        java.util.List<Map.Entry<DamageType, Float>> sortedEntries =
-                new java.util.ArrayList<>(totalProtections.entrySet());
-
-        sortedEntries.sort((e1, e2) -> {
-            float diff1 = totalProtections.get(e1.getKey()) - baseProtections.getOrDefault(e1.getKey(), 0f);
-            float diff2 = totalProtections.get(e2.getKey()) - baseProtections.getOrDefault(e2.getKey(), 0f);
-
-            boolean pos1 = diff1 > 0.001f;
-            boolean pos2 = diff2 > 0.001f;
-
-            if (pos1 && !pos2) return -1;
-            if (!pos1 && pos2) return 1;
-
-            return Float.compare(Math.abs(diff2), Math.abs(diff1));
-        });
+        // Собираем порядок: сначала DISPLAY_ORDER, потом остальные
+        java.util.List<DamageType> orderedTypes = new java.util.ArrayList<>(DISPLAY_ORDER);
+        for (DamageType type : totalProtections.keySet()) {
+            if (!orderedTypes.contains(type)) orderedTypes.add(type);
+        }
+        for (DamageType type : baseProtections.keySet()) {
+            if (!orderedTypes.contains(type)) orderedTypes.add(type);
+        }
 
         int iconSize = 8;
         float scale = 2f / 3f;
-        int startX = guiLeft + 6;
+        float EPS = 0.001f;
         int yTop = topFieldY + (drawH - iconSize) / 2;
-        int x = startX;
+        int x = guiLeft + 6;
 
-        Map<DamageType, Float> armorOnlyBase =
-                ArmorStatsCalculator.getArmorOnlyProtectionPercent(mc.player, ItemStack.EMPTY);
-
-        for (Map.Entry<DamageType, Float> entry : sortedEntries) {
-            DamageType type = entry.getKey();
-            float totalPercent = entry.getValue();
-
-            if (totalPercent <= 0) continue;
-
-            ResourceLocation icon = new ResourceLocation(
-                    "damagecore", "textures/gui/damage_types/" + type.getDamageName() + "_damage.png"
-            );
-
-            gui.blit(icon, x, yTop, 0, 0, iconSize, iconSize, iconSize, iconSize);
-
+        for (DamageType type : orderedTypes) {
+            float totalPercent = totalProtections.getOrDefault(type, 0f);
             float basePercent = baseProtections.getOrDefault(type, 0f);
             float diff = totalPercent - basePercent;
             float armorOnly = armorOnlyProtections.getOrDefault(type, 0f);
 
-            int color;
-            float EPS = 0.001f;
+            boolean hasValue = totalPercent > EPS || (compareMode && basePercent > EPS);
+            if (!hasValue) continue;
 
+            ResourceLocation icon = new ResourceLocation(
+                    "damagecore", "textures/gui/damage_types/" + type.getDamageName() + "_damage.png"
+            );
+            gui.blit(icon, x, yTop, 0, 0, iconSize, iconSize, iconSize, iconSize);
+
+            int color;
             if (compareMode) {
-                // ===== РЕЖИМ СРАВНЕНИЯ =====
                 if (diff > EPS) {
                     color = 0x7FD6FF; // лучше
-                } else if (diff < -EPS) {
-                    color = 0xFF8A8A; // хуже
+                } else if (diff < -EPS && totalPercent > EPS) {
+                    color = 0xFF8A8A; // хуже, но не ноль
+                } else if (totalPercent <= EPS && basePercent > EPS) {
+                    color = 0xFF8A8A; // стало нулём
                 } else {
                     color = 0xEEEEEE;
                 }
             } else {
-                // ===== ОБЫЧНЫЙ РЕЖИМ =====
-
                 boolean hasExtra = (totalPercent - armorOnly) > EPS;
-
-                if (hasExtra) {
-                    color = 0xFFD700; // реально есть бонус (еда/чары/эффект)
-                } else {
-                    color = 0xEEEEEE;
-                }
+                color = hasExtra ? 0xFFD700 : 0xEEEEEE;
             }
 
             String text = (int)(totalPercent * 100) + "%";
@@ -184,75 +158,6 @@ public final class ArmorStatsFieldRenderer {
         if (showDetails && selectedDamageType != null) {
             renderDetailsWindow(gui, screen, topFieldY, drawW, drawH);
         }
-    }
-    /**
-     * Определяет, для каких типов урона есть не-броневые бонусы (зачарования или эффекты)
-     */
-    private static Map<DamageType, Boolean> getNonArmorBonusMap(Player player) {
-        Map<DamageType, Boolean> result = new EnumMap<>(DamageType.class);
-
-        // Инициализируем все типы как false
-        for (DamageType type : DamageType.values()) {
-            result.put(type, false);
-        }
-
-        // 1. Проверяем зачарования на броне
-        for (ItemStack stack : player.getArmorSlots()) {
-            if (stack.isEmpty()) continue;
-
-            net.minecraft.nbt.ListTag enchantments = stack.getEnchantmentTags();
-            if (enchantments != null && !enchantments.isEmpty()) {
-                for (int i = 0; i < enchantments.size(); i++) {
-                    net.minecraft.nbt.CompoundTag enchantTag = enchantments.getCompound(i);
-                    String enchantId = enchantTag.getString("id");
-
-                    // Определяем, какие типы урона дает это зачарование
-                    if (enchantId.equals("minecraft:fire_protection")) {
-                        result.put(DamageType.FIRE, true);
-                    } else if (enchantId.equals("minecraft:projectile_protection")) {
-                        result.put(DamageType.PIERCING, true);
-                    } else if (enchantId.equals("minecraft:blast_protection")) {
-                        result.put(DamageType.BLUDGEONING, true);
-                    } else if (enchantId.equals("minecraft:feather_falling")) {
-                        result.put(DamageType.BLUDGEONING, true);
-                    } else if (enchantId.equals("minecraft:protection")) {
-                        // Protection работает на все физические типы
-                        result.put(DamageType.PIERCING, true);
-                        result.put(DamageType.SLASHING, true);
-                        result.put(DamageType.BLUDGEONING, true);
-                    }
-                }
-            }
-        }
-
-        // 2. Проверяем эффекты (зелья)
-        for (MobEffectInstance effectInstance : player.getActiveEffects()) {
-            // Здесь можно добавить проверку на эффекты, которые дают защиту
-            // Например, Resistance
-            if (effectInstance.getEffect().getDescriptionId().contains("resistance")) {
-                for (DamageType type : DamageType.values()) {
-                    result.put(type, true);
-                }
-            }
-        }
-
-        // 3. Проверяем защиту от еды (если есть активные эффекты от еды)
-        FoodProtectionManager foodManager = FoodProtectionCapability.get(player);
-        if (foodManager != null) {
-            for (FoodProtectionEffect effect : foodManager.getAllEffects()) {
-                if (effect.getProtectionPercent() > 0) {
-                    // Получаем тип урона, от которого защищает эта еда
-                    // Если в FoodProtectionEffect есть метод getDamageType(), используем его
-                    // Иначе - помечаем все типы
-                    for (DamageType type : DamageType.values()) {
-                        result.put(type, true);
-                    }
-                    break;
-                }
-            }
-        }
-
-        return result;
     }
 
     private static void handleHoverLogic(InventoryScreen screen) {
@@ -579,16 +484,11 @@ public final class ArmorStatsFieldRenderer {
                 new java.util.ArrayList<>(totalProtections.entrySet());
 
         sortedEntries.sort((e1, e2) -> {
-            float diff1 = totalProtections.get(e1.getKey()) - baseProtections.getOrDefault(e1.getKey(), 0f);
-            float diff2 = totalProtections.get(e2.getKey()) - baseProtections.getOrDefault(e2.getKey(), 0f);
-
-            boolean isPositive1 = diff1 > 0.001f;
-            boolean isPositive2 = diff2 > 0.001f;
-
-            if (isPositive1 && !isPositive2) return -1;
-            if (!isPositive1 && isPositive2) return 1;
-
-            return Float.compare(Math.abs(diff2), Math.abs(diff1));
+            int i1 = DISPLAY_ORDER.indexOf(e1.getKey());
+            int i2 = DISPLAY_ORDER.indexOf(e2.getKey());
+            if (i1 == -1) i1 = Integer.MAX_VALUE;
+            if (i2 == -1) i2 = Integer.MAX_VALUE;
+            return Integer.compare(i1, i2);
         });
         // ===== КОНЕЦ СОРТИРОВКИ =====
 

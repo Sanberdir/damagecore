@@ -8,6 +8,7 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import ru.imaginaerum.damagecore.hud.elements.StaminaBarElement;
 
 @Mod.EventBusSubscriber(value = Dist.CLIENT)
 public class StaminaControlHandler {
@@ -37,7 +38,7 @@ public class StaminaControlHandler {
     public static void onPlayerTick(LivingEvent.LivingTickEvent event) {
         if (!(event.getEntity() instanceof Player player)) return;
 
-        float currentStamina = DamageCoreHudOverlay.getStamina();
+        float currentStamina = StaminaBarElement.getStamina();
 
         // Получаем атрибут скорости игрока
         var speedAttribute = player.getAttribute(Attributes.MOVEMENT_SPEED);
