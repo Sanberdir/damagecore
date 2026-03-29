@@ -3,6 +3,7 @@ package ru.imaginaerum.damagecore.api.damage_book_protection.stats_field;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.enchantment.Enchantment;
 import ru.imaginaerum.damagecore.armor.DamageArmorModifier;
 import ru.imaginaerum.damagecore.armor.DamageResistance;
 import ru.imaginaerum.damagecore.library_damage.DamageType;
@@ -19,7 +20,11 @@ public class ArmorStatsCalculator {
     public static Map<DamageType, Float> getPlayerTotalProtectionPercent(Player player) {
         return getPlayerTotalProtectionPercent(player, ItemStack.EMPTY);
     }
-
+    public static float getEnchantProtectionPercent(Enchantment enchant, int level) {
+        // Возвращает вклад конкретного чара в защиту (0..1)
+        // Реализация зависит от вашей системы расчёта защиты
+        return 0f; // заглушка — замените на реальный расчёт
+    }
     public static Map<DamageType, Float> getPlayerTotalProtectionPercent(Player player, ItemStack hoveredArmor) {
         Map<DamageType, Float> result = new EnumMap<>(DamageType.class);
         List<ItemStack> armorSet = getEffectiveArmor(player, hoveredArmor);
@@ -116,6 +121,32 @@ public class ArmorStatsCalculator {
      * Если у тебя уже есть отдельные helper-классы,
      * перенеси их логику сюда или добавь overload'ы с List<ItemStack>.
      */
+    public static Map<DamageType, Float> getEnchantProtectionPercents(Enchantment enchant, int level) {
+        Map<DamageType, Float> result = new EnumMap<>(DamageType.class);
+        // Получаем ResourceLocation чара через реестр
+        net.minecraft.resources.ResourceLocation id =
+                net.minecraft.core.registries.BuiltInRegistries.ENCHANTMENT.getKey(enchant);
+        if (id == null) return result;
+
+        String enchantId = id.toString();
+        switch (enchantId) {
+            case "minecraft:protection" -> {
+                float p = level * 0.04f;
+                result.put(DamageType.SLASHING,    p);
+                result.put(DamageType.PIERCING,    p);
+                result.put(DamageType.BLUDGEONING, p);
+            }
+            case "minecraft:fire_protection" ->
+                    result.put(DamageType.FIRE, level * 0.08f);
+            case "minecraft:projectile_protection" ->
+                    result.put(DamageType.PIERCING, level * 0.08f);
+            case "minecraft:blast_protection" ->
+                    result.put(DamageType.BLUDGEONING, level * 0.08f);
+            case "minecraft:feather_falling" ->
+                    result.put(DamageType.BLUDGEONING, level * 0.12f);
+        }
+        return result;
+    }
     private static void addEnchantProtection(List<ItemStack> armorSet, Map<DamageType, Float> result) {
         int protection = 0;
         int fireProtection = 0;
