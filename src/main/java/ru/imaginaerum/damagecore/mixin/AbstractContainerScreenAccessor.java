@@ -7,6 +7,8 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 
 @Mixin(AbstractContainerScreen.class)
 public interface AbstractContainerScreenAccessor {
+    @Accessor("hoveredSlot")
+    void setHoveredSlot(Slot slot);
     @Accessor("leftPos")
     int getLeftPos();
     @Accessor("imageWidth")

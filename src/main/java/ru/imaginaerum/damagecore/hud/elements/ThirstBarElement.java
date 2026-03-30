@@ -14,23 +14,19 @@ public class ThirstBarElement {
     private static final int TEXTURE_W = 80;
     private static final int TEXTURE_H = 48;
 
-    // Позиция элемента
-    private static final int ELEMENT_X = 38;
-    private static final int ELEMENT_Y = 40;
-
-    // Значок жажды: X32 Y12 → X49 Y32 (17×20px)
+    // Значок жажды
     private static final int ICON_SRC_X = 32;
     private static final int ICON_SRC_Y = 12;
     private static final int ICON_W     = 17;
     private static final int ICON_H     = 20;
 
-    // Заполненная часть: X33 Y12 → X49 Y22 (16×10px)
+    // Заполненная часть
     private static final int FILL_SRC_X = 33;
     private static final int FILL_SRC_Y = 12;
     private static final int FILL_W     = 16;
     private static final int FILL_H     = 10;
 
-    // Пустая часть (та же что у голода): X0 Y38 → X16 Y48
+    // Пустая часть
     private static final int EMPTY_SRC_X = 0;
     private static final int EMPTY_SRC_Y = 38;
     private static final int EMPTY_W     = 16;
@@ -40,19 +36,15 @@ public class ThirstBarElement {
     private static final int BAR_OFFSET_Y = 0;
 
     // --- Система жажды ---
-    public static float thirst    = 20f;
+    public static float thirst       = 20f;
     public static final float MAX_THIRST = 20f;
 
-    // Накопленный шанс для случайного убывания
-
-
-    private static int tickTimer = 0;
+    private static int   tickTimer  = 0;
     private static float drainAccum = 0f;
 
     public static void tick(Minecraft mc) {
         if (mc.player == null) return;
 
-        // Мирная сложность — восстанавливаем до максимума и не тратим
         if (mc.player.level().getDifficulty() == net.minecraft.world.Difficulty.PEACEFUL) {
             thirst = Math.min(MAX_THIRST, thirst + 1f);
             return;
@@ -66,7 +58,6 @@ public class ThirstBarElement {
         boolean moving    = mc.player.zza != 0 || mc.player.xxa != 0;
 
         float drain = 0f;
-
         if (sprinting) {
             if (Math.random() < 0.5) drain = 0.05f;
         } else if (moving) {
@@ -75,7 +66,13 @@ public class ThirstBarElement {
             drain = 1f / 450f;
         }
 
-        drainAccum += drain;
+        float diffMult = switch (mc.player.level().getDifficulty()) {
+            case EASY   -> 1f / (1.5f * 1.5f);
+            case NORMAL -> 1f / 1.5f;
+            default     -> 1f;
+        };
+
+        drainAccum += drain * diffMult;
         if (drainAccum >= 1f) {
             drainAccum -= 1f;
             thirst = Math.max(0f, thirst - 1f);
@@ -85,12 +82,6 @@ public class ThirstBarElement {
         }
     }
 
-    /**
-     * Вызывается когда игрок пьёт:
-     * - ПКМ по блоку воды
-     * - Выпил Water Bottle
-     * - Выпил зелье
-     */
     public static void drink(float amount) {
         thirst = Math.min(MAX_THIRST, thirst + amount);
     }
@@ -98,8 +89,16 @@ public class ThirstBarElement {
     public static void render(GuiGraphics gui, Minecraft mc) {
         if (mc.player == null) return;
 
-        int screenX = ELEMENT_X;
-        int screenY = ELEMENT_Y;
+        int screenH    = mc.getWindow().getGuiScaledHeight();
+        int screenW    = mc.getWindow().getGuiScaledWidth();
+        int hotbarLeft = screenW / 2 - 50;
+        int heartsY    = screenH - 49;
+
+        // Еда занимает ICON_W=18px, между ними 3px зазор → вода = еда_X + 18 + 3
+        // Еда стартует от hotbarLeft - 18 - 3 - ICON_W = hotbarLeft - 38
+        int screenX = hotbarLeft - 38 + 18 - 3;    // вода: правее еды на 3px
+
+        int screenY = heartsY;
 
         // 1. Иконка
         gui.blit(TEXTURE,

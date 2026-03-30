@@ -25,24 +25,33 @@ import java.util.Set;
 public final class ArmorStatsBottomBar {
 
     private ArmorStatsBottomBar() {}
-    // Добавить в класс статичное поле:
+
     private static final Map<ResourceLocation, int[]> ENTITY_ICON_POSITIONS = new LinkedHashMap<>();
 
     public static Map<ResourceLocation, int[]> getEntityIconPositions() {
         return ENTITY_ICON_POSITIONS;
     }
+
+    private static final Map<ResourceLocation, int[]> FOOD_ICON_POSITIONS = new LinkedHashMap<>();
+
+    public static Map<ResourceLocation, int[]> getFoodIconPositions() {
+        return FOOD_ICON_POSITIONS;
+    }
+
     public static void render(GuiGraphics gui, InventoryScreen screen, int barY, int barHeight) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
 
         int guiLeft       = ((AbstractContainerScreenAccessor) screen).getLeftPos();
         int iconSize      = 16;
-        int effectIconSize = 14;
         int padding       = 2;
         int x = guiLeft + 6;
         int y = barY + (barHeight - iconSize) / 2;
 
         Set<ResourceLocation> renderedKeys = new HashSet<>();
+
+        gui.pose().pushPose();
+        gui.pose().translate(0, 0, 300);
 
         // Зачарованная броня
         for (ItemStack stack : mc.player.getArmorSlots()) {
@@ -68,25 +77,35 @@ public final class ArmorStatsBottomBar {
 
             ResourceLocation key = BuiltInRegistries.ITEM.getKey(stack.getItem());
             if (renderedKeys.add(key)) {
+                // Для брони используем renderItem с оригинальным стеком (может показывать количество)
                 gui.renderItem(stack, x, y);
                 x += iconSize + padding;
             }
         }
 
-        // Еда
+        // Еда - отображаем БЕЗ количества
+        FOOD_ICON_POSITIONS.clear();
         FoodProtectionManager foodManager = FoodProtectionCapability.get(mc.player);
         if (foodManager != null) {
             for (FoodProtectionEffect effect : foodManager.getAllEffects()) {
                 if (effect.getProtectionPercent() <= 0) continue;
                 ResourceLocation key = BuiltInRegistries.ITEM.getKey(effect.getItem());
                 if (renderedKeys.add(key)) {
-                    gui.renderItem(new ItemStack(effect.getItem()), x, y);
+                    FOOD_ICON_POSITIONS.put(key, new int[]{x, barY, iconSize, barHeight});
+
+                    // Создаем стек с количеством 1, чтобы не показывать цифру
+                    ItemStack displayStack = new ItemStack(effect.getItem(), 1);
+                    // Отрисовываем иконку без количества
+                    gui.renderFakeItem(displayStack, x, y);
+                    // Опционально: скрываем количество, если renderItem все равно показывает
+                    // Нужно переопределить рендер через renderFakeItem или другой метод
+
                     x += iconSize + padding;
                 }
             }
         }
-        // Сущности — включаем scissor на всю полоску сразу
-//        gui.enableScissor(guiLeft, barY + 1, guiLeft + ((AbstractContainerScreenAccessor) screen).damagecore$getImageWidth(), barY + barHeight - 1);
+
+        // Сущности - отображаем БЕЗ количества (это 3D модели, тут проблем быть не должно)
         ENTITY_ICON_POSITIONS.clear();
         for (MobEffectInstance effectInstance : mc.player.getActiveEffects()) {
             LivingEntity source = EffectSourceManager.getSource(mc.player, effectInstance.getEffect());
@@ -102,14 +121,12 @@ public final class ArmorStatsBottomBar {
             staticCopy.setXRot(0f);
 
             Quaternionf bodyRot = new Quaternionf()
-                    .rotateY((float) Math.toRadians(35))
-                    .rotateZ((float) Math.toRadians(20))
-                    .rotateX((float) Math.toRadians(200));
+                    .rotateZ((float) Math.toRadians(180))
+                    .rotateY((float) Math.toRadians(180));
 
             Quaternionf headRot = new Quaternionf()
-                    .rotateY((float) Math.toRadians(35))
-                    .rotateZ((float) Math.toRadians(20))
-                    .rotateX((float) Math.toRadians(200));
+                    .rotateZ((float) Math.toRadians(180))
+                    .rotateY((float) Math.toRadians(180));
 
             float entityHeight = staticCopy.getBbHeight();
             int size = (int)(12f / entityHeight);
@@ -138,8 +155,9 @@ public final class ArmorStatsBottomBar {
             x += targetIconSize + padding;
         }
 
-//        gui.disableScissor();
+        gui.pose().popPose();
     }
+
     private static LivingEntity createStaticCopy(LivingEntity original) {
         // Создаём временную сущность того же типа
         LivingEntity copy = (LivingEntity) original.getType().create(original.level());
@@ -150,24 +168,7 @@ public final class ArmorStatsBottomBar {
         copy.setCustomName(original.getCustomName());
         copy.setCustomNameVisible(original.isCustomNameVisible());
 
-        // Копируем броню через массив предметов
-        ItemStack[] armorItems = new ItemStack[4];
-        int i = 0;
-        for (ItemStack stack : original.getArmorSlots()) {
-            if (i < armorItems.length) {
-                armorItems[i] = stack.copy();
-            }
-            i++;
-        }
-
-        // Устанавливаем броню на копию
-        for (int slot = 0; slot < armorItems.length; slot++) {
-            if (armorItems[slot] != null) {
-                copy.getArmorSlots().forEach(item -> {}); // это не работает, используем другой метод
-            }
-        }
-
-        // Альтернативный способ: устанавливаем предметы напрямую через слоты
+        // Устанавливаем броню напрямую через слоты
         copy.setItemSlot(EquipmentSlot.FEET, original.getItemBySlot(EquipmentSlot.FEET).copy());
         copy.setItemSlot(EquipmentSlot.LEGS, original.getItemBySlot(EquipmentSlot.LEGS).copy());
         copy.setItemSlot(EquipmentSlot.CHEST, original.getItemBySlot(EquipmentSlot.CHEST).copy());

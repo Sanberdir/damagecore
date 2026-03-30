@@ -6,6 +6,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.effect.MobEffect;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
@@ -25,6 +26,7 @@ import org.jetbrains.annotations.Nullable;
 import ru.imaginaerum.damagecore.DamageCore;
 
 import javax.annotation.Nonnull;
+import java.util.ArrayList;
 import java.util.List;
 
 @Mod.EventBusSubscriber(modid = DamageCore.MODID)
@@ -63,32 +65,38 @@ public class FoodProtectionCapability {
 
         if (defs == null || defs.isEmpty()) return;
 
+        // Снимок mob effects ДО добавления наших эффектов
+        // (после поедания ванильные эффекты уже применены к игроку)
+        List<MobEffectInstance> vanillaMobEffects = new ArrayList<>();
+        if (item.getFoodProperties(event.getItem(), player) != null) {
+            for (var pair : item.getFoodProperties(event.getItem(), player).getEffects()) {
+                MobEffectInstance inst = player.getEffect(pair.getFirst().getEffect());
+                if (inst != null) {
+                    vanillaMobEffects.add(new MobEffectInstance(inst)); // копия
+                }
+            }
+        }
+
         player.getCapability(FoodProtectionCapability.FOOD_PROTECTION).ifPresent(manager -> {
             for (var def : defs) {
-                // добавляем protection effect'ы (data-driven)
                 manager.addEffect(new FoodProtectionEffect(
                         item,
                         def.damageType(),
                         def.protection(),
-                        def.duration()
+                        def.duration(),
+                        vanillaMobEffects  // ← передаём mob effects
                 ));
 
-                // если нужно — удаляем ванильные MobEffects, указанные в JSON
                 if (def.overrideVanilla()) {
                     for (ResourceLocation effLoc : def.removeEffects()) {
                         try {
                             MobEffect mob = BuiltInRegistries.MOB_EFFECT.get(effLoc);
-                            if (mob != null) {
-                                player.removeEffect(mob); // убирает эффект от игрока
-                            }
-                        } catch (Exception ex) {
-                            // на всякий случай — логировать при необходимости
-                        }
+                            if (mob != null) player.removeEffect(mob);
+                        } catch (Exception ex) { }
                     }
                 }
             }
 
-            // Визуальная обратная связь (клиент-side)
             if (player.level().isClientSide) {
                 player.displayClientMessage(
                         Component.literal("§eПолучена защита от еды (см. Damage Book)"),

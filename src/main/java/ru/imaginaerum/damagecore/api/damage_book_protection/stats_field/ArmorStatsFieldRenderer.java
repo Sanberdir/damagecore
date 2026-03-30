@@ -57,14 +57,25 @@ public final class ArmorStatsFieldRenderer {
 
         // Ховер-логика
         ArmorStatsHoverHandler.handle(screen);
-
-        // Детальное окно
-        if (ArmorStatsHoverHandler.isShowDetails()) {
-            ArmorStatsDetailsWindow.render(gui, screen, topFieldY, drawW, drawH);
+        if (ArmorStatsHoverHandler.isShowFoodDetails()) {
+            gui.pose().pushPose();
+            gui.pose().translate(0, 0, 400);  // выше чем иконки (300) и стандартные tooltips
+            ArmorStatsDetailsWindow.renderFoodDetails(gui, screen, bottomFieldY, drawW);
+            gui.pose().popPose();
         }
-        // Детальное окно сущности (нижняя полоска)
+
+        if (ArmorStatsHoverHandler.isShowDetails()) {
+            gui.pose().pushPose();
+            gui.pose().translate(0, 0, 400);
+            ArmorStatsDetailsWindow.render(gui, screen, topFieldY, drawW, drawH);
+            gui.pose().popPose();
+        }
+
         if (ArmorStatsHoverHandler.isShowEntityDetails()) {
+            gui.pose().pushPose();
+            gui.pose().translate(0, 0, 400);
             ArmorStatsDetailsWindow.renderEntityDetails(gui, screen, bottomFieldY, drawW);
+            gui.pose().popPose();
         }
     }
 }

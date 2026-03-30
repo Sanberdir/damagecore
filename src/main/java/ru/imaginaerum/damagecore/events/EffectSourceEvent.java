@@ -18,6 +18,4 @@ public class EffectSourceEvent {
 
         EffectSourceManager.setSource(target, event.getEffectInstance().getEffect(), source);
     }
-
-
 }

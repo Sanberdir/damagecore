@@ -2,16 +2,18 @@ package ru.imaginaerum.damagecore.api.damage_book_protection.stats_field;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import ru.imaginaerum.damagecore.library_damage.DamageType;
+import ru.imaginaerum.damagecore.libraty_effects.FoodProtectionCapability;
+import ru.imaginaerum.damagecore.libraty_effects.FoodProtectionEffect;
+import ru.imaginaerum.damagecore.libraty_effects.FoodProtectionManager;
 import ru.imaginaerum.damagecore.mixin.AbstractContainerScreenAccessor;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public final class ArmorStatsHoverHandler {
 
@@ -19,6 +21,13 @@ public final class ArmorStatsHoverHandler {
     private static boolean showDetails = false;
     private static long hoverStartTime = 0;
     private static final long HOVER_DELAY_MS = 100;
+
+    private static ResourceLocation hoveredFood = null;
+    private static long foodHoverStartTime = 0;
+    private static boolean showFoodDetails = false;
+
+    public static boolean isShowFoodDetails()       { return showFoodDetails; }
+    public static ResourceLocation getHoveredFood() { return hoveredFood; }
 
     private ArmorStatsHoverHandler() {}
     private static ResourceLocation hoveredEntity = null;
@@ -40,6 +49,7 @@ public final class ArmorStatsHoverHandler {
         double mouseY = mc.mouseHandler.ypos()
                 * (double) mc.getWindow().getGuiScaledHeight()
                 / (double) mc.getWindow().getScreenHeight();
+        handleFoodHover(screen, mouseX, mouseY);
 
         DamageType hoveredType = getDamageTypeAtPosition(screen, mouseX, mouseY);
 
@@ -64,6 +74,79 @@ public final class ArmorStatsHoverHandler {
         handleEntityHover(screen, mouseX, mouseY);
 
     }
+
+    private static void handleFoodHover(InventoryScreen screen, double mouseX, double mouseY) {
+        ResourceLocation found = null;
+        for (Map.Entry<ResourceLocation, int[]> entry : ArmorStatsBottomBar.getFoodIconPositions().entrySet()) {
+            int[] pos = entry.getValue();
+            if (mouseX >= pos[0] && mouseX <= pos[0] + pos[2]
+                    && mouseY >= pos[1] && mouseY <= pos[1] + pos[3]) {
+                found = entry.getKey();
+                break;
+            }
+        }
+
+        if (found != null) {
+            if (!showFoodDetails || !found.equals(hoveredFood)) {
+                if (foodHoverStartTime == 0) {
+                    foodHoverStartTime = System.currentTimeMillis();
+                } else if (System.currentTimeMillis() - foodHoverStartTime >= HOVER_DELAY_MS) {
+                    hoveredFood = found;
+                    showFoodDetails = true;
+                }
+            } else {
+                foodHoverStartTime = 0;
+            }
+        } else {
+            if (showFoodDetails && !isMouseOverFoodDetailsWindow(screen, mouseX, mouseY)) {
+                showFoodDetails = false;
+                hoveredFood = null;
+            }
+            foodHoverStartTime = 0;
+        }
+    }
+
+    public static boolean isMouseOverFoodDetailsWindow(InventoryScreen screen, double mouseX, double mouseY) {
+        if (!showFoodDetails || hoveredFood == null) return false;
+        Minecraft mc = Minecraft.getInstance();
+        int guiLeft    = ((AbstractContainerScreenAccessor) screen).getLeftPos();
+        int imageWidth = ((AbstractContainerScreenAccessor) screen).damagecore$getImageWidth();
+        int guiTop     = ((AbstractContainerScreenAccessor) screen).getTopPos();
+        int bottomFieldY = guiTop + 165;
+        int windowHeight = estimateFoodWindowHeight(mc);
+        int windowY = bottomFieldY - windowHeight;
+        return mouseX >= guiLeft && mouseX <= guiLeft + imageWidth
+                && mouseY >= windowY && mouseY <= windowY + windowHeight;
+    }
+
+    private static int estimateFoodWindowHeight(Minecraft mc) {
+        if (hoveredFood == null) return 0;
+        int lineH  = mc.font.lineHeight + 2;
+        int titleH = mc.font.lineHeight + 4;
+        int count  = getFoodEffectCount(hoveredFood);
+        return 6 + titleH + Math.max(1, count) * lineH + 6;
+    }
+    public static boolean isHoveringAnyCustomWindow(InventoryScreen screen, double mouseX, double mouseY) {
+        return isMouseOverDetailsWindow(screen, mouseX, mouseY)
+                || isMouseOverFoodDetailsWindow(screen, mouseX, mouseY)
+                || isMouseOverEntityDetailsWindow(screen, mouseX, mouseY);
+    }
+    private static int getFoodEffectCount(ResourceLocation foodKey) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) return 0;
+        FoodProtectionManager foodManager = FoodProtectionCapability.get(mc.player);
+        if (foodManager == null) return 0;
+
+        Set<DamageType> types = new HashSet<>();
+        for (FoodProtectionEffect effect : foodManager.getAllEffects()) {
+            ResourceLocation key = BuiltInRegistries.ITEM.getKey(effect.getItem());
+            if (foodKey.equals(key)) {
+                types.add(effect.getDamageType());
+            }
+        }
+        return Math.max(1, types.size());
+    }
+
     private static void handleEntityHover(InventoryScreen screen, double mouseX, double mouseY) {
         ResourceLocation found = null;
         for (Map.Entry<ResourceLocation, int[]> entry : ArmorStatsBottomBar.getEntityIconPositions().entrySet()) {
