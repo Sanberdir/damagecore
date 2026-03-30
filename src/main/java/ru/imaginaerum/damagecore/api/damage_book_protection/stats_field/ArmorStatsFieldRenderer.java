@@ -62,5 +62,9 @@ public final class ArmorStatsFieldRenderer {
         if (ArmorStatsHoverHandler.isShowDetails()) {
             ArmorStatsDetailsWindow.render(gui, screen, topFieldY, drawW, drawH);
         }
+        // Детальное окно сущности (нижняя полоска)
+        if (ArmorStatsHoverHandler.isShowEntityDetails()) {
+            ArmorStatsDetailsWindow.renderEntityDetails(gui, screen, bottomFieldY, drawW);
+        }
     }
 }

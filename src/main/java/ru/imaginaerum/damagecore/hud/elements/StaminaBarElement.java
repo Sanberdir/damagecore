@@ -33,7 +33,7 @@ public class StaminaBarElement {
         }
 
         if ((sprinting && moving) || isInMovingBoat) {
-            stamina -= isInMovingBoat ? 0.03f : 0.1f;
+            stamina -= isInMovingBoat ? 0.02f : 0.05f;
         } else {
             stamina += moving ? 0.04f : 0.16f;
         }

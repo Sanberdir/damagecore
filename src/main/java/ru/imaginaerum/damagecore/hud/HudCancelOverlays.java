@@ -10,8 +10,17 @@ public class HudCancelOverlays {
 
     @SubscribeEvent
     public static void onRenderOverlay(RenderGuiOverlayEvent.Pre event) {
-        // Убираем сердца
-        if (event.getOverlay().id().getPath().equals("player_health")) {
+        String path = event.getOverlay().id().getPath();
+
+        if (path.equals("player_health")) {
+            event.setCanceled(true);
+        }
+        // Полоска голода
+        if (path.equals("food_level")) {
+            event.setCanceled(true);
+        }
+        // Насыщенность (отображается поверх голода)
+        if (path.equals("saturation_level")) {
             event.setCanceled(true);
         }
     }

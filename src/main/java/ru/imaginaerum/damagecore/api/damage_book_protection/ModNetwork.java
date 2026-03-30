@@ -8,6 +8,7 @@ import ru.imaginaerum.damagecore.api.damage_book_protection.node_variant.SelectN
 import ru.imaginaerum.damagecore.api.damage_book_protection.node_variant.SelectVariantPacket;
 import ru.imaginaerum.damagecore.api.damage_book_protection.node_variant.SyncNodeVariantsPacket;
 import ru.imaginaerum.damagecore.events_tree.SyncTreeXpPacket;
+import ru.imaginaerum.damagecore.hud.net.ThirstDamagePacket;
 
 import java.util.Optional;
 
@@ -72,5 +73,13 @@ public final class ModNetwork {
                 SyncLearnedNodesPacket::encode,
                 SyncLearnedNodesPacket::decode,
                 SyncLearnedNodesPacket::handle);
+        CHANNEL.registerMessage(
+                id++,  // следующий свободный id
+                ThirstDamagePacket.class,
+                ThirstDamagePacket::toBytes,
+                ThirstDamagePacket::new,
+                ThirstDamagePacket::handle,
+                java.util.Optional.of(NetworkDirection.PLAY_TO_SERVER)
+        );
     }
 }

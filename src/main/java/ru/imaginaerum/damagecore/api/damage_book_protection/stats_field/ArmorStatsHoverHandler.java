@@ -2,6 +2,9 @@ package ru.imaginaerum.damagecore.api.damage_book_protection.stats_field;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import ru.imaginaerum.damagecore.library_damage.DamageType;
 import ru.imaginaerum.damagecore.mixin.AbstractContainerScreenAccessor;
@@ -18,7 +21,12 @@ public final class ArmorStatsHoverHandler {
     private static final long HOVER_DELAY_MS = 100;
 
     private ArmorStatsHoverHandler() {}
+    private static ResourceLocation hoveredEntity = null;
+    private static long entityHoverStartTime = 0;
+    private static boolean showEntityDetails = false;
 
+    public static boolean isShowEntityDetails()          { return showEntityDetails; }
+    public static ResourceLocation getHoveredEntity()    { return hoveredEntity; }
     public static boolean isShowDetails()           { return showDetails; }
     public static DamageType getSelectedDamageType() { return selectedDamageType; }
 
@@ -53,8 +61,76 @@ public final class ArmorStatsHoverHandler {
             }
             hoverStartTime = 0;
         }
+        handleEntityHover(screen, mouseX, mouseY);
+
+    }
+    private static void handleEntityHover(InventoryScreen screen, double mouseX, double mouseY) {
+        ResourceLocation found = null;
+        for (Map.Entry<ResourceLocation, int[]> entry : ArmorStatsBottomBar.getEntityIconPositions().entrySet()) {
+            int[] pos = entry.getValue(); // [x, barY, iconW, barH]
+            if (mouseX >= pos[0] && mouseX <= pos[0] + pos[2]
+                    && mouseY >= pos[1] && mouseY <= pos[1] + pos[3]) {
+                found = entry.getKey();
+                break;
+            }
+        }
+
+        if (found != null) {
+            if (!showEntityDetails || !found.equals(hoveredEntity)) {
+                if (entityHoverStartTime == 0) {
+                    entityHoverStartTime = System.currentTimeMillis();
+                } else if (System.currentTimeMillis() - entityHoverStartTime >= HOVER_DELAY_MS) {
+                    hoveredEntity = found;
+                    showEntityDetails = true;
+                }
+            } else {
+                entityHoverStartTime = 0;
+            }
+        } else {
+            if (showEntityDetails && !isMouseOverEntityDetailsWindow(screen, mouseX, mouseY)) {
+                showEntityDetails = false;
+                hoveredEntity = null;
+            }
+            entityHoverStartTime = 0;
+        }
     }
 
+    public static boolean isMouseOverEntityDetailsWindow(InventoryScreen screen, double mouseX, double mouseY) {
+        if (!showEntityDetails || hoveredEntity == null) return false;
+        Minecraft mc = Minecraft.getInstance();
+        int guiLeft    = ((AbstractContainerScreenAccessor) screen).getLeftPos();
+        int imageWidth = ((AbstractContainerScreenAccessor) screen).damagecore$getImageWidth();
+        int guiTop     = ((AbstractContainerScreenAccessor) screen).getTopPos();
+        int bottomFieldY = guiTop + 165;
+
+        int windowX = guiLeft;
+        int windowY = bottomFieldY - estimateEntityWindowHeight(mc);
+        return mouseX >= windowX && mouseX <= windowX + imageWidth
+                && mouseY >= windowY && mouseY <= windowY + estimateEntityWindowHeight(mc);
+    }
+
+    private static int estimateEntityWindowHeight(Minecraft mc) {
+        if (hoveredEntity == null) return 0;
+        // Примерная высота: заголовок + до 5 эффектов
+        int lineH = mc.font.lineHeight + 2;
+        int titleH = mc.font.lineHeight + 4;
+        int effectCount = getEffectCountForEntity(hoveredEntity);
+        return 6 + titleH + effectCount * lineH + 6;
+    }
+
+    private static int getEffectCountForEntity(ResourceLocation entityKey) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) return 0;
+        int count = 0;
+        for (MobEffectInstance inst : mc.player.getActiveEffects()) {
+            LivingEntity source = EffectSourceManager.getSource(mc.player, inst.getEffect());
+            if (source != null) {
+                ResourceLocation key = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(source.getType());
+                if (entityKey.equals(key)) count++;
+            }
+        }
+        return Math.max(1, count);
+    }
     public static boolean isMouseOverDetailsWindow(InventoryScreen screen, double mouseX, double mouseY) {
         if (!showDetails || selectedDamageType == null) return false;
 

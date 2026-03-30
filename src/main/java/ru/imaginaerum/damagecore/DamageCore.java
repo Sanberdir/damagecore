@@ -50,7 +50,6 @@ public class DamageCore {
     }
 
     public DamageCore() {
-
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
         DCItems.ITEMS.register(modEventBus);
         DCEffects.MOB_EFFECTS.register(modEventBus);

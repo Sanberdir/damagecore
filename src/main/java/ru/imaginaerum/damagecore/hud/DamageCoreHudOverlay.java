@@ -28,9 +28,10 @@ public class DamageCoreHudOverlay {
         if (mode != GameType.SURVIVAL && mode != GameType.ADVENTURE) return;
 
         RenderSystem.setShaderTexture(0, HUD_TEXTURE);
-
+        ThirstBarElement.tick(mc);   // в onRenderGui перед рендером
+        ThirstBarElement.render(gui, mc);
         StaminaBarElement.update(mc);
-
+        HungerBarElement.render(gui, mc);
         HudBase.render(gui);
         HealthBarElement.render(gui, mc);
         ManaBarElement.render(gui);
