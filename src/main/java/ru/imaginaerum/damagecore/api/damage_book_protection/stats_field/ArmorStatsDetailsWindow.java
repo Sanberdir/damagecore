@@ -11,6 +11,7 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.alchemy.PotionUtils;
 import ru.imaginaerum.damagecore.library_damage.DamageType;
 import ru.imaginaerum.damagecore.libraty_effects.FoodProtectionCapability;
 import ru.imaginaerum.damagecore.libraty_effects.FoodProtectionEffect;
@@ -89,7 +90,102 @@ public final class ArmorStatsDetailsWindow {
         }
         gui.pose().popPose();
     }
+    public static void renderPotionDetails(GuiGraphics gui, InventoryScreen screen,
+                                           int bottomFieldY, int fieldWidth) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) return;
 
+        ResourceLocation potionKey = ArmorStatsHoverHandler.getHoveredPotion();
+        if (potionKey == null) return;
+
+        ItemStack potionStack = PotionTracker.getActivePotions().get(potionKey);
+        if (potionStack == null) return;
+
+        // Название зелья — берём из hover-имени предмета
+        net.minecraft.world.item.alchemy.Potion potion = PotionUtils.getPotion(potionStack);
+        String potionName = Component.translatable(potion.getName("item.minecraft.potion.effect.")).getString();
+
+        // Эффекты зелья с учётом только тех, что ещё активны у игрока
+        List<MobEffectInstance> effects = new ArrayList<>();
+        for (MobEffectInstance pe : PotionUtils.getMobEffects(potionStack)) {
+            MobEffectInstance active = mc.player.getEffect(pe.getEffect());
+            if (active != null) effects.add(active); // берём активный (актуальное время)
+        }
+
+        if (effects.isEmpty()) return;
+
+        int iconSize      = 9;
+        int lineHeight    = mc.font.lineHeight + 2;
+        int titleHeight   = mc.font.lineHeight + 4;
+        int paddingTop    = 6;
+        int paddingBottom = 6;
+        int windowHeight  = paddingTop + titleHeight + effects.size() * lineHeight + paddingBottom;
+
+        int windowX = ((AbstractContainerScreenAccessor) screen).getLeftPos();
+        int windowY = bottomFieldY - windowHeight;
+
+        gui.pose().pushPose();
+        gui.pose().translate(0, 0, 300);
+
+        gui.fill(windowX, windowY, windowX + fieldWidth, windowY + windowHeight, 0xCC000000);
+        ArmorStatsBarRenderer.drawWindowWithTile(gui, ArmorStatsFieldRenderer.TEXTURE,
+                windowX, windowY, fieldWidth, windowHeight);
+
+        int textX = windowX + ArmorStatsBarRenderer.EDGE + 4;
+        int textY = windowY + paddingTop;
+
+        // Заголовок — название зелья по центру
+        gui.drawString(mc.font, potionName,
+                windowX + (fieldWidth - mc.font.width(potionName)) / 2,
+                textY, 0xFFFFFF, false);
+        textY += titleHeight;
+
+        // Каждый эффект: иконка + "Название [уровень]  время"
+        for (MobEffectInstance inst : effects) {
+            // Иконка эффекта
+            TextureAtlasSprite sprite = mc.getMobEffectTextures().get(inst.getEffect());
+            if (sprite != null) {
+                gui.blit(textX, textY - 1, 0, iconSize, iconSize, sprite);
+            }
+
+            // Название + усилитель
+            String amplifier = inst.getAmplifier() > 0
+                    ? " " + toRoman(inst.getAmplifier() + 1)
+                    : "";
+            String effectName = inst.getEffect().getDisplayName().getString() + amplifier;
+
+            // Оставшееся время
+            int totalTicks = inst.getDuration();
+            String timeStr;
+            if (totalTicks == Integer.MAX_VALUE) {
+                timeStr = "\u221E";
+            } else {
+                int sec = totalTicks / 20;
+                int min = sec / 60;
+                sec = sec % 60;
+                timeStr = min > 0
+                        ? min + ":" + String.format("%02d", sec)
+                        : sec + "s";
+            }
+
+            gui.drawString(mc.font, effectName + "  " + timeStr,
+                    textX + iconSize + 3, textY, 0xEEEEEE, false);
+            textY += lineHeight;
+        }
+
+        gui.pose().popPose();
+    }
+
+    // Уже есть в файле, но если нет — добавить:
+    private static String toRoman(int number) {
+        return switch (number) {
+            case 1 -> "I";   case 2 -> "II";  case 3 -> "III";
+            case 4 -> "IV";  case 5 -> "V";   case 6 -> "VI";
+            case 7 -> "VII"; case 8 -> "VIII";case 9 -> "IX";
+            case 10 -> "X";
+            default -> String.valueOf(number);
+        };
+    }
     public static void renderFoodDetails(GuiGraphics gui, InventoryScreen screen,
                                          int bottomFieldY, int fieldWidth) {
         Minecraft mc = Minecraft.getInstance();

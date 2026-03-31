@@ -7,6 +7,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.alchemy.PotionUtils;
 import ru.imaginaerum.damagecore.library_damage.DamageType;
 import ru.imaginaerum.damagecore.libraty_effects.FoodProtectionCapability;
 import ru.imaginaerum.damagecore.libraty_effects.FoodProtectionEffect;
@@ -29,6 +30,13 @@ public final class ArmorStatsHoverHandler {
     public static boolean isShowFoodDetails()       { return showFoodDetails; }
     public static ResourceLocation getHoveredFood() { return hoveredFood; }
 
+
+    private static ResourceLocation hoveredPotion = null;
+    private static long potionHoverStartTime = 0;
+    private static boolean showPotionDetails = false;
+
+    public static boolean isShowPotionDetails()       { return showPotionDetails; }
+    public static ResourceLocation getHoveredPotion() { return hoveredPotion; }
     private ArmorStatsHoverHandler() {}
     private static ResourceLocation hoveredEntity = null;
     private static long entityHoverStartTime = 0;
@@ -50,7 +58,7 @@ public final class ArmorStatsHoverHandler {
                 * (double) mc.getWindow().getGuiScaledHeight()
                 / (double) mc.getWindow().getScreenHeight();
         handleFoodHover(screen, mouseX, mouseY);
-
+        handlePotionHover(screen, mouseX, mouseY);
         DamageType hoveredType = getDamageTypeAtPosition(screen, mouseX, mouseY);
 
         if (hoveredType != null) {
@@ -74,6 +82,60 @@ public final class ArmorStatsHoverHandler {
         handleEntityHover(screen, mouseX, mouseY);
 
     }
+    private static void handlePotionHover(InventoryScreen screen, double mouseX, double mouseY) {
+        ResourceLocation found = null;
+        for (Map.Entry<ResourceLocation, int[]> entry : ArmorStatsBottomBar.getPotionIconPositions().entrySet()) {
+            int[] pos = entry.getValue();
+            if (mouseX >= pos[0] && mouseX <= pos[0] + pos[2]
+                    && mouseY >= pos[1] && mouseY <= pos[1] + pos[3]) {
+                found = entry.getKey();
+                break;
+            }
+        }
+
+        if (found != null) {
+            if (!showPotionDetails || !found.equals(hoveredPotion)) {
+                if (potionHoverStartTime == 0) {
+                    potionHoverStartTime = System.currentTimeMillis();
+                } else if (System.currentTimeMillis() - potionHoverStartTime >= HOVER_DELAY_MS) {
+                    hoveredPotion = found;
+                    showPotionDetails = true;
+                }
+            } else {
+                potionHoverStartTime = 0;
+            }
+        } else {
+            if (showPotionDetails && !isMouseOverPotionDetailsWindow(screen, mouseX, mouseY)) {
+                showPotionDetails = false;
+                hoveredPotion = null;
+            }
+            potionHoverStartTime = 0;
+        }
+    }
+
+    public static boolean isMouseOverPotionDetailsWindow(InventoryScreen screen,
+                                                         double mouseX, double mouseY) {
+        if (!showPotionDetails || hoveredPotion == null) return false;
+        Minecraft mc = Minecraft.getInstance();
+        int guiLeft    = ((AbstractContainerScreenAccessor) screen).getLeftPos();
+        int imageWidth = ((AbstractContainerScreenAccessor) screen).damagecore$getImageWidth();
+        int guiTop     = ((AbstractContainerScreenAccessor) screen).getTopPos();
+        int bottomFieldY = guiTop + 165;
+        int windowHeight = estimatePotionWindowHeight(mc);
+        return mouseX >= guiLeft && mouseX <= guiLeft + imageWidth
+                && mouseY >= (bottomFieldY - windowHeight)
+                && mouseY <= bottomFieldY;
+    }
+
+    private static int estimatePotionWindowHeight(Minecraft mc) {
+        if (hoveredPotion == null) return 0;
+        ItemStack stack = PotionTracker.getActivePotions().get(hoveredPotion);
+        int count = stack != null ? PotionUtils.getMobEffects(stack).size() : 1;
+        int lineH  = mc.font.lineHeight + 2;
+        int titleH = mc.font.lineHeight + 4;
+        return 6 + titleH + Math.max(1, count) * lineH + 6;
+    }
+
 
     private static void handleFoodHover(InventoryScreen screen, double mouseX, double mouseY) {
         ResourceLocation found = null;
@@ -125,11 +187,13 @@ public final class ArmorStatsHoverHandler {
         int titleH = mc.font.lineHeight + 4;
         int count  = getFoodEffectCount(hoveredFood);
         return 6 + titleH + Math.max(1, count) * lineH + 6;
+
     }
     public static boolean isHoveringAnyCustomWindow(InventoryScreen screen, double mouseX, double mouseY) {
         return isMouseOverDetailsWindow(screen, mouseX, mouseY)
                 || isMouseOverFoodDetailsWindow(screen, mouseX, mouseY)
-                || isMouseOverEntityDetailsWindow(screen, mouseX, mouseY);
+                || isMouseOverEntityDetailsWindow(screen, mouseX, mouseY)
+                || isMouseOverPotionDetailsWindow(screen, mouseX, mouseY);
     }
     private static int getFoodEffectCount(ResourceLocation foodKey) {
         Minecraft mc = Minecraft.getInstance();

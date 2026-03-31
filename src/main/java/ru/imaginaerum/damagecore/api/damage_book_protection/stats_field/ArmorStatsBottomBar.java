@@ -39,6 +39,12 @@ public final class ArmorStatsBottomBar {
         return FOOD_ICON_POSITIONS;
     }
 
+    // Зелья — показываем иконку флакона
+    private static final Map<ResourceLocation, int[]> POTION_ICON_POSITIONS = new LinkedHashMap<>();
+
+    public static Map<ResourceLocation, int[]> getPotionIconPositions() {
+        return POTION_ICON_POSITIONS;
+    }
     public static void render(GuiGraphics gui, InventoryScreen screen, int barY, int barHeight) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
@@ -104,6 +110,23 @@ public final class ArmorStatsBottomBar {
                     x += iconSize + padding;
                 }
             }
+        }
+// Зелья
+        POTION_ICON_POSITIONS.clear();
+        PotionTracker.cleanup(mc.player); // очищаем истёкшие
+
+        for (Map.Entry<ResourceLocation, ItemStack> entry : PotionTracker.getActivePotions().entrySet()) {
+            ResourceLocation key = entry.getKey();
+            ItemStack potionStack = entry.getValue();
+
+            if (!renderedKeys.add(key)) continue;
+
+            POTION_ICON_POSITIONS.put(key, new int[]{x, barY, iconSize, barHeight});
+
+            // Рисуем флакон без цифры количества
+            gui.renderFakeItem(potionStack, x, y);
+
+            x += iconSize + padding;
         }
 
         // Сущности - отображаем БЕЗ количества (это 3D модели, тут проблем быть не должно)

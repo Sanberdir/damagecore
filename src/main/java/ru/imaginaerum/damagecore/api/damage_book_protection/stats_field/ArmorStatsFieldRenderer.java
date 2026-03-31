@@ -63,7 +63,12 @@ public final class ArmorStatsFieldRenderer {
             ArmorStatsDetailsWindow.renderFoodDetails(gui, screen, bottomFieldY, drawW);
             gui.pose().popPose();
         }
-
+        if (ArmorStatsHoverHandler.isShowPotionDetails()) {
+            gui.pose().pushPose();
+            gui.pose().translate(0, 0, 400);
+            ArmorStatsDetailsWindow.renderPotionDetails(gui, screen, bottomFieldY, drawW);
+            gui.pose().popPose();
+        }
         if (ArmorStatsHoverHandler.isShowDetails()) {
             gui.pose().pushPose();
             gui.pose().translate(0, 0, 400);
