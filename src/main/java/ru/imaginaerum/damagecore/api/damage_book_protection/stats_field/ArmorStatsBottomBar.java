@@ -3,6 +3,7 @@ package ru.imaginaerum.damagecore.api.damage_book_protection.stats_field;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -115,18 +116,26 @@ public final class ArmorStatsBottomBar {
             if (key == null || !renderedKeys.add(key)) continue;
 
             LivingEntity staticCopy = createStaticCopy(source);
+
+            EntityRenderDispatcher dispatcher = Minecraft.getInstance().getEntityRenderDispatcher();
+            if (dispatcher.getRenderer(staticCopy) == null) {
+                continue;
+            }
             staticCopy.yBodyRot = 0f;
             staticCopy.yHeadRot = 0f;
             staticCopy.setYRot(0f);
             staticCopy.setXRot(0f);
 
             Quaternionf bodyRot = new Quaternionf()
-                    .rotateZ((float) Math.toRadians(180))
-                    .rotateY((float) Math.toRadians(180));
+                    .rotateY((float) Math.toRadians(35))
+                    .rotateZ((float) Math.toRadians(20))
+                    .rotateX((float) Math.toRadians(200));
 
             Quaternionf headRot = new Quaternionf()
-                    .rotateZ((float) Math.toRadians(180))
-                    .rotateY((float) Math.toRadians(180));
+                    .rotateY((float) Math.toRadians(35))
+                    .rotateZ((float) Math.toRadians(20))
+                    .rotateX((float) Math.toRadians(200));
+
 
             float entityHeight = staticCopy.getBbHeight();
             int size = (int)(12f / entityHeight);
