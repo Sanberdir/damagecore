@@ -3,6 +3,7 @@ package ru.imaginaerum.damagecore.hud;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.GameType;
 import net.minecraftforge.api.distmarker.Dist;
@@ -30,10 +31,15 @@ public class DamageCoreHudOverlay {
         RenderSystem.setShaderTexture(0, HUD_TEXTURE);
         ThirstBarElement.tick(mc);   // в onRenderGui перед рендером
         ThirstBarElement.render(gui, mc);
-        StaminaBarElement.update(mc);
         HungerBarElement.render(gui, mc);
         HudBase.render(gui);
-        HealthBarElement.render(gui, mc);
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player != null) {
+            float health = player.getHealth();
+            float maxHealth = player.getMaxHealth(); // обычно 20
+            float percent = health / maxHealth;
+            HealthBarElement.render(gui, percent);
+        }
         ManaBarElement.render(gui);
         StaminaBarElement.render(gui);
         EffectIconsElement.render(gui, mc);

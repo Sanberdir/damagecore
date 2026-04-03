@@ -6,6 +6,6 @@ import ru.imaginaerum.damagecore.hud.DamageCoreHudOverlay;
 public class HudBase {
 
     public static void render(GuiGraphics gui) {
-        gui.blit(DamageCoreHudOverlay.HUD_TEXTURE, 0, 0, 0, 0, 48, 48, 160, 208);
+        gui.blit(DamageCoreHudOverlay.HUD_TEXTURE, 8, 4, 0, 0, 40, 40, 160, 208);
     }
 }

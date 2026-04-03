@@ -6,7 +6,7 @@ import ru.imaginaerum.damagecore.hud.DamageCoreHudOverlay;
 
 public class StaminaBarElement {
 
-    private static final int TEXTURE_BAR_WIDTH = 104;
+    private static final int TEXTURE_BAR_WIDTH = 32;
     private static final int EDGE_WIDTH = 6;
 
     private static final int BAR_X = 38;
@@ -14,88 +14,113 @@ public class StaminaBarElement {
     private static final int BAR_W = 52;
     private static final int BAR_H = 6;
 
-    private static final int TEXTURE_X = 38;
-    private static final int TEXTURE_Y_FULL = 97;
-    private static final int TEXTURE_Y_EMPTY = 193;
+    private static final int TEXTURE_X = 0;
+    private static final int TEXTURE_Y_EMPTY = 72;
 
-    private static float stamina = 40f;
-    public static final float MAX_STAMINA = 40f;
+    // Заполненная полоска: X2 Y61 по X30 Y65
+    private static final int FILLED_TEX_X = 2;
+    private static final int FILLED_TEX_Y = 61;
+    private static final int FILLED_TEX_W = 28; // 30 - 2
+    private static final int FILLED_TEX_H = 4;  // 65 - 61
 
-    public static void update(Minecraft mc) {
-        if (mc.player == null) return;
-
-        boolean sprinting = mc.player.isSprinting();
-        boolean moving = mc.player.zza != 0 || mc.player.xxa != 0;
-
-        boolean isInMovingBoat = false;
-        if (mc.player.getVehicle() instanceof net.minecraft.world.entity.vehicle.Boat boat) {
-            isInMovingBoat = boat.getDeltaMovement().horizontalDistanceSqr() > 0.001;
-        }
-
-        if ((sprinting && moving) || isInMovingBoat) {
-            stamina -= isInMovingBoat ? 0.02f : 0.05f;
-        } else {
-            stamina += moving ? 0.04f : 0.16f;
-        }
-
-        stamina = Math.max(0, Math.min(MAX_STAMINA, stamina));
-    }
+    private static final int HUD_TEXTURE_WIDTH = 160;
+    private static final int HUD_TEXTURE_HEIGHT = 208;
+    private static float stamina = 1.0f;
 
     public static float getStamina() {
         return stamina;
     }
 
     public static void render(GuiGraphics gui) {
-        int filledWidth = Math.max(0, Math.min(BAR_W, (int)(BAR_W * stamina / MAX_STAMINA)));
+        renderEmptyBar(gui, BAR_X, BAR_Y, BAR_W, BAR_H, TEXTURE_X, TEXTURE_Y_EMPTY);
 
-        // Пустая полоска
-        renderBar(gui, BAR_X, BAR_Y, BAR_W, BAR_H, TEXTURE_X, TEXTURE_Y_EMPTY);
+        int filledBarW = BAR_W - 4;
+        int filledW = Math.round(filledBarW * stamina);
 
-        // Заполнение
-        if (filledWidth > 0) {
-            renderBarFilled(gui, BAR_X, BAR_Y, BAR_W, BAR_H, filledWidth, TEXTURE_X, TEXTURE_Y_FULL);
+        if (filledW > 0) {
+            renderFilledBar(gui,
+                    BAR_X + 2,
+                    BAR_Y + 1,
+                    filledW,
+                    BAR_H - 2,
+                    FILLED_TEX_X,
+                    FILLED_TEX_Y);
         }
     }
 
-    static void renderBar(GuiGraphics gui, int barX, int barY, int barW, int barH, int texX, int texY) {
-        int remaining = barW;
+    static void renderEmptyBar(GuiGraphics gui, int barX, int barY, int barW, int barH, int texX, int texY) {
         int drawX = barX;
 
-        int left = Math.min(EDGE_WIDTH, remaining);
-        gui.blit(DamageCoreHudOverlay.HUD_TEXTURE, drawX, barY, texX, texY, left, barH, 160, 208);
-        drawX += left; remaining -= left;
+        gui.blit(DamageCoreHudOverlay.HUD_TEXTURE,
+                drawX, barY,
+                EDGE_WIDTH, barH,
+                texX, texY,
+                EDGE_WIDTH, barH,
+                HUD_TEXTURE_WIDTH, HUD_TEXTURE_HEIGHT);
+        drawX += EDGE_WIDTH;
 
-        if (remaining > EDGE_WIDTH) {
-            int mid = remaining - EDGE_WIDTH;
-            gui.blit(DamageCoreHudOverlay.HUD_TEXTURE, drawX, barY, texX + EDGE_WIDTH, texY, mid, barH, 160, 208);
-            drawX += mid; remaining -= mid;
+        int midWidth = barW - EDGE_WIDTH * 2;
+        int midTexX = texX + EDGE_WIDTH;
+        int midTexW = TEXTURE_BAR_WIDTH - EDGE_WIDTH * 2;
+        if (midWidth > 0) {
+            gui.blit(DamageCoreHudOverlay.HUD_TEXTURE,
+                    drawX, barY,
+                    midWidth, barH,
+                    midTexX, texY,
+                    midTexW, barH,
+                    HUD_TEXTURE_WIDTH, HUD_TEXTURE_HEIGHT);
+            drawX += midWidth;
         }
 
-        if (remaining > 0) {
-            gui.blit(DamageCoreHudOverlay.HUD_TEXTURE, drawX, barY,
-                    texX + TEXTURE_BAR_WIDTH - EDGE_WIDTH, texY, remaining, barH, 160, 208);
-        }
+        gui.blit(DamageCoreHudOverlay.HUD_TEXTURE,
+                drawX, barY,
+                EDGE_WIDTH, barH,
+                texX + TEXTURE_BAR_WIDTH - EDGE_WIDTH, texY,
+                EDGE_WIDTH, barH,
+                HUD_TEXTURE_WIDTH, HUD_TEXTURE_HEIGHT);
     }
 
-    static void renderBarFilled(GuiGraphics gui, int barX, int barY, int barW, int barH,
-                                int filledWidth, int texX, int texY) {
-        int fillX = barX;
-        int width = filledWidth;
+    static void renderFilledBar(GuiGraphics gui, int barX, int barY, int barW, int barH, int texX, int texY) {
+        int drawX = barX;
+        int filledEdgeWidth = Math.min(EDGE_WIDTH, FILLED_TEX_W / 2);
 
-        int left = Math.min(EDGE_WIDTH, width);
-        gui.blit(DamageCoreHudOverlay.HUD_TEXTURE, fillX, barY, texX, texY, left, barH, 160, 208);
-        fillX += left; width -= left;
+        int leftW = Math.min(filledEdgeWidth, barW);
+        gui.blit(DamageCoreHudOverlay.HUD_TEXTURE,
+                drawX, barY,
+                leftW, barH,
+                texX, texY,
+                leftW, FILLED_TEX_H,
+                HUD_TEXTURE_WIDTH, HUD_TEXTURE_HEIGHT);
+        drawX += leftW;
+        barW -= leftW;
 
-        if (width > 0) {
-            int mid = Math.min(width, barW - EDGE_WIDTH * 2);
-            gui.blit(DamageCoreHudOverlay.HUD_TEXTURE, fillX, barY, texX + EDGE_WIDTH, texY, mid, barH, 160, 208);
-            fillX += mid; width -= mid;
+        int midTexW = FILLED_TEX_W - filledEdgeWidth * 2;
+        int midScreenW = Math.max(0, barW - filledEdgeWidth);
+        if (midScreenW > 0 && midTexW > 0) {
+            gui.blit(DamageCoreHudOverlay.HUD_TEXTURE,
+                    drawX, barY,
+                    midScreenW, barH,
+                    texX + filledEdgeWidth, texY,
+                    midTexW, FILLED_TEX_H,
+                    HUD_TEXTURE_WIDTH, HUD_TEXTURE_HEIGHT);
+            drawX += midScreenW;
+            barW -= midScreenW;
         }
 
-        if (width > 0) {
-            gui.blit(DamageCoreHudOverlay.HUD_TEXTURE, fillX, barY,
-                    texX + TEXTURE_BAR_WIDTH - EDGE_WIDTH, texY,
-                    Math.min(width, EDGE_WIDTH), barH, 160, 208);
+        if (barW >= filledEdgeWidth) {
+            gui.blit(DamageCoreHudOverlay.HUD_TEXTURE,
+                    drawX, barY,
+                    filledEdgeWidth, barH,
+                    texX + FILLED_TEX_W - filledEdgeWidth, texY,
+                    filledEdgeWidth, FILLED_TEX_H,
+                    HUD_TEXTURE_WIDTH, HUD_TEXTURE_HEIGHT);
+        } else if (barW > 0) {
+            gui.blit(DamageCoreHudOverlay.HUD_TEXTURE,
+                    drawX, barY,
+                    barW, barH,
+                    texX + FILLED_TEX_W - filledEdgeWidth, texY,
+                    barW, FILLED_TEX_H,
+                    HUD_TEXTURE_WIDTH, HUD_TEXTURE_HEIGHT);
         }
     }
 }

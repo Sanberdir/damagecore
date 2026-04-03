@@ -1,103 +1,133 @@
 package ru.imaginaerum.damagecore.hud.elements;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import ru.imaginaerum.damagecore.hud.DamageCoreHudOverlay;
 
 public class HealthBarElement {
 
-    private static final int TEXTURE_BAR_WIDTH = 104;
-    private static final int EDGE_WIDTH = 6;
+    private static final int TEXTURE_BAR_WIDTH = 32; // ширина исходной полоски на текстуре
+    private static final int EDGE_WIDTH = 6;        // ширина краёв на текстуре
 
-    private static final int BAR_X = 45;
+    private static final int BAR_X = 45; // экранная позиция
     private static final int BAR_Y = 17;
-    private static final int BAR_H = 6;
-    private static final int BASE_BAR_W = 52;
-    private static final float BASE_MAX_HEALTH = 20f;
+    private static final int BAR_W = 52; // новая ширина полоски на экране
+    private static final int BAR_H = 6;  // высота полоски
 
-    private static final int TEXTURE_X = 45;
-    private static final int TEXTURE_Y_EMPTY = 177;
-    private static final int TEXTURE_Y_HEALTH = 81;
-    private static final int TEXTURE_Y_ABSORPTION = 113;
+    private static final int TEXTURE_X = 0;      // X на текстуре
+    private static final int TEXTURE_Y_EMPTY = 66; // Y пустой полоски
 
-    public static void render(GuiGraphics gui, Minecraft mc) {
-        float health = mc.player.getHealth();
-        float maxHealth = mc.player.getMaxHealth();
-        float absorption = mc.player.getAbsorptionAmount();
+    // Параметры для заполненной полоски
+    private static final int FILLED_TEX_X = 2;    // X на текстуре (2)
+    private static final int FILLED_TEX_Y = 49;   // Y на текстуре (49)
+    private static final int FILLED_TEX_W = 28;   // ширина на текстуре (30 - 2 = 28)
+    private static final int FILLED_TEX_H = 4;    // высота на текстуре (53 - 49 = 4)
 
-        int barW = (int)(BASE_BAR_W * (maxHealth / BASE_MAX_HEALTH));
-        int healthWidth = Math.max(0, Math.min(barW, (int)(barW * health / maxHealth)));
-        int absorptionWidth = Math.max(0, Math.min(barW, (int)(barW * absorption / maxHealth)));
-        boolean hasAbsorption = absorptionWidth > 0;
+    // Размер исходной текстуры HUD
+    private static final int HUD_TEXTURE_WIDTH = 160;
+    private static final int HUD_TEXTURE_HEIGHT = 208;
 
-        // Пустая полоска
-        StaminaBarElement.renderBar(gui, BAR_X, BAR_Y, barW, BAR_H, TEXTURE_X, TEXTURE_Y_EMPTY);
+    public static void render(GuiGraphics gui, float healthPercent) {
+        renderEmptyBar(gui, BAR_X, BAR_Y, BAR_W, BAR_H, TEXTURE_X, TEXTURE_Y_EMPTY);
 
-        // Красная HP
-        if (healthWidth > 0) {
-            renderHealth(gui, barW, healthWidth, hasAbsorption);
-        }
+        int filledBarW = BAR_W - 4;
+        int filledW = Math.round(filledBarW * healthPercent); // сколько пикселей заполнено
 
-        // Жёлтая Absorption
-        if (hasAbsorption) {
-            renderAbsorption(gui, barW, healthWidth, absorptionWidth);
-        }
-    }
-
-    private static void renderHealth(GuiGraphics gui, int barW, int healthWidth, boolean hasAbsorption) {
-        int fillX = BAR_X;
-        int width = healthWidth;
-
-        int left = Math.min(EDGE_WIDTH, width);
-        gui.blit(DamageCoreHudOverlay.HUD_TEXTURE, fillX, BAR_Y, TEXTURE_X, TEXTURE_Y_HEALTH, left, BAR_H, 160, 208);
-        fillX += left; width -= left;
-
-        if (width > 0) {
-            int mid = Math.min(width, barW - EDGE_WIDTH * 2);
-            gui.blit(DamageCoreHudOverlay.HUD_TEXTURE, fillX, BAR_Y, TEXTURE_X + EDGE_WIDTH, TEXTURE_Y_HEALTH, mid, BAR_H, 160, 208);
-            fillX += mid; width -= mid;
-        }
-
-        if (width > 0) {
-            if (!hasAbsorption) {
-                gui.blit(DamageCoreHudOverlay.HUD_TEXTURE, fillX, BAR_Y,
-                        TEXTURE_X + TEXTURE_BAR_WIDTH - EDGE_WIDTH, TEXTURE_Y_HEALTH,
-                        Math.min(width, EDGE_WIDTH), BAR_H, 160, 208);
-            } else {
-                gui.blit(DamageCoreHudOverlay.HUD_TEXTURE, fillX, BAR_Y,
-                        TEXTURE_X + EDGE_WIDTH, TEXTURE_Y_HEALTH, width, BAR_H, 160, 208);
-            }
+        if (filledW > 0) {
+            renderFilledBar(gui,
+                    BAR_X + 2,
+                    BAR_Y + 1,
+                    filledW,
+                    BAR_H - 2,
+                    FILLED_TEX_X,
+                    FILLED_TEX_Y);
         }
     }
 
-    private static void renderAbsorption(GuiGraphics gui, int barW, int healthWidth, int absorptionWidth) {
-        int goldStartX = BAR_X + healthWidth;
-        int rightSkewStart = BAR_X + barW - EDGE_WIDTH;
-        int absorptionEnd = goldStartX + absorptionWidth;
+    static void renderEmptyBar(GuiGraphics gui, int barX, int barY, int barW, int barH, int texX, int texY) {
+        int drawX = barX;
 
-        int leftLen = (goldStartX == BAR_X) ? Math.min(EDGE_WIDTH, absorptionWidth) : 0;
-        int rightLen = 0;
+        // Левая граница (без растяжки, 1:1)
+        gui.blit(DamageCoreHudOverlay.HUD_TEXTURE,
+                drawX, barY,
+                EDGE_WIDTH, barH,
+                texX, texY,
+                EDGE_WIDTH, barH,
+                HUD_TEXTURE_WIDTH, HUD_TEXTURE_HEIGHT);
+        drawX += EDGE_WIDTH;
 
-        if (absorptionEnd > rightSkewStart) {
-            rightLen = Math.min(EDGE_WIDTH, absorptionEnd - rightSkewStart);
-            rightLen = Math.min(rightLen, absorptionWidth - leftLen);
+        // Средняя часть
+        int midWidth = barW - EDGE_WIDTH * 2;
+        int midTexX = texX + EDGE_WIDTH;
+        int midTexW = TEXTURE_BAR_WIDTH - EDGE_WIDTH * 2;
+        if (midWidth > 0) {
+            gui.blit(DamageCoreHudOverlay.HUD_TEXTURE,
+                    drawX, barY,
+                    midWidth, barH,
+                    midTexX, texY,
+                    midTexW, barH,
+                    HUD_TEXTURE_WIDTH, HUD_TEXTURE_HEIGHT);
+            drawX += midWidth;
         }
 
-        int midLen = Math.max(0, absorptionWidth - leftLen - rightLen);
-        int drawX = goldStartX;
+        // Правая граница
+        gui.blit(DamageCoreHudOverlay.HUD_TEXTURE,
+                drawX, barY,
+                EDGE_WIDTH, barH,
+                texX + TEXTURE_BAR_WIDTH - EDGE_WIDTH, texY,
+                EDGE_WIDTH, barH,
+                HUD_TEXTURE_WIDTH, HUD_TEXTURE_HEIGHT);
+    }
 
-        if (leftLen > 0) {
-            gui.blit(DamageCoreHudOverlay.HUD_TEXTURE, drawX, BAR_Y, TEXTURE_X, TEXTURE_Y_ABSORPTION, leftLen, BAR_H, 160, 208);
-            drawX += leftLen;
+    static void renderFilledBar(GuiGraphics gui, int barX, int barY, int barW, int barH, int texX, int texY) {
+        int drawX = barX;
+        int filledEdgeWidth = Math.min(EDGE_WIDTH, FILLED_TEX_W / 2);
+
+        // Левый край — рисуем только если хватает места
+        int leftW = Math.min(filledEdgeWidth, barW);
+        gui.blit(DamageCoreHudOverlay.HUD_TEXTURE,
+                drawX, barY,
+                leftW, barH,
+                texX, texY,
+                leftW, FILLED_TEX_H,
+                HUD_TEXTURE_WIDTH, HUD_TEXTURE_HEIGHT);
+        drawX += leftW;
+        barW -= leftW;
+
+        // Средняя часть
+        int midTexW = FILLED_TEX_W - filledEdgeWidth * 2;
+        int midScreenW = Math.max(0, barW - filledEdgeWidth); // оставляем место под правый край
+        if (midScreenW > 0 && midTexW > 0) {
+            // Обрезаем текстуру пропорционально
+            int clampedMidScreenW = Math.min(midScreenW, barW);
+            int clampedMidTexW = Math.round((float) midTexW * clampedMidScreenW / (FILLED_TEX_W - filledEdgeWidth * 2 > 0 ? FILLED_TEX_W - filledEdgeWidth * 2 : 1));
+            clampedMidTexW = Math.max(1, Math.min(clampedMidTexW, midTexW));
+
+            gui.blit(DamageCoreHudOverlay.HUD_TEXTURE,
+                    drawX, barY,
+                    clampedMidScreenW, barH,
+                    texX + filledEdgeWidth, texY,
+                    midTexW, FILLED_TEX_H,
+                    HUD_TEXTURE_WIDTH, HUD_TEXTURE_HEIGHT);
+            drawX += clampedMidScreenW;
+            barW -= clampedMidScreenW;
         }
-        if (midLen > 0) {
-            gui.blit(DamageCoreHudOverlay.HUD_TEXTURE, drawX, BAR_Y, TEXTURE_X + EDGE_WIDTH, TEXTURE_Y_ABSORPTION, midLen, BAR_H, 160, 208);
-            drawX += midLen;
-        }
-        if (rightLen > 0) {
-            gui.blit(DamageCoreHudOverlay.HUD_TEXTURE, drawX, BAR_Y,
-                    TEXTURE_X + TEXTURE_BAR_WIDTH - EDGE_WIDTH + (EDGE_WIDTH - rightLen),
-                    TEXTURE_Y_ABSORPTION, rightLen, BAR_H, 160, 208);
+
+        // Правый край — только если осталось место
+        if (barW >= filledEdgeWidth) {
+            gui.blit(DamageCoreHudOverlay.HUD_TEXTURE,
+                    drawX, barY,
+                    filledEdgeWidth, barH,
+                    texX + FILLED_TEX_W - filledEdgeWidth, texY,
+                    filledEdgeWidth, FILLED_TEX_H,
+                    HUD_TEXTURE_WIDTH, HUD_TEXTURE_HEIGHT);
+        } else if (barW > 0) {
+            // Частичный правый край
+            gui.blit(DamageCoreHudOverlay.HUD_TEXTURE,
+                    drawX, barY,
+                    barW, barH,
+                    texX + FILLED_TEX_W - filledEdgeWidth, texY,
+                    barW, FILLED_TEX_H,
+                    HUD_TEXTURE_WIDTH, HUD_TEXTURE_HEIGHT);
         }
     }
 }

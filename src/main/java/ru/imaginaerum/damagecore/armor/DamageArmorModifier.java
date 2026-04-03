@@ -13,6 +13,7 @@ import net.minecraft.world.item.ArmorMaterials;
 import net.minecraftforge.event.AddReloadListenerEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.loading.FMLEnvironment;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.imaginaerum.damagecore.DamageCore;
@@ -28,17 +29,20 @@ import java.util.concurrent.ConcurrentHashMap;
 @Mod.EventBusSubscriber(modid = DamageCore.MODID)
 public class DamageArmorModifier extends SimpleJsonResourceReloadListener {
     private static final Gson GSON = new GsonBuilder().create();
-
+    private static final Map<ArmorMaterial, Map<ArmorItem.Type, Map<DamageType, DamageResistance>>>
+            CLIENT_CACHE = new ConcurrentHashMap<>();
 
     private final Map<String, ArmorMaterialConfig> materialConfigs = new ConcurrentHashMap<>();
-    private final Map<ArmorMaterial, Map<ArmorItem.Type, Map<DamageType, DamageResistance>>> cachedModifiers = new ConcurrentHashMap<>();
+    private static final Map<ArmorMaterial, Map<ArmorItem.Type, Map<DamageType, DamageResistance>>> cachedModifiers = new ConcurrentHashMap<>();
 
     public DamageArmorModifier() {
         super(GSON, "damage_armor_modifiers");
+        initializeDefaultModifiers(); // <- добавь это
     }
 
     @Override
     protected void apply(Map<ResourceLocation, JsonElement> resources, ResourceManager manager, ProfilerFiller profiler) {
+
         if (resources.isEmpty()) {
             return;
         }
@@ -52,15 +56,15 @@ public class DamageArmorModifier extends SimpleJsonResourceReloadListener {
                 ArmorMaterialConfig config = GSON.fromJson(jsonElement, ArmorMaterialConfig.class);
                 materialConfigs.put(resourceLocation.getPath(), config);
                 cacheMaterialModifiers(config);
-                System.out.println("Loaded armor config: " + resourceLocation);
+
             } catch (Exception e) {
-                System.out.println("Failed to load: " + resourceLocation);
                 e.printStackTrace();
             }
         });
         cachedModifiers.forEach((material, types) -> {
         });
         initializeDefaultModifiers();
+
     }
 
     private void cacheMaterialModifiers(ArmorMaterialConfig config) {
@@ -200,7 +204,7 @@ public class DamageArmorModifier extends SimpleJsonResourceReloadListener {
         };
     }
 
-    private void initializeDefaultModifiers() {
+    public void initializeDefaultModifiers() {
         // Эти значения будут использоваться если нет конфига в ресурспаке
         // или как fallback значения
         Map<ArmorItem.Type, Map<DamageType, DamageResistance>> defaultIron = new EnumMap<>(ArmorItem.Type.class);
@@ -239,14 +243,19 @@ public class DamageArmorModifier extends SimpleJsonResourceReloadListener {
             return Map.of();
         }
 
+        // Если кэш ещё не загружен — инициализируем дефолты
+        if (DamageCore.ARMOR_MODIFIER.cachedModifiers.isEmpty()) {
+            DamageCore.ARMOR_MODIFIER.initializeDefaultModifiers();
+        }
 
         Map<ArmorItem.Type, Map<DamageType, DamageResistance>> materialModifiers =
                 DamageCore.ARMOR_MODIFIER.cachedModifiers.get(material);
 
-        if (materialModifiers != null) {
-            return materialModifiers.getOrDefault(type, Map.of());
+        if (materialModifiers == null) {
+            return Map.of();
         }
-        return Map.of();
+
+        return materialModifiers.getOrDefault(type, Map.of());
     }
 
     public static DamageResistance getDamageResistance(ArmorMaterial material, ArmorItem.Type type, DamageType damageType) {
