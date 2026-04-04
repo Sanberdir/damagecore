@@ -95,7 +95,7 @@ public class ThirstBarElement {
         int heartsY    = screenH - 49;
 
         int screenX = hotbarLeft - 38 + 18 - 3 - 4;
-        int screenY = heartsY;
+        int screenY = heartsY + 7;
 
         // 1. Иконка (как у hunger — сдвиг текстуры на 1 вверх)
         gui.blit(TEXTURE,

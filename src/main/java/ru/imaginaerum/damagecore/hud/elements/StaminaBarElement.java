@@ -26,15 +26,41 @@ public class StaminaBarElement {
     private static final int HUD_TEXTURE_WIDTH = 160;
     private static final int HUD_TEXTURE_HEIGHT = 208;
 
+    private static final int TEXTURE_X_FLASH = 32;  // координаты второй текстуры
+    private static final int TEXTURE_Y_FLASH = 78;
+    private static final int FLASH_DURATION  = 3;
+    private static float lastStamina  = -1f;  // прошлое значение стамины
+    private static int   flashTicks   = 0;    // сколько тиков мигать осталось
+    private static long  lastGameTime = -1L;  // для отсчёта тиков
 
     public static void render(GuiGraphics gui) {
-        renderEmptyBar(gui, BAR_X, BAR_Y, BAR_W, BAR_H, TEXTURE_X, TEXTURE_Y_EMPTY);
+        float stamina = StaminaManager.getStamina();
 
-        // Берём долю 0.0–1.0 из StaminaManager
-        float fraction = StaminaManager.getStamina() / StaminaManager.MAX_STAMINA;
+        long now = Minecraft.getInstance().level != null
+                ? Minecraft.getInstance().level.getGameTime()
+                : System.currentTimeMillis() / 50;
 
-        int filledBarW = BAR_W - 4;
-        int filledW = Math.round(filledBarW * fraction);
+        if (lastGameTime != now) {
+            lastGameTime = now;
+
+            if (lastStamina >= 0 && stamina < lastStamina) {
+                flashTicks = FLASH_DURATION;
+            }
+            if (flashTicks > 0) flashTicks--;
+
+            lastStamina = stamina;
+        }
+
+        // Вторая текстура постоянно пока flashTicks > 0
+        boolean useAlt = flashTicks > 0;
+
+        int emptyTexX = useAlt ? TEXTURE_X_FLASH : TEXTURE_X;
+        int emptyTexY = useAlt ? TEXTURE_Y_FLASH : TEXTURE_Y_EMPTY;
+
+        renderEmptyBar(gui, BAR_X, BAR_Y, BAR_W, BAR_H, emptyTexX, emptyTexY);
+
+        float fraction = stamina / StaminaManager.MAX_STAMINA;
+        int filledW = Math.round((BAR_W - 4) * fraction);
 
         if (filledW > 0) {
             renderFilledBar(gui,
@@ -46,7 +72,6 @@ public class StaminaBarElement {
                     FILLED_TEX_Y);
         }
     }
-
     static void renderEmptyBar(GuiGraphics gui, int barX, int barY, int barW, int barH, int texX, int texY) {
         int drawX = barX;
 

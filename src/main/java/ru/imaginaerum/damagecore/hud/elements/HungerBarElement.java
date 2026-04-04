@@ -66,7 +66,7 @@ public class HungerBarElement {
         int heartsY    = screenH - 49;
 
         int screenX = hotbarLeft - 19 - ICON_W;
-        int screenY = heartsY;  // значок остался на месте
+        int screenY = heartsY + 7;  // значок остался на месте
 
         // 1. Иконка-фон
         int iconSrcY = isHungry ? ICON_SRC_HUNGER - 1 : ICON_SRC_Y - 1;
