@@ -21,19 +21,37 @@ public class CorneredEvent {
         ItemStack shield = player.getUseItem();
         if (shield.isEmpty() || !(shield.getItem() instanceof ShieldItem)) return;
 
-        int currentDamage = shield.getDamageValue();
+        // Запоминаем состояние щита ДО того, как Forge нанесёт урон
+        int damageBeforeBlock = shield.getDamageValue();
         int maxDamage = shield.getMaxDamage();
 
-        // Примерный урон щиту
-        int damageToShield = (int)Math.ceil(event.getBlockedDamage());
+        // Запускаем проверку на следующем тике — после того, как Forge реально сломает щит
+        player.getServer().tell(new net.minecraft.server.TickTask(
+                player.getServer().getTickCount() + 1,
+                () -> {
+                    // Игрок уже онлайн?
+                    if (!player.isAlive()) return;
 
-        // Проверяем сломается ли щит
-        if (currentDamage + damageToShield >= maxDamage) {
-            player.addEffect(new MobEffectInstance(
-                    MobEffects.DAMAGE_BOOST,
-                    20 * 20,
-                    1
-            ));
-        }
+                    ItemStack currentItem = player.getUseItem();
+
+                    boolean shieldBroke =
+                            // Щит пропал из руки (сломался и исчез)
+                            currentItem.isEmpty()
+                                    // Или durability достиг максимума (сломан, но ещё в инвентаре)
+                                    || (currentItem.getItem() instanceof ShieldItem
+                                    && currentItem.getDamageValue() >= maxDamage)
+                                    // Или до блока оставалось мало прочности и теперь щит другой
+                                    || (damageBeforeBlock < maxDamage
+                                    && !(currentItem.getItem() instanceof ShieldItem));
+
+                    if (shieldBroke) {
+                        player.addEffect(new MobEffectInstance(
+                                MobEffects.DAMAGE_BOOST,
+                                20 * 20,
+                                1
+                        ));
+                    }
+                }
+        ));
     }
 }

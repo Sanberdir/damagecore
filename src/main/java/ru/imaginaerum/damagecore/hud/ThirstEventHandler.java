@@ -28,8 +28,7 @@ public class ThirstEventHandler {
         if (mc.player == null || mc.level == null) return;
 
         boolean rmb = mc.options.keyUse.isDown();
-        boolean emptyHands = mc.player.getMainHandItem().isEmpty()
-                && mc.player.getOffhandItem().isEmpty();
+        boolean emptyHands = mc.player.getMainHandItem().isEmpty();
         boolean lookingAtWater = isLookingAtWater(mc);
 
         if (rmb && emptyHands && lookingAtWater) {
@@ -58,7 +57,7 @@ public class ThirstEventHandler {
         var hit = mc.level.clip(new net.minecraft.world.level.ClipContext(
                 start, end,
                 net.minecraft.world.level.ClipContext.Block.OUTLINE,
-                net.minecraft.world.level.ClipContext.Fluid.SOURCE_ONLY,
+                net.minecraft.world.level.ClipContext.Fluid.ANY,
                 mc.player
         ));
 
