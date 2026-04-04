@@ -9,7 +9,7 @@ public class StaminaBarElement {
     private static final int TEXTURE_BAR_WIDTH = 32;
     private static final int EDGE_WIDTH = 6;
 
-    private static final int BAR_X = 38;
+    private static final int BAR_X = 40;
     private static final int BAR_Y = 33;
     private static final int BAR_W = 52;
     private static final int BAR_H = 6;
@@ -25,17 +25,16 @@ public class StaminaBarElement {
 
     private static final int HUD_TEXTURE_WIDTH = 160;
     private static final int HUD_TEXTURE_HEIGHT = 208;
-    private static float stamina = 1.0f;
 
-    public static float getStamina() {
-        return stamina;
-    }
 
     public static void render(GuiGraphics gui) {
         renderEmptyBar(gui, BAR_X, BAR_Y, BAR_W, BAR_H, TEXTURE_X, TEXTURE_Y_EMPTY);
 
+        // Берём долю 0.0–1.0 из StaminaManager
+        float fraction = StaminaManager.getStamina() / StaminaManager.MAX_STAMINA;
+
         int filledBarW = BAR_W - 4;
-        int filledW = Math.round(filledBarW * stamina);
+        int filledW = Math.round(filledBarW * fraction);
 
         if (filledW > 0) {
             renderFilledBar(gui,
@@ -83,7 +82,9 @@ public class StaminaBarElement {
     static void renderFilledBar(GuiGraphics gui, int barX, int barY, int barW, int barH, int texX, int texY) {
         int drawX = barX;
         int filledEdgeWidth = Math.min(EDGE_WIDTH, FILLED_TEX_W / 2);
+        int maxFilledW = BAR_W - 4;
 
+        // Левый край
         int leftW = Math.min(filledEdgeWidth, barW);
         gui.blit(DamageCoreHudOverlay.HUD_TEXTURE,
                 drawX, barY,
@@ -95,7 +96,15 @@ public class StaminaBarElement {
         barW -= leftW;
 
         int midTexW = FILLED_TEX_W - filledEdgeWidth * 2;
-        int midScreenW = Math.max(0, barW - filledEdgeWidth);
+
+        // Сколько пикселей правого скоса уже "вошло"
+        // Скос начинает появляться когда до maxFilledW остаётся <= filledEdgeWidth пикселей
+        int currentTotal = (drawX - barX) + barW; // уже нарисовано + осталось
+        int distanceFromEnd = maxFilledW - (leftW + barW);
+        int rightEdgeVisible = Math.max(0, Math.min(filledEdgeWidth, filledEdgeWidth - distanceFromEnd));
+
+        // Середина
+        int midScreenW = Math.max(0, barW - rightEdgeVisible);
         if (midScreenW > 0 && midTexW > 0) {
             gui.blit(DamageCoreHudOverlay.HUD_TEXTURE,
                     drawX, barY,
@@ -107,19 +116,13 @@ public class StaminaBarElement {
             barW -= midScreenW;
         }
 
-        if (barW >= filledEdgeWidth) {
+        // Правый скос — рисуем ровно rightEdgeVisible пикселей из текстуры
+        if (rightEdgeVisible > 0 && barW > 0) {
             gui.blit(DamageCoreHudOverlay.HUD_TEXTURE,
                     drawX, barY,
-                    filledEdgeWidth, barH,
+                    rightEdgeVisible, barH,
                     texX + FILLED_TEX_W - filledEdgeWidth, texY,
-                    filledEdgeWidth, FILLED_TEX_H,
-                    HUD_TEXTURE_WIDTH, HUD_TEXTURE_HEIGHT);
-        } else if (barW > 0) {
-            gui.blit(DamageCoreHudOverlay.HUD_TEXTURE,
-                    drawX, barY,
-                    barW, barH,
-                    texX + FILLED_TEX_W - filledEdgeWidth, texY,
-                    barW, FILLED_TEX_H,
+                    rightEdgeVisible, FILLED_TEX_H,
                     HUD_TEXTURE_WIDTH, HUD_TEXTURE_HEIGHT);
         }
     }

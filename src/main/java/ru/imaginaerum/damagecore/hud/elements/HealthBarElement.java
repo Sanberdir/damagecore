@@ -1,5 +1,6 @@
 package ru.imaginaerum.damagecore.hud.elements;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import ru.imaginaerum.damagecore.hud.DamageCoreHudOverlay;
 
@@ -8,7 +9,7 @@ public class HealthBarElement {
     private static final int TEXTURE_BAR_WIDTH = 32; // ширина исходной полоски на текстуре
     private static final int EDGE_WIDTH = 6;        // ширина краёв на текстуре
 
-    private static final int BAR_X = 45; // экранная позиция
+    private static final int BAR_X = 47; // экранная позиция
     private static final int BAR_Y = 17;
     private static final int BAR_W = 52; // новая ширина полоски на экране
     private static final int BAR_H = 6;  // высота полоски
@@ -27,10 +28,20 @@ public class HealthBarElement {
     private static final int HUD_TEXTURE_HEIGHT = 208;
 
     public static void render(GuiGraphics gui, float healthPercent) {
-        renderEmptyBar(gui, BAR_X, BAR_Y, BAR_W, BAR_H, TEXTURE_X, TEXTURE_Y_EMPTY);
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) return;
 
-        int filledBarW = BAR_W - 4;
-        int filledW = Math.round(filledBarW * healthPercent); // сколько пикселей заполнено
+        float maxHealth = mc.player.getMaxHealth();
+        float baseHealth = 20f; // базовое максимальное здоровье
+
+        // Коэффициент растяжения полоски относительно базы
+        float widthScale = Math.min(maxHealth / baseHealth, 2f); // ограничим x2 чтобы не вылезло за экран
+        int scaledBarW = Math.round(BAR_W * widthScale);
+
+        renderEmptyBar(gui, BAR_X, BAR_Y, scaledBarW, BAR_H, TEXTURE_X, TEXTURE_Y_EMPTY);
+
+        int filledBarW = scaledBarW - 4;
+        int filledW = Math.round(filledBarW * healthPercent);
 
         if (filledW > 0) {
             renderFilledBar(gui,
@@ -39,7 +50,8 @@ public class HealthBarElement {
                     filledW,
                     BAR_H - 2,
                     FILLED_TEX_X,
-                    FILLED_TEX_Y);
+                    FILLED_TEX_Y,
+                    filledBarW); // передаём актуальный максимум
         }
     }
 
@@ -78,12 +90,15 @@ public class HealthBarElement {
                 HUD_TEXTURE_WIDTH, HUD_TEXTURE_HEIGHT);
     }
 
-    static void renderFilledBar(GuiGraphics gui, int barX, int barY, int barW, int barH, int texX, int texY) {
+    static void renderFilledBar(GuiGraphics gui, int barX, int barY, int barW, int barH, int texX, int texY, int maxFilledW) {
+        if (barW <= 0) return;
+
         int drawX = barX;
         int filledEdgeWidth = Math.min(EDGE_WIDTH, FILLED_TEX_W / 2);
+        int midTexW = FILLED_TEX_W - filledEdgeWidth * 2;
 
-        // Левый край — рисуем только если хватает места
         int leftW = Math.min(filledEdgeWidth, barW);
+
         gui.blit(DamageCoreHudOverlay.HUD_TEXTURE,
                 drawX, barY,
                 leftW, barH,
@@ -91,42 +106,36 @@ public class HealthBarElement {
                 leftW, FILLED_TEX_H,
                 HUD_TEXTURE_WIDTH, HUD_TEXTURE_HEIGHT);
         drawX += leftW;
-        barW -= leftW;
+        barW  -= leftW;
 
-        // Средняя часть
-        int midTexW = FILLED_TEX_W - filledEdgeWidth * 2;
-        int midScreenW = Math.max(0, barW - filledEdgeWidth); // оставляем место под правый край
+        if (barW <= 0) return;
+
+        int rightW = 0;
+        if (leftW >= filledEdgeWidth) {
+            int midMaxScreenW = maxFilledW - filledEdgeWidth * 2; // адаптивно под текущую ширину полоски
+            rightW = Math.max(0, barW - midMaxScreenW);
+            rightW = Math.min(rightW, filledEdgeWidth);
+            rightW = Math.min(rightW, barW);
+        }
+
+        int midScreenW = barW - rightW;
         if (midScreenW > 0 && midTexW > 0) {
-            // Обрезаем текстуру пропорционально
-            int clampedMidScreenW = Math.min(midScreenW, barW);
-            int clampedMidTexW = Math.round((float) midTexW * clampedMidScreenW / (FILLED_TEX_W - filledEdgeWidth * 2 > 0 ? FILLED_TEX_W - filledEdgeWidth * 2 : 1));
-            clampedMidTexW = Math.max(1, Math.min(clampedMidTexW, midTexW));
-
             gui.blit(DamageCoreHudOverlay.HUD_TEXTURE,
                     drawX, barY,
-                    clampedMidScreenW, barH,
+                    midScreenW, barH,
                     texX + filledEdgeWidth, texY,
                     midTexW, FILLED_TEX_H,
                     HUD_TEXTURE_WIDTH, HUD_TEXTURE_HEIGHT);
-            drawX += clampedMidScreenW;
-            barW -= clampedMidScreenW;
+            drawX += midScreenW;
+            barW  -= midScreenW;
         }
 
-        // Правый край — только если осталось место
-        if (barW >= filledEdgeWidth) {
+        if (rightW > 0) {
             gui.blit(DamageCoreHudOverlay.HUD_TEXTURE,
                     drawX, barY,
-                    filledEdgeWidth, barH,
+                    rightW, barH,
                     texX + FILLED_TEX_W - filledEdgeWidth, texY,
-                    filledEdgeWidth, FILLED_TEX_H,
-                    HUD_TEXTURE_WIDTH, HUD_TEXTURE_HEIGHT);
-        } else if (barW > 0) {
-            // Частичный правый край
-            gui.blit(DamageCoreHudOverlay.HUD_TEXTURE,
-                    drawX, barY,
-                    barW, barH,
-                    texX + FILLED_TEX_W - filledEdgeWidth, texY,
-                    barW, FILLED_TEX_H,
+                    rightW, FILLED_TEX_H,
                     HUD_TEXTURE_WIDTH, HUD_TEXTURE_HEIGHT);
         }
     }

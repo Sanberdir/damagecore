@@ -33,6 +33,12 @@ public class HudCancelOverlays {
         if (path.equals("food_level")) {
             event.setCanceled(true);
         }
+        if (path.equals("experience_bar")) {
+            event.setCanceled(true);
+        }
+        if (path.equals("experience_level")) {
+            event.setCanceled(true);
+        }
         if (path.equals("saturation_level")) {
             event.setCanceled(true);
         }

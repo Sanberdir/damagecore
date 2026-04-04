@@ -9,34 +9,34 @@ import ru.imaginaerum.damagecore.hud.net.ThirstDamagePacket;
 public class ThirstBarElement {
 
     private static final ResourceLocation TEXTURE =
-            new ResourceLocation("damagecore", "textures/hud/requirement_line.png");
+            new ResourceLocation("damagecore", "textures/hud/damage_core_hud.png");
 
-    private static final int TEXTURE_W = 80;
-    private static final int TEXTURE_H = 48;
+    private static final int TEXTURE_W = 160;
+    private static final int TEXTURE_H = 208;
 
     // Значок жажды
-    private static final int ICON_SRC_X = 32;
-    private static final int ICON_SRC_Y = 12;
-    private static final int ICON_W     = 17;
+    private static final int ICON_SRC_X = 16;
+    private static final int ICON_SRC_Y = 109;
+    private static final int ICON_W     = 18;
     private static final int ICON_H     = 20;
 
     // Заполненная часть
-    private static final int FILL_SRC_X = 33;
-    private static final int FILL_SRC_Y = 12;
+    private static final int FILL_SRC_X = 20;
+    private static final int FILL_SRC_Y = 109;
     private static final int FILL_W     = 16;
     private static final int FILL_H     = 10;
 
     // Пустая часть
     private static final int EMPTY_SRC_X = 0;
-    private static final int EMPTY_SRC_Y = 38;
+    private static final int EMPTY_SRC_Y = 156;
     private static final int EMPTY_W     = 16;
     private static final int EMPTY_H     = 10;
 
-    private static final int BAR_OFFSET_X = 1;
+    private static final int BAR_OFFSET_X = 2;
     private static final int BAR_OFFSET_Y = 0;
 
     // --- Система жажды ---
-    public static float thirst       = 20f;
+    public static float thirst = 20f;
     public static final float MAX_THIRST = 20f;
 
     private static int   tickTimer  = 0;
@@ -94,16 +94,13 @@ public class ThirstBarElement {
         int hotbarLeft = screenW / 2 - 50;
         int heartsY    = screenH - 49;
 
-        // Еда занимает ICON_W=18px, между ними 3px зазор → вода = еда_X + 18 + 3
-        // Еда стартует от hotbarLeft - 18 - 3 - ICON_W = hotbarLeft - 38
-        int screenX = hotbarLeft - 38 + 18 - 3;    // вода: правее еды на 3px
-
+        int screenX = hotbarLeft - 38 + 18 - 3 - 4;
         int screenY = heartsY;
 
-        // 1. Иконка
+        // 1. Иконка (как у hunger — сдвиг текстуры на 1 вверх)
         gui.blit(TEXTURE,
                 screenX, screenY,
-                ICON_SRC_X, ICON_SRC_Y,
+                ICON_SRC_X, ICON_SRC_Y - 1,
                 ICON_W, ICON_H,
                 TEXTURE_W, TEXTURE_H);
 
@@ -117,15 +114,25 @@ public class ThirstBarElement {
                 EMPTY_W, EMPTY_H,
                 TEXTURE_W, TEXTURE_H);
 
-        // 3. Заполненная (убывает сверху вниз)
+        // 3. Заполненная часть (как у hunger)
         int fillH = Math.round(FILL_H * (thirst / MAX_THIRST));
         if (fillH > 0) {
             int cut = FILL_H - fillH;
+
+            int fillSrcY = FILL_SRC_Y + cut - 1;
+
+            int screenFillX = barX + 2;
+            int screenFillY = barY + cut;
+
             gui.blit(TEXTURE,
-                    barX,       barY + cut,
-                    FILL_SRC_X, FILL_SRC_Y + cut,
-                    FILL_W,     fillH,
-                    TEXTURE_W,  TEXTURE_H);
+                    screenFillX,
+                    screenFillY,
+                    FILL_SRC_X,
+                    fillSrcY,
+                    FILL_W,
+                    fillH,
+                    TEXTURE_W,
+                    TEXTURE_H);
         }
     }
 }

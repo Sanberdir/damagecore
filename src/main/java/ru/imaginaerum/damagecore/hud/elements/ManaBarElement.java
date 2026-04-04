@@ -8,7 +8,7 @@ public class ManaBarElement {
     private static final int TEXTURE_BAR_WIDTH = 32;
     private static final int EDGE_WIDTH = 6;
 
-    private static final int BAR_X = 45;
+    private static final int BAR_X = 47;
     private static final int BAR_Y = 25;
     private static final int BAR_W = 26; // половина от 52
     private static final int BAR_H = 6;
