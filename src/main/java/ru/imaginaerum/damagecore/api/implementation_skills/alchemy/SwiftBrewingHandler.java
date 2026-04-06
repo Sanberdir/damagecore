@@ -1,9 +1,12 @@
 package ru.imaginaerum.damagecore.api.implementation_skills.alchemy;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.inventory.BrewingStandMenu;
 import net.minecraft.world.inventory.ContainerData;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BrewingStandBlockEntity;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -35,20 +38,19 @@ public class SwiftBrewingHandler {
 
         final int finalTreeId = treeId;
 
-        // Идём от игроков — ищем зелеварки рядом с игроками у которых есть навык
         for (ServerPlayer player : serverLevel.players()) {
-            if (SkillTreeServerHandler.getNodeProgress(player, finalTreeId, NODE_ID) <= 0f) continue;
+            int nodeLevel = SkillTreeServerHandler.getNodeLevel(player, NODE_ID); // уровень 0-3
+            if (nodeLevel <= 0) continue;
 
-            // Ищем зелеварки в радиусе 8 блоков от игрока
-            net.minecraft.core.BlockPos playerPos = player.blockPosition();
+          BlockPos playerPos = player.blockPosition();
             for (int dx = -8; dx <= 8; dx++) {
                 for (int dy = -4; dy <= 4; dy++) {
                     for (int dz = -8; dz <= 8; dz++) {
-                        net.minecraft.core.BlockPos checkPos = playerPos.offset(dx, dy, dz);
-                        net.minecraft.world.level.block.entity.BlockEntity be =
+                        BlockPos checkPos = playerPos.offset(dx, dy, dz);
+                       BlockEntity be =
                                 serverLevel.getBlockEntity(checkPos);
-                        if (be instanceof net.minecraft.world.level.block.entity.BrewingStandBlockEntity brewingStand) {
-                            accelerateBrewing(brewingStand);
+                        if (be instanceof BrewingStandBlockEntity brewingStand) {
+                            accelerateBrewing(brewingStand, nodeLevel);
                         }
                     }
                 }
@@ -56,18 +58,17 @@ public class SwiftBrewingHandler {
         }
     }
 
-
     private static void accelerateBrewing(
-            net.minecraft.world.level.block.entity.BrewingStandBlockEntity brewingStand) {
+          BrewingStandBlockEntity brewingStand,
+            int nodeLevel) {
         try {
-            Field brewTimeField = net.minecraft.world.level.block.entity.BrewingStandBlockEntity.class
+            Field brewTimeField = BrewingStandBlockEntity.class
                     .getDeclaredField("brewTime");
             brewTimeField.setAccessible(true);
             int brewTime = brewTimeField.getInt(brewingStand);
 
             if (brewTime > 0) {
-                int newTime = brewTime - 2; // ускоряем на 2 доп. тика
-                if (newTime < 1) newTime = 1;
+                int newTime = Math.max(1, brewTime - nodeLevel); // уровень 1 = -1, уровень 2 = -2, уровень 3 = -3
                 brewTimeField.setInt(brewingStand, newTime);
             }
         } catch (Exception e) {

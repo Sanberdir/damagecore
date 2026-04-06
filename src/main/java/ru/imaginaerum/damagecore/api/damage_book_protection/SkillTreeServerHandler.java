@@ -260,7 +260,13 @@ public final class SkillTreeServerHandler {
     // --------------------------------------------------
     // NBT helpers
     // --------------------------------------------------
-
+    public static int getNodeLevel(ServerPlayer player, String nodeId) {
+        for (int treeId : SkillTreeServerRegistry.getAllTreeIds()) {
+            int lvl = getNodeLevels(player, treeId).getOrDefault(nodeId, 0);
+            if (lvl > 0) return lvl;
+        }
+        return 0;
+    }
     private static Map<String, Integer> getNodeLevels(ServerPlayer player, int treeId) {
         CompoundTag persisted = player.getPersistentData().getCompound(Player.PERSISTED_NBT_TAG);
         player.getPersistentData().put(Player.PERSISTED_NBT_TAG, persisted);

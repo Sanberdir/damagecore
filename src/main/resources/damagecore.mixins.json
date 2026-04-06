@@ -22,7 +22,12 @@
     "tree_mixins.alchemy.ItemMixin",
     "tree_mixins.alchemy.ItemStackMixin",
     "tree_mixins.alchemy.AbstractContainerMenuMixin",
+
+    "tree_mixins.shooting.BowItemServerMixin",
+
+
     "event_trees.BrewingStandMixin",
+
     "effects_mixins.LivingEntityMixin",
     "enchanted.LivingEntityMagicAbsorbMixin",
     "enchanted.LivingEntityFallMagicAbsorbMixin",
@@ -44,6 +49,7 @@
     "ItemMixin"
   ],
   "client": [
+    "tree_mixins.shooting.ItemPropertiesMixin",
   ],
   "injectors": {
     "defaultRequire": 1

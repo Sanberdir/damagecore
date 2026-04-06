@@ -29,8 +29,9 @@ public class PotionMasterPickupEvent {
                 if (existing.isEmpty()) continue;
                 if (!ItemStack.isSameItemSameTags(existing, pickedUp)) continue;
 
-                int canAdd = 16 - existing.getCount();
-                if (canAdd <= 0) continue;
+                int maxStack = SkillTreeServerHandler.getNodeLevel(player, "potion_master") * 3;
+
+                int canAdd = maxStack - existing.getCount();
 
                 int toAdd = Math.min(canAdd, pickedUp.getCount());
                 existing.grow(toAdd);

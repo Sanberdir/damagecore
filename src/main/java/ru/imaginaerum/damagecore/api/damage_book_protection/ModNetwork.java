@@ -7,6 +7,7 @@ import net.minecraftforge.network.simple.SimpleChannel;
 import ru.imaginaerum.damagecore.api.damage_book_protection.node_variant.SelectNodeVariantPacket;
 import ru.imaginaerum.damagecore.api.damage_book_protection.node_variant.SelectVariantPacket;
 import ru.imaginaerum.damagecore.api.damage_book_protection.node_variant.SyncNodeVariantsPacket;
+import ru.imaginaerum.damagecore.api.implementation_skills.shooting.HundredArmedSyncPacket;
 import ru.imaginaerum.damagecore.events_tree.SyncTreeXpPacket;
 import ru.imaginaerum.damagecore.hud.net.ThirstDamagePacket;
 
@@ -43,6 +44,13 @@ public final class ModNetwork {
                 SyncNodeVariantsPacket::decode,
                 SyncNodeVariantsPacket::handle,
                 Optional.of(NetworkDirection.PLAY_TO_CLIENT)
+        );
+        CHANNEL.registerMessage(
+                id++,
+                HundredArmedSyncPacket.class,
+                HundredArmedSyncPacket::encode,
+                HundredArmedSyncPacket::decode,
+                HundredArmedSyncPacket::handle
         );
         CHANNEL.registerMessage(
                 id++,

@@ -30,9 +30,8 @@ public class ItemStackMixin {
         // Случай 1: стак уже в инвентаре — ищем по ссылке
         for (var player : server.getPlayerList().getPlayers()) {
             if (isStackInInventory(player, self)) {
-                if (SkillTreeServerHandler.isNodeLearned(player, "potion_master")) {
-                    cir.setReturnValue(16);
-                }
+                int level = SkillTreeServerHandler.getNodeLevel(player, "potion_master");
+                if (level > 0) cir.setReturnValue(level * 3);
                 return;
             }
         }
@@ -42,8 +41,9 @@ public class ItemStackMixin {
         if (pickingUUID == null) return;
 
         var pickingPlayer = server.getPlayerList().getPlayer(pickingUUID);
-        if (pickingPlayer != null && SkillTreeServerHandler.isNodeLearned(pickingPlayer, "potion_master")) {
-            cir.setReturnValue(16);
+        if (pickingPlayer != null) {
+            int level = SkillTreeServerHandler.getNodeLevel(pickingPlayer, "potion_master");
+            if (level > 0) cir.setReturnValue(level * 3);
         }
     }
 

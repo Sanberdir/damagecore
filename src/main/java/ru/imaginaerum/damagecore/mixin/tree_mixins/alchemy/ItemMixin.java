@@ -38,8 +38,9 @@ public class ItemMixin {
             var server = ServerLifecycleHooks.getCurrentServer();
             if (server == null) return;
             var player = server.getPlayerList().getPlayer(menuUUID);
-            if (player != null && SkillTreeServerHandler.isNodeLearned(player, "potion_master")) {
-                cir.setReturnValue(16);
+            if (player != null) {
+                int level = SkillTreeServerHandler.getNodeLevel(player, "potion_master");
+                if (level > 0) cir.setReturnValue(level * 3);
             }
         }
     }
