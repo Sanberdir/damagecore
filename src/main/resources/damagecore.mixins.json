@@ -27,7 +27,7 @@
 
 
     "event_trees.BrewingStandMixin",
-
+    "arrow_data.AbstractArrowMixin",
     "effects_mixins.LivingEntityMixin",
     "enchanted.LivingEntityMagicAbsorbMixin",
     "enchanted.LivingEntityFallMagicAbsorbMixin",

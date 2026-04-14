@@ -3,6 +3,7 @@ package ru.imaginaerum.damagecore.hud.elements;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.ResourceLocation;
+import ru.imaginaerum.damagecore.Config;
 import ru.imaginaerum.damagecore.api.damage_book_protection.ModNetwork;
 import ru.imaginaerum.damagecore.hud.net.ThirstDamagePacket;
 
@@ -44,7 +45,7 @@ public class ThirstBarElement {
 
     public static void tick(Minecraft mc) {
         if (mc.player == null) return;
-
+        if (!Config.enableThirst) return;
         if (mc.player.level().getDifficulty() == net.minecraft.world.Difficulty.PEACEFUL) {
             thirst = Math.min(MAX_THIRST, thirst + 1f);
             return;
@@ -72,7 +73,7 @@ public class ThirstBarElement {
             default     -> 1f;
         };
 
-        drainAccum += drain * diffMult;
+        drainAccum += drain * diffMult * Config.thirstDrainMultiplier;
         if (drainAccum >= 1f) {
             drainAccum -= 1f;
             thirst = Math.max(0f, thirst - 1f);
@@ -88,7 +89,7 @@ public class ThirstBarElement {
 
     public static void render(GuiGraphics gui, Minecraft mc) {
         if (mc.player == null) return;
-
+        if (!Config.enableThirst) return;
         int screenH    = mc.getWindow().getGuiScaledHeight();
         int screenW    = mc.getWindow().getGuiScaledWidth();
         int hotbarLeft = screenW / 2 - 50;

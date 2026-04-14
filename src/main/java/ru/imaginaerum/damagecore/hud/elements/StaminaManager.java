@@ -14,6 +14,7 @@ import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.event.entity.living.ShieldBlockEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import ru.imaginaerum.damagecore.Config;
 import ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeServerHandler;
 
 @Mod.EventBusSubscriber(value = Dist.CLIENT)
@@ -60,7 +61,7 @@ public class StaminaManager {
     public static void onShieldBlock(ShieldBlockEvent event) {
         if (!(event.getEntity() instanceof Player player)) return;
         if (player.isCreative() || player.isSpectator()) return;
-
+        if (!Config.showStaminaHud) return;
         if (stamina <= 0f || exhausted) {
             // стамины нет — щит пробивается, урон проходит
             event.setCanceled(true);
@@ -80,6 +81,7 @@ public class StaminaManager {
     @SubscribeEvent
     public static void onPlayerTick(LivingEvent.LivingTickEvent event) {
         if (!(event.getEntity() instanceof Player player)) return;
+        if (!Config.showStaminaHud) return;
         if (player.isCreative() || player.isSpectator()) {
             stamina   = MAX_STAMINA;
             exhausted = false;
@@ -105,7 +107,7 @@ public class StaminaManager {
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
-
+        if (!Config.showStaminaHud) return;
         Minecraft mc     = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         if (player == null || mc.isPaused()) return;

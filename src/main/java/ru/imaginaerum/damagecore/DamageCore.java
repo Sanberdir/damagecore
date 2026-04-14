@@ -23,6 +23,7 @@ import ru.imaginaerum.damagecore.datagen.DamageTypeProvider;
 import ru.imaginaerum.damagecore.effect.DCEffects;
 import ru.imaginaerum.damagecore.item.DCItems;
 import ru.imaginaerum.damagecore.library_damage.WeaponDamageManager;
+import ru.imaginaerum.damagecore.library_damage.arrow_data.ArrowDamageManager;
 import ru.imaginaerum.damagecore.particle.DCParticles;
 import ru.imaginaerum.damagecore.sounds.CustomSoundEvents;
 
@@ -68,9 +69,11 @@ public class DamageCore {
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, Config.SPEC);
     }
     public static final DamageArmorModifier ARMOR_MODIFIER = new DamageArmorModifier(); // только здесь, final
+    public static final ArrowDamageManager ARROW_DAMAGE_MANAGER = new ArrowDamageManager(); // ← добавить
 
     private void onAddReloadListeners(AddReloadListenerEvent event) {
         event.addListener(WEAPON_DAMAGE_MANAGER);
+        event.addListener(ARROW_DAMAGE_MANAGER);
         event.addListener(ARMOR_MODIFIER); // добавь это
     }
     private void commonSetup(final FMLCommonSetupEvent event) {

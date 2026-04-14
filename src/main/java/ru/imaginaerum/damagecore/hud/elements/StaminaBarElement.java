@@ -2,6 +2,7 @@ package ru.imaginaerum.damagecore.hud.elements;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import ru.imaginaerum.damagecore.Config;
 import ru.imaginaerum.damagecore.hud.DamageCoreHudOverlay;
 
 public class StaminaBarElement {
@@ -34,6 +35,8 @@ public class StaminaBarElement {
     private static long  lastGameTime = -1L;  // для отсчёта тиков
 
     public static void render(GuiGraphics gui) {
+        if (!Config.showStaminaHud) return;
+
         float stamina = StaminaManager.getStamina();
 
         long now = Minecraft.getInstance().level != null
@@ -51,7 +54,6 @@ public class StaminaBarElement {
             lastStamina = stamina;
         }
 
-        // Вторая текстура постоянно пока flashTicks > 0
         boolean useAlt = flashTicks > 0;
 
         int emptyTexX = useAlt ? TEXTURE_X_FLASH : TEXTURE_X;
