@@ -1,13 +1,11 @@
 package ru.imaginaerum.damagecore.api.implementation_skills.shooting;
 
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.item.BowItem;
-import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.network.PacketDistributor;
-import ru.imaginaerum.damagecore.api.damage_book_protection.ModNetwork;
+import ru.imaginaerum.damagecore.api.ModNetwork;
 import ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeServerHandler;
 import java.util.HashMap;
 import java.util.Map;

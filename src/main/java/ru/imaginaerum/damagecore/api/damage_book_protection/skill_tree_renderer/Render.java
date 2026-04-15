@@ -7,8 +7,8 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
+import ru.imaginaerum.damagecore.api.ModNetwork;
 import ru.imaginaerum.damagecore.api.damage_book_protection.*;
-import ru.imaginaerum.damagecore.api.damage_book_protection.node_variant.SelectVariantPacket;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;

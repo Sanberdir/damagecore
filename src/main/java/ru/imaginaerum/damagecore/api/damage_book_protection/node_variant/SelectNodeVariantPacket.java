@@ -4,7 +4,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.network.NetworkEvent;
 import net.minecraftforge.network.PacketDistributor;
-import ru.imaginaerum.damagecore.api.damage_book_protection.ModNetwork;
+import ru.imaginaerum.damagecore.api.ModNetwork;
 import ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeNode;
 import ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeServerHandler;
 import ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeServerRegistry;

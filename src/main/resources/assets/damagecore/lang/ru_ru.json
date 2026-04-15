@@ -93,5 +93,8 @@
   "item.damagecore.potion_belt": "Пояс для зелий",
   "item.damagecore.chlorophilosynthetic_belt": "Хлорофилосинтезный пояс",
   "item.damagecore.quiver_of_arrows": "Колчан для стрел",
-  "item.damagecore.scarlet_stapler_ring": "Кольцо Алого Сшивателя"
+  "item.damagecore.scarlet_stapler_ring": "Кольцо Алого Сшивателя",
+
+  "key.damagecore.strong_attack": "Сильная атака",
+  "key.category.damagecore": "Damagecore"
 }

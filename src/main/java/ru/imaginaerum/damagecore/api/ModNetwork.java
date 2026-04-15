@@ -1,13 +1,17 @@
-package ru.imaginaerum.damagecore.api.damage_book_protection;
+package ru.imaginaerum.damagecore.api;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.network.NetworkDirection;
 import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.simple.SimpleChannel;
+import ru.imaginaerum.damagecore.api.damage_book_protection.LearnNodePacket;
+import ru.imaginaerum.damagecore.api.damage_book_protection.RequestFullSyncPacket;
+import ru.imaginaerum.damagecore.api.damage_book_protection.SyncLearnedNodesPacket;
+import ru.imaginaerum.damagecore.api.damage_book_protection.SyncNodeLevelsPacket;
 import ru.imaginaerum.damagecore.api.damage_book_protection.node_variant.SelectNodeVariantPacket;
-import ru.imaginaerum.damagecore.api.damage_book_protection.node_variant.SelectVariantPacket;
 import ru.imaginaerum.damagecore.api.damage_book_protection.node_variant.SyncNodeVariantsPacket;
 import ru.imaginaerum.damagecore.api.implementation_skills.shooting.HundredArmedSyncPacket;
+import ru.imaginaerum.damagecore.attack_packets.StrongAttackPacket;
 import ru.imaginaerum.damagecore.events_tree.SyncTreeXpPacket;
 import ru.imaginaerum.damagecore.hud.net.ThirstDamagePacket;
 
@@ -33,6 +37,7 @@ public final class ModNetwork {
                 SyncNodeVariantsPacket::encode,
                 SyncNodeVariantsPacket::decode,
                 SyncNodeVariantsPacket::handle);
+
         CHANNEL.registerMessage(id++,
                 SyncNodeLevelsPacket.class,
                 SyncNodeLevelsPacket::encode,
@@ -88,6 +93,14 @@ public final class ModNetwork {
                 ThirstDamagePacket::new,
                 ThirstDamagePacket::handle,
                 java.util.Optional.of(NetworkDirection.PLAY_TO_SERVER)
+
         );
+        // ─── Сильная атака (СКМ) ───────────────────────────────────────────
+        CHANNEL.registerMessage(id++,
+                StrongAttackPacket.class,
+                StrongAttackPacket::encode,
+                StrongAttackPacket::decode,
+                StrongAttackPacket::handle,
+                Optional.of(NetworkDirection.PLAY_TO_SERVER));
     }
 }

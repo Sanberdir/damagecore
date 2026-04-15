@@ -6,16 +6,12 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Items;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
-import net.minecraftforge.client.event.RegisterClientReloadListenersEvent;
 import net.minecraftforge.client.event.RegisterItemDecorationsEvent;
-import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
-import ru.imaginaerum.damagecore.DamageCore;
-import ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeRenderer;
+import ru.imaginaerum.damagecore.api.ModNetwork;
 import ru.imaginaerum.damagecore.api.implementation_skills.shooting.ClientHundredArmedData;
-import ru.imaginaerum.damagecore.mixin.InventoryScreenMixin;
 
 @Mod.EventBusSubscriber(modid = "damagecore", value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public class ClientEvents {

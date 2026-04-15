@@ -1,6 +1,5 @@
 package ru.imaginaerum.damagecore.mixin;
 
-import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -17,6 +16,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import ru.imaginaerum.damagecore.api.ModNetwork;
 import ru.imaginaerum.damagecore.api.damage_book_protection.*;
 import ru.imaginaerum.damagecore.api.damage_book_protection.skill_tree_renderer.Render;
 import ru.imaginaerum.damagecore.api.damage_book_protection.stats_field.ArmorStatsFieldRenderer;

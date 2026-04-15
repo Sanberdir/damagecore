@@ -2,8 +2,8 @@ package ru.imaginaerum.damagecore.api.damage_book_protection;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.item.ItemStack;
+import ru.imaginaerum.damagecore.api.ModNetwork;
 import ru.imaginaerum.damagecore.api.damage_book_protection.node_variant.SelectNodeVariantPacket;
-import ru.imaginaerum.damagecore.api.damage_book_protection.node_variant.SelectVariantPacket;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;

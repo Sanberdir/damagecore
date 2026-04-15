@@ -4,8 +4,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.network.PacketDistributor;
-import ru.imaginaerum.damagecore.api.damage_book_protection.DamageBookRenderer;
-import ru.imaginaerum.damagecore.api.damage_book_protection.ModNetwork;
+import ru.imaginaerum.damagecore.api.ModNetwork;
 import ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeNode;
 import ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeServerRegistry;
 

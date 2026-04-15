@@ -96,5 +96,9 @@
   "item.damagecore.potion_belt": "Potion Belt",
   "item.damagecore.chlorophilosynthetic_belt": "Chlorophilosynthetic Belt",
   "item.damagecore.quiver_of_arrows": "Quiver Of Arrows",
-  "item.damagecore.scarlet_stapler_ring": "Scarlet Stapler Ring"
+  "item.damagecore.scarlet_stapler_ring": "Scarlet Stapler Ring",
+
+  "key.damagecore.strong_attack": "Strong Attack",
+
+  "key.category.damagecore": "Damagecore"
 }

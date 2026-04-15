@@ -4,7 +4,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.ResourceLocation;
 import ru.imaginaerum.damagecore.Config;
-import ru.imaginaerum.damagecore.api.damage_book_protection.ModNetwork;
+import ru.imaginaerum.damagecore.api.ModNetwork;
 import ru.imaginaerum.damagecore.hud.net.ThirstDamagePacket;
 
 public class ThirstBarElement {
