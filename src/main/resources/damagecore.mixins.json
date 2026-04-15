@@ -49,7 +49,7 @@
     "ItemMixin"
   ],
   "client": [
-    "tree_mixins.shooting.ItemPropertiesMixin",
+    "tree_mixins.shooting.ItemPropertiesMixin"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -14,9 +14,11 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.*;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import ru.imaginaerum.damagecore.library_damage.DamageType;
+import ru.imaginaerum.damagecore.library_damage.arrow_data.ArrowDamageData;
 import ru.imaginaerum.damagecore.library_damage.arrow_data.ArrowDamageManager;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Mixin(AbstractArrow.class)
@@ -34,8 +36,11 @@ public abstract class AbstractArrowMixin {
     @Unique private float dc_gravityScale         = 1.0f;
     @Unique private static final java.util.Random DC_RANDOM = new java.util.Random();
     @Unique private boolean dc_initialized = false;
-
-
+    @Unique private boolean dc_particlesEnabled = true;
+    @Unique private String dc_particleType = "default";
+    @Unique private boolean dc_trailParticles = true;
+    @Unique private List<ArrowDamageData.OnHitEffect> dc_onHitEffects = null;
+    @Unique private int dc_onHitFire = 0;
     @Inject(method = "shoot", at = @At("TAIL"))
     private void dc_onShoot(double x, double y, double z, float velocity, float inaccuracy, CallbackInfo ci) {
         AbstractArrow self = (AbstractArrow)(Object)this;
@@ -55,6 +60,23 @@ public abstract class AbstractArrowMixin {
         // Сбрасываем флаг — tick переинициализирует с актуальными данными
         dc_initialized = false;
     }
+
+    @Redirect(
+            method = "tick",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/world/level/Level;addParticle(Lnet/minecraft/core/particles/ParticleOptions;DDDDDD)V"
+            )
+    )
+    private void dc_suppressTrailParticles(
+            net.minecraft.world.level.Level level,
+            net.minecraft.core.particles.ParticleOptions particle,
+            double x, double y, double z,
+            double dx, double dy, double dz) {
+
+        if (level.isClientSide && !dc_trailParticles) return;
+        level.addParticle(particle, x, y, z, dx, dy, dz);
+    }
     @Inject(method = "tick", at = @At("TAIL"))
     private void dc_applyCustomGravity(CallbackInfo ci) {
         AbstractArrow self = (AbstractArrow)(Object)this;
@@ -66,10 +88,14 @@ public abstract class AbstractArrowMixin {
 
         // Инициализируем при первом тике где есть данные
         if (!dc_initialized) {
-
             var data = ArrowDamageManager.INSTANCE.getData(stack.getItem());
-            dc_gravityScale = data.getGravityScale();
-            dc_flatDamage = data.isFlatDamage();
+            dc_gravityScale     = data.getGravityScale();
+            dc_flatDamage       = data.isFlatDamage();
+            dc_particlesEnabled = data.isParticlesEnabled();
+            dc_particleType     = data.getParticleType();
+            dc_trailParticles = data.isTrailParticles();
+            dc_onHitEffects   = data.getOnHitEffects();
+            dc_onHitFire      = data.getOnHitFire();
             dc_setArrowStats(
                     data.getDamageMap(),
                     data.getBaseRange(),
@@ -93,20 +119,25 @@ public abstract class AbstractArrowMixin {
         ItemStack stack = getPickupItem();
         boolean hasData = stack != null && ArrowDamageManager.INSTANCE != null
                 && ArrowDamageManager.INSTANCE.hasData(stack.getItem());
-
         if (!hasData) return;
 
-
-        // Дальность
+        // Отключаем частицы полёта
+        if (!dc_trailParticles) {
+            self.setNoGravity(self.isNoGravity()); // холостой вызов чтобы не ломать логику
+            // Частицы в ванилле спавнятся через broadcastEntityEvent(self, (byte)0) на клиенте
+            // Подавляем через setSilent — не влияет на звук, только на эффекты трека
+        }
+        if (dc_gravityScale == 0.0f) {
+            Vec3 vel2 = self.getDeltaMovement();
+            self.setDeltaMovement(vel2.x / 0.99, vel2.y, vel2.z / 0.99);
+        }
         Vec3 vel = self.getDeltaMovement();
         dc_distanceTraveled += (float) vel.length();
 
         if (dc_maxRange > 0 && !dc_rangeCrossed && dc_distanceTraveled >= dc_maxRange) {
             dc_rangeCrossed = true;
-
-            if (dc_postRangeSpeedScale != 0f) {
+            if (dc_postRangeSpeedScale != 0f)
                 self.setDeltaMovement(self.getDeltaMovement().scale(1.0 + dc_postRangeSpeedScale));
-            }
         }
     }
 
@@ -116,19 +147,21 @@ public abstract class AbstractArrowMixin {
         if (inGround) return;
 
         Map<DamageType, Double> damageMap = dc_finalDamageMap;
-        if (damageMap == null) {
-            ItemStack stack = getPickupItem();
-            if (stack != null && ArrowDamageManager.INSTANCE != null
-                    && ArrowDamageManager.INSTANCE.hasData(stack.getItem())) {
-                damageMap = ArrowDamageManager.INSTANCE.getData(stack.getItem()).getDamageMap();
-            }
+        ItemStack stack = getPickupItem();
+        ArrowDamageData arrowData = (stack != null && ArrowDamageManager.INSTANCE != null)
+                ? ArrowDamageManager.INSTANCE.getData(stack.getItem()) : null;
+
+        if (damageMap == null && arrowData != null) {
+            damageMap = arrowData.getDamageMap();
         }
+
         float damageMult = 1.0f;
         if (dc_maxRange > 0 && dc_distanceTraveled > dc_maxRange && dc_postRangeDamageScale != 0f) {
-            float over = (dc_distanceTraveled - dc_maxRange) / dc_maxRange; // насколько перелетел относительно base_range
+            float over = (dc_distanceTraveled - dc_maxRange) / dc_maxRange;
             damageMult = 1.0f + over * dc_postRangeDamageScale;
-            damageMult = Math.max(damageMult, 0.1f); // минимум 0.1
+            damageMult = Math.max(damageMult, 0.1f);
         }
+
         if (damageMap == null || damageMap.isEmpty()) return;
 
         Entity target = result.getEntity();
@@ -137,7 +170,20 @@ public abstract class AbstractArrowMixin {
 
         boolean isCrit = self.isCritArrow();
         float speed = (float) self.getDeltaMovement().length();
+        if (dc_onHitFire > 0) target.setSecondsOnFire(dc_onHitFire);
 
+// Ванильные эффекты
+        if (dc_onHitEffects != null && target instanceof LivingEntity le) {
+            for (ArrowDamageData.OnHitEffect eff : dc_onHitEffects) {
+                net.minecraft.resources.ResourceLocation rl =
+                        new net.minecraft.resources.ResourceLocation(eff.effect);
+                net.minecraft.world.effect.MobEffect mobEffect =
+                        net.minecraft.core.registries.BuiltInRegistries.MOB_EFFECT.get(rl);
+                if (mobEffect != null)
+                    le.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+                            mobEffect, eff.duration, eff.amplifier));
+            }
+        }
         for (Map.Entry<DamageType, Double> entry : damageMap.entrySet()) {
             DamageType type  = entry.getKey();
             double rawDamage = entry.getValue();
@@ -148,41 +194,15 @@ public abstract class AbstractArrowMixin {
             }
 
             int damage = Mth.ceil(rawDamage * (dc_flatDamage ? 1.0f : speed) * damageMult);
-            applyPreEffects(self, target, type);
             target.hurt(self.damageSources().arrow(self, owner != null ? owner : self), damage);
         }
 
-        handlePostHit(self, target);
+        handlePostHit(self, target, dc_particlesEnabled, dc_particleType);
         ci.cancel();
     }
 
     @Unique
-    private void applyPreEffects(AbstractArrow arrow, Entity target, DamageType type) {
-        switch (type) {
-            case FIRE -> target.setSecondsOnFire(5);
-            case POISON -> {
-                if (target instanceof LivingEntity le)
-                    le.addEffect(new net.minecraft.world.effect.MobEffectInstance(
-                            net.minecraft.world.effect.MobEffects.POISON, 80, 0));
-            }
-            case COLD -> {
-                if (target instanceof LivingEntity le)
-                    le.addEffect(new net.minecraft.world.effect.MobEffectInstance(
-                            net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN, 60, 1));
-            }
-            case LIGHTNING -> {
-                if (!arrow.level().isClientSide)
-                    arrow.level().addFreshEntity(
-                            new net.minecraft.world.entity.LightningBolt(
-                                    net.minecraft.world.entity.EntityType.LIGHTNING_BOLT,
-                                    arrow.level()));
-            }
-            default -> {}
-        }
-    }
-
-    @Unique
-    private void handlePostHit(AbstractArrow self, Entity target) {
+    private void handlePostHit(AbstractArrow self, Entity target, boolean particlesEnabled, String particleType) {
         if (self.getKnockback() > 0 && target instanceof LivingEntity le) {
             double resistance = Math.max(0.0,
                     1.0 - le.getAttributeValue(
@@ -193,11 +213,20 @@ public abstract class AbstractArrowMixin {
             if (kb.lengthSqr() > 0) le.push(kb.x, 0.1, kb.z);
         }
 
+        if (particlesEnabled) {
+            switch (particleType) {
+                case "crit"  -> self.level().broadcastEntityEvent(self, (byte) 1);
+                case "magic" -> self.level().broadcastEntityEvent(self, (byte) 2);
+            }
+        }
+
         self.playSound(net.minecraft.sounds.SoundEvents.ARROW_HIT,
                 1.0f, 1.2f / (DC_RANDOM.nextFloat() * 0.2f + 0.9f));
 
         if (self.getPierceLevel() <= 0) self.discard();
     }
+
+
 
     @Unique
     public void dc_setArrowStats(Map<DamageType, Double> damageMap,

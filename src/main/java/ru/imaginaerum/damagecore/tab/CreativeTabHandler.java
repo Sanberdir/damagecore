@@ -74,6 +74,11 @@ public class CreativeTabHandler {
                     DCItems.TRAVEL_BAG.get().getDefaultInstance(),
                     CreativeModeTab.TabVisibility.PARENT_AND_SEARCH_TABS
             );
+            event.getEntries().putBefore(
+                    DCItems.TRAVEL_BAG.get().getDefaultInstance(),
+                    DCItems.QUIVER_OF_ARROWS.get().getDefaultInstance(),
+                    CreativeModeTab.TabVisibility.PARENT_AND_SEARCH_TABS
+            );
         }
     }
 }

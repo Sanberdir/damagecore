@@ -34,4 +34,6 @@ public class DCItems {
             () -> new Item(new Item.Properties()));
     public static final RegistryObject<Item> CHLOROPHILOSYNTHETIC_BELT = ITEMS.register("chlorophilosynthetic_belt",
             () -> new Item(new Item.Properties()));
+    public static final RegistryObject<Item> QUIVER_OF_ARROWS = ITEMS.register("quiver_of_arrows",
+            () -> new Item(new Item.Properties()));
 }
