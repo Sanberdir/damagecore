@@ -1,4 +1,4 @@
-package ru.imaginaerum.damagecore.attack_packets;
+package ru.imaginaerum.damagecore.attack_packets.strong_attack;
 
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;

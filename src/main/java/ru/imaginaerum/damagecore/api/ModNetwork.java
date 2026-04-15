@@ -11,7 +11,7 @@ import ru.imaginaerum.damagecore.api.damage_book_protection.SyncNodeLevelsPacket
 import ru.imaginaerum.damagecore.api.damage_book_protection.node_variant.SelectNodeVariantPacket;
 import ru.imaginaerum.damagecore.api.damage_book_protection.node_variant.SyncNodeVariantsPacket;
 import ru.imaginaerum.damagecore.api.implementation_skills.shooting.HundredArmedSyncPacket;
-import ru.imaginaerum.damagecore.attack_packets.StrongAttackPacket;
+import ru.imaginaerum.damagecore.attack_packets.strong_attack.StrongAttackPacket;
 import ru.imaginaerum.damagecore.events_tree.SyncTreeXpPacket;
 import ru.imaginaerum.damagecore.hud.net.ThirstDamagePacket;
 
