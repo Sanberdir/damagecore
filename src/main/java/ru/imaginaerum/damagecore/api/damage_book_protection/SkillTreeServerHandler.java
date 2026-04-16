@@ -53,90 +53,49 @@ public final class SkillTreeServerHandler {
     // --------------------------------------------------
 
     public static void handleLearnRequest(ServerPlayer player, int treeId, String nodeId) {
-        if (player == null || nodeId == null) return;
-
-        try {
-            if (!SkillTreeServerRegistry.hasTree(treeId)) return;
-
-            Map<String, SkillTreeNode> nodes = SkillTreeServerRegistry.getNodes(treeId);
-            SkillTreeNode node = nodes.get(nodeId);
-            if (node == null) return;
-
-            // НЕ проверяем node.locked — на сервере lock это дефолтное состояние из JSON
-            // Вместо этого проверяем родителей через NBT
-
-            Map<String, Integer> levels = getNodeLevels(player, treeId);
-            int currentLevel = levels.getOrDefault(nodeId, 0);
-            if (currentLevel >= node.maxLevel) return;
-
-            // Проверка уровня вкладки ДО сохранения
-            int playerTreeLevel = SkillTreeXpManager.getLevel(player, treeId);
-            if (node.getRequiredTreeLevel() > playerTreeLevel) return;
-
-            // Проверка родителей через NBT (не через node.locked!)
-            for (String parentId : node.parentIds) {
-                if (parentId == null || "start".equalsIgnoreCase(parentId)) continue;
-                if (levels.getOrDefault(parentId, 0) <= 0) return;
-            }
-
-            // Проверка уровней игрока
-            if (player.experienceLevel < REQUIRED_LEVELS) return;
-            player.giveExperienceLevels(-REQUIRED_LEVELS);
-
-            // Сохраняем
-            int newLevel = Math.min(node.maxLevel, currentLevel + 1);
-            saveNodeLevel(player, treeId, nodeId, newLevel);
-            unlockChildren(treeId, nodeId, player);
-
-            // Синхронизируем с клиентом
-            Map<String, Integer> single = new HashMap<>();
-            single.put(nodeId, newLevel);
-            ModNetwork.CHANNEL.send(
-                    PacketDistributor.PLAYER.with(() -> player),
-                    new SyncNodeLevelsPacket(treeId, single)
-            );
-
-            // Звук
-            player.playNotifySound(
-                    CustomSoundEvents.LEARNING_SKILL.get(),
-                    SoundSource.PLAYERS, 1.5f, 1f
-            );
-
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
-    }
-    private static void unlockChildren(int treeId, String learnedNodeId, ServerPlayer player) {
         Map<String, SkillTreeNode> nodes = SkillTreeServerRegistry.getNodes(treeId);
         if (nodes == null) return;
 
+        SkillTreeNode node = nodes.get(nodeId);
+        if (node == null) return;
+
+        // проверка родителей
+        if (!canLearn(player, treeId, node)) return;
+
+        // получаем текущие уровни игрока
         Map<String, Integer> levels = getNodeLevels(player, treeId);
-        int playerTreeLevel = SkillTreeXpManager.getLevel(player, treeId);
 
-        for (SkillTreeNode candidate : nodes.values()) {
-            if (!candidate.locked) continue;
+        int currentLevel = levels.getOrDefault(node.id, 0);
+        int newLevel = Math.min(node.maxLevel, currentLevel + 1);
 
-            // Проверка requiredTreeLevel
-            if (candidate.getRequiredTreeLevel() > playerTreeLevel) continue;
+        // сохраняем
+        saveNodeLevel(player, treeId, node.id, newLevel);
+        player.level().playSound(
+                null, // null = слышат все рядом
+                player.getX(),
+                player.getY(),
+                player.getZ(),
+                CustomSoundEvents.LEARNING_SKILL.get(), // проверь имя!
+                SoundSource.PLAYERS,
+                1.0f,
+                1.0f
+        );
+        // синк
+        sendFullSyncToPlayer(player);
+    }
+    private static boolean canLearn(ServerPlayer player, int treeId, SkillTreeNode node) {
+        if (node.isRoot()) return true;
 
-            // Проверяем все родители
-            boolean allParentsLearned = true;
-            for (String parentId : candidate.parentIds) {
-                if (parentId == null || "start".equalsIgnoreCase(parentId)) continue;
+        Map<String, Integer> levels = getNodeLevels(player, treeId);
 
-                int parentLevel = levels.getOrDefault(parentId, 0);
-                if (parentId.equals(learnedNodeId)) parentLevel = 1;
+        for (String pid : node.parentIds) {
+            if (pid == null || "start".equalsIgnoreCase(pid)) continue;
 
-                if (parentLevel <= 0) {
-                    allParentsLearned = false;
-                    break;
-                }
-            }
-
-            if (allParentsLearned) {
-                candidate.locked = false;
-            }
+            int lvl = levels.getOrDefault(pid, 0);
+            if (lvl <= 0) return false;
         }
+
+        return true;
     }
     // --------------------------------------------------
     // Сохранение варианта ноды
@@ -173,7 +132,7 @@ public final class SkillTreeServerHandler {
         player.getPersistentData().put(Player.PERSISTED_NBT_TAG, persisted);
 
         CompoundTag mod = persisted.getCompound(ROOT_KEY);
-        if (mod == null) return;
+        if (mod.isEmpty()) return;
 
         for (String key : mod.getAllKeys()) {
             if (!key.startsWith("tree_")) continue;
@@ -190,9 +149,6 @@ public final class SkillTreeServerHandler {
                         if (lvl > 0) levels.put(nid, lvl);
                     }
                 }
-
-                // *** Пересчитываем locked на основе сохранённых уровней ***
-                recalculateLocks(treeId, levels, player);
 
                 if (!levels.isEmpty()) {
                     ModNetwork.CHANNEL.send(
@@ -226,38 +182,7 @@ public final class SkillTreeServerHandler {
             } catch (NumberFormatException ignored) {}
         }
     }
-    private static void recalculateLocks(int treeId, Map<String, Integer> learnedLevels, ServerPlayer player) {
-        Map<String, SkillTreeNode> nodes = SkillTreeServerRegistry.getNodes(treeId);
-        if (nodes == null) return;
 
-        int playerTreeLevel = SkillTreeXpManager.getLevel(player, treeId);
-
-        for (SkillTreeNode node : nodes.values()) {
-            // Корневые ноды всегда разблокированы
-            if (node.isRoot()) {
-                node.locked = false;
-                continue;
-            }
-
-            // Проверка requiredTreeLevel
-            if (node.getRequiredTreeLevel() > playerTreeLevel) {
-                node.locked = true;
-                continue;
-            }
-
-            // Проверяем все родители
-            boolean allParentsLearned = true;
-            for (String parentId : node.parentIds) {
-                if (parentId == null || "start".equalsIgnoreCase(parentId)) continue;
-                if (learnedLevels.getOrDefault(parentId, 0) <= 0) {
-                    allParentsLearned = false;
-                    break;
-                }
-            }
-
-            node.locked = !allParentsLearned;
-        }
-    }
     // --------------------------------------------------
     // NBT helpers
     // --------------------------------------------------

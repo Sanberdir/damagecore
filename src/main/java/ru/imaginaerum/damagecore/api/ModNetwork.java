@@ -9,6 +9,7 @@ import ru.imaginaerum.damagecore.api.damage_book_protection.RequestFullSyncPacke
 import ru.imaginaerum.damagecore.api.damage_book_protection.SyncLearnedNodesPacket;
 import ru.imaginaerum.damagecore.api.damage_book_protection.SyncNodeLevelsPacket;
 import ru.imaginaerum.damagecore.api.damage_book_protection.node_variant.SelectNodeVariantPacket;
+import ru.imaginaerum.damagecore.api.damage_book_protection.node_variant.SelectVariantPacket;
 import ru.imaginaerum.damagecore.api.damage_book_protection.node_variant.SyncNodeVariantsPacket;
 import ru.imaginaerum.damagecore.api.implementation_skills.shooting.HundredArmedSyncPacket;
 import ru.imaginaerum.damagecore.attack_packets.strong_attack.StrongAttackPacket;
@@ -66,6 +67,14 @@ public final class ModNetwork {
                 SelectNodeVariantPacket::decode,
                 SelectNodeVariantPacket::handle
         );
+        CHANNEL.registerMessage(
+                id++,
+                SelectVariantPacket.class,
+                SelectVariantPacket::encode,
+                SelectVariantPacket::decode,
+                SelectVariantPacket::handle,
+                Optional.of(NetworkDirection.PLAY_TO_CLIENT));
+
         CHANNEL.registerMessage(id++,
                 SyncTreeXpPacket.class,
                 SyncTreeXpPacket::encode,
@@ -104,10 +113,14 @@ public final class ModNetwork {
                 StrongAttackPacket::decode,
                 StrongAttackPacket::handle,
                 Optional.of(NetworkDirection.PLAY_TO_SERVER));
-        CHANNEL.registerMessage(1, DrainStaminaPacket.class,
-                DrainStaminaPacket::encode, DrainStaminaPacket::decode, DrainStaminaPacket::handle);
+        CHANNEL.registerMessage(id++, DrainStaminaPacket.class,
+                DrainStaminaPacket::encode,
+                DrainStaminaPacket::decode,
+                DrainStaminaPacket::handle);
 
-        CHANNEL.registerMessage(2, NormalAttackPacket.class,
-                NormalAttackPacket::encode, NormalAttackPacket::decode, NormalAttackPacket::handle);
+        CHANNEL.registerMessage(id++, NormalAttackPacket.class,
+                NormalAttackPacket::encode,
+                NormalAttackPacket::decode,
+                NormalAttackPacket::handle);
     }
 }

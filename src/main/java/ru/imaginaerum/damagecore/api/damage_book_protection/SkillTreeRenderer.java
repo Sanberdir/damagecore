@@ -179,6 +179,7 @@ public final class SkillTreeRenderer {
                     if (loaderResult[0] instanceof ItemStack) tabIcon = (ItemStack) loaderResult[0];
                     if (loaderResult[1] instanceof List<?> list) nodesList = (List<SkillTreeNode>) list;
                 }
+                System.out.println("[Trees] tabId=" + tabId + " file=" + fileName);
 
                 if (!nodesList.isEmpty()) {
                     SkillTreeData tree = new SkillTreeData(fileName, displayName);

@@ -143,38 +143,47 @@ public final class SkillTreeClientSync {
                 SkillTreeNode node = (SkillTreeNode) entryObj;
 
                 boolean shouldBeLocked;
+
                 if (node.isRoot()) {
                     shouldBeLocked = false;
                 } else {
                     boolean allParentsAtLeastOne = true;
+
                     for (String pid : node.parentIds) {
                         if (pid == null || "start".equalsIgnoreCase(pid)) continue;
-                        // parent level — prefer cache, fallback to node.field
+
+                        Map<String, Integer> cached = levelCache.get(treeId);
+
                         int pLevel = 0;
-                        Map<String,Integer> cached = levelCache.get(treeId);
+
                         if (cached != null && cached.containsKey(pid)) {
-                            Integer pv = cached.get(pid);
-                            pLevel = (pv == null) ? 0 : pv;
+                            pLevel = cached.get(pid);
                         } else {
-                            SkillTreeNode pnode = (SkillTreeNode) ((Map)nodesMap).get(pid);
-                            if (pnode != null) pLevel = pnode.level;
+                            SkillTreeNode parentNode = (SkillTreeNode) nodesMap.get(pid);
+                            if (parentNode != null) {
+                                pLevel = parentNode.level;
+                            }
                         }
-                        if (pLevel <= 0) { allParentsAtLeastOne = false; break; }
+
+                        if (pLevel <= 0) {
+                            allParentsAtLeastOne = false;
+                            break;
+                        }
                     }
+
                     shouldBeLocked = !allParentsAtLeastOne;
                 }
-                try {
-                    int clientTreeLevel = DamageBookRenderer.getLevel(treeId);
-                    if (node.getRequiredTreeLevel() > clientTreeLevel) {
-                        shouldBeLocked = true;
-                        node.blockedByTreeLevel = true; // УСТАНАВЛИВАЕМ ФЛАГ
-                    } else {
-                        node.blockedByTreeLevel = false;
-                    }
-                } catch (Throwable ignored) {
+
+// Проверка уровня дерева
+                int clientTreeLevel = DamageBookRenderer.getLevel(treeId);
+                if (node.getRequiredTreeLevel() > clientTreeLevel) {
+                    shouldBeLocked = true;
+                    node.blockedByTreeLevel = true;
+                } else {
                     node.blockedByTreeLevel = false;
                 }
 
+// 💥 КЛЮЧЕВОЕ
                 if (node.locked != shouldBeLocked) {
                     node.locked = shouldBeLocked;
                     changed = true;

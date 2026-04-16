@@ -35,9 +35,9 @@ public class LearnNodePacket {
             ServerPlayer player = ctx.getSender();
             if (player == null) return;
 
-            // Проверка через серверный реестр (без рефлексии)
             SkillTreeNode node = SkillTreeServerRegistry.getNode(pkt.treeId, pkt.nodeId);
-            if (node == null || node.locked) return;
+            if (node == null) return;
+            // Убираем проверку node.locked — сервер сам проверит родителей через NBT
 
             SkillTreeServerHandler.handleLearnRequest(player, pkt.treeId, pkt.nodeId);
         });

@@ -2,10 +2,7 @@ package ru.imaginaerum.damagecore.api.damage_book_protection;
 
 import net.minecraft.world.item.ItemStack;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * Node с поддержкой уровней (stackable node), вариантами и мультиродителями.
@@ -58,7 +55,29 @@ public final class SkillTreeNode {
                 parentId != null ? new ArrayList<>(Collections.singletonList(parentId)) : new ArrayList<>(),
                 side);
     }
+    public boolean isUnlocked(Map<String, Integer> levels, int playerTreeLevel) {
+        // 1. Проверка уровня вкладки
+        if (this.requiredTreeLevel > playerTreeLevel) {
+            return false;
+        }
 
+        // 2. Корневая нода всегда доступна
+        if (isRoot()) {
+            return true;
+        }
+
+        // 3. Проверка родителей
+        for (String parentId : parentIds) {
+            if (parentId == null || "start".equalsIgnoreCase(parentId)) continue;
+
+            int parentLevel = levels.getOrDefault(parentId, 0);
+            if (parentLevel <= 0) {
+                return false;
+            }
+        }
+
+        return true;
+    }
     // Новый конструктор для нескольких родителей
     public SkillTreeNode(String id, ItemStack itemStack, boolean locked, List<String> parentIds, Side side) {
         this.id = id == null ? UUID.randomUUID().toString() : id;

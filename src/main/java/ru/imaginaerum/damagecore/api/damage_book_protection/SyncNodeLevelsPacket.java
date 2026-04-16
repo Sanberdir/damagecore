@@ -43,10 +43,7 @@ public class SyncNodeLevelsPacket {
     public static void handle(SyncNodeLevelsPacket pkt, Supplier<NetworkEvent.Context> ctxSupplier) {
         NetworkEvent.Context ctx = ctxSupplier.get();
         ctx.enqueueWork(() -> {
-            // client thread
-            LocalPlayer player = Minecraft.getInstance().player;
-            if (player == null) return;
-
+            System.out.println("[Client] SyncNodeLevels tree=" + pkt.treeId + " " + pkt.levels);
             SkillTreeClientSync.applyNodeLevels(pkt.treeId, pkt.levels);
         });
         ctx.setPacketHandled(true);

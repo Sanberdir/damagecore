@@ -195,9 +195,6 @@ public class Render {
             int activeTreeId = getActiveTreeIdViaReflection();
             ModNetwork.CHANNEL.sendToServer(new LearnNodePacket(activeTreeId, currentHoveredNode.id));
 
-            // Увеличиваем уровень с учетом maxLevel
-            currentHoveredNode.level = Math.min(currentHoveredNode.maxLevel, currentHoveredNode.level + 1);
-
             // Обновим расположение
             Object treeObj2 = invokePrivateGetCurrentTree();
             if (treeObj2 != null) {
