@@ -12,6 +12,7 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.event.entity.living.ShieldBlockEvent;
+import net.minecraftforge.event.entity.player.AttackEntityEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import ru.imaginaerum.damagecore.Config;
@@ -25,8 +26,8 @@ public class StaminaManager {
     private static final float DRAIN_SPRINT              = 0.2f;
     private static final float DRAIN_SHIELD_HOLD         = 0.02f;  // пассивный дрейн пока держишь щит
     private static final float DRAIN_SHIELD_HIT          = 6.0f;   // разовый дрейн при получении удара в щит
-    private static final float REGEN_WALK                = 0.3f;
-    private static final float REGEN_STAND               = 0.8f;
+    private static final float REGEN_WALK                = 0.2f;
+    private static final float REGEN_STAND               = 0.45f;
 
     private static final int EXHAUSTION_COOLDOWN         = 40;
 
@@ -40,7 +41,7 @@ public class StaminaManager {
     private static final float BOAT_SPEED_MULTIPLIER_CRITICAL    = 0.2f;
     private static final float BOAT_SPEED_MULTIPLIER_LOW         = 0.4f;
     private static final double ORIGINAL_BOAT_MAX_SPEED          = 1.2;
-
+    public static boolean isExhausted() { return exhausted; }
     // --- Состояние ---
     private static float stamina       = MAX_STAMINA;
     private static boolean exhausted   = false;
@@ -55,7 +56,27 @@ public class StaminaManager {
         return 1.0f;
     }
     public static float getStamina()    { return stamina; }
+    @SubscribeEvent
+    public static void onAttack(AttackEntityEvent event) {
+        if (!(event.getEntity() instanceof LocalPlayer player)) return;
+        if (!Config.showStaminaHud) return;
+        if (player.isCreative() || player.isSpectator()) return;
 
+        // Только блокируем удар при истощении — дренаж идёт через сервер
+        if (exhausted) {
+            event.setCanceled(true);
+        }
+    }
+    public static void drainFromServer(float amount) {
+        if (exhausted) return;
+        stamina -= amount;
+        if (stamina <= 0f) {
+            stamina = 0f;
+            // triggerExhaustion требует Player — берём из Minecraft
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.player != null) triggerExhaustion(mc.player);
+        }
+    }
     // --- Удар в щит: разовый дрейн, при нуле стамины — щит сносится ---
     @SubscribeEvent
     public static void onShieldBlock(ShieldBlockEvent event) {

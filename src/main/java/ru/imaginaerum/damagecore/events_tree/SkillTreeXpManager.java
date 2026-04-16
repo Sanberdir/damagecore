@@ -94,8 +94,6 @@ public class SkillTreeXpManager {
             currentLevel++;
             xpRequired = getXpRequiredForLevel(currentLevel);
 
-            System.out.println("[SkillTreeXpManager] Player " + player.getName().getString() +
-                    " leveled up tree " + treeId + " to level " + currentLevel);
 
             // Пересчитываем разблокировку нод при повышении уровня дерева
             final int finalLevel = currentLevel;
@@ -130,9 +128,6 @@ public class SkillTreeXpManager {
         // Отправляем обновление клиенту
         syncToClient(player);
 
-        System.out.println("[SkillTreeXpManager] Player " + player.getName().getString() +
-                " tree " + treeId + " XP: " + currentXp + "/" + xpRequired +
-                " Level: " + currentLevel);
     }
     private static Map<String, Integer> getNBTNodeLevels(ServerPlayer player, int treeId) {
         CompoundTag persisted = player.getPersistentData().getCompound(Player.PERSISTED_NBT_TAG);
@@ -182,8 +177,6 @@ public class SkillTreeXpManager {
         playerTreeXp.put(player, xpMap);
         playerTreeLevel.put(player, levelMap);
 
-        System.out.println("[SkillTreeXpManager] Loaded data for player " + player.getName().getString() +
-                ": XP=" + xpMap + ", Levels=" + levelMap);
 
         // Отправляем клиенту
         syncToClient(player);
@@ -215,13 +208,11 @@ public class SkillTreeXpManager {
         ModNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
                 new SyncTreeXpPacket(xpMap, levelMap));
 
-        System.out.println("[SkillTreeXpManager] Sent sync to player " + player.getName().getString() +
-                ": XP=" + xpMap + ", Levels=" + levelMap);
     }
 
     public static void removePlayer(ServerPlayer player) {
         playerTreeXp.remove(player);
         playerTreeLevel.remove(player);
-        System.out.println("[SkillTreeXpManager] Removed player " + player.getName().getString() + " from cache");
+
     }
 }

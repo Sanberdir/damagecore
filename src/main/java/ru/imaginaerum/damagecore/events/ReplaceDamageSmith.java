@@ -25,18 +25,6 @@ public class ReplaceDamageSmith {
     public static void onLivingDamage(LivingDamageEvent event) {
         LivingEntity target = event.getEntity();
         Map<DamageType, Float> breakdown = DamageContext.consumeMap(target);
-
-        if (!breakdown.isEmpty()) {
-            // Логируем разложение на типы
-            breakdown.forEach((type, amount) ->
-                    System.out.println("[DamageCore] " + target.getName().getString() +
-                            " received " + amount + " damage of type " + type)
-            );
-        } else {
-            // Если ничего не накоплено — fallback, логируем просто общий урон и используемый тип (можно убрать)
-            System.out.println("[DamageCore] " + target.getName().getString() +
-                    " received " + event.getAmount() + " damage (no breakdown)");
-        }
         // контекст уже очищен consumeMap
     }
 

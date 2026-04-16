@@ -71,7 +71,6 @@ public class SyncTreeXpPacket {
                 for (var entry : pkt.treeXp.entrySet()) DamageBookRenderer.setXp(entry.getKey(), entry.getValue());
                 for (var entry : pkt.treeLevel.entrySet()) DamageBookRenderer.setLevel(entry.getKey(), entry.getValue());
 
-                System.out.println("[SyncTreeXpPacket] client applied: xp=" + pkt.treeXp + " level=" + pkt.treeLevel);
 
                 // попробуем вызвать рефлексивно метод обновления экрана (если он есть)
                 Object screen = DamageBookRenderer.currentScreen;
@@ -80,7 +79,6 @@ public class SyncTreeXpPacket {
                     try {
                         var m = screen.getClass().getMethod("recalculateProgress");
                         m.invoke(screen);
-                        System.out.println("[SyncTreeXpPacket] invoked recalculateProgress() on currentScreen");
                         updated = true;
                     } catch (NoSuchMethodException ns) {
                         // может не быть — нормально
@@ -91,7 +89,6 @@ public class SyncTreeXpPacket {
                     try {
                         var m2 = screen.getClass().getMethod("updateNodes");
                         m2.invoke(screen);
-                        System.out.println("[SyncTreeXpPacket] invoked updateNodes() on currentScreen");
                         updated = true;
                     } catch (NoSuchMethodException ignored) {}
                     catch (Throwable t) { t.printStackTrace(); }
@@ -103,7 +100,6 @@ public class SyncTreeXpPacket {
                         Screen s = (Screen) DamageBookRenderer.currentScreen;
                         if (s != null) {
                             Minecraft mc = Minecraft.getInstance();
-                            System.out.println("[SyncTreeXpPacket] forcing screen refresh (close+reopen) to apply XP visuals");
                             // Закроем и снова поставим тот же объект: это вызовет init()/рендер заново.
                             mc.setScreen(null);
                             mc.setScreen(s);

@@ -148,7 +148,6 @@ public abstract class LivingEntityMixin {
             if (RANDOM.nextDouble() * 100 < fireChance) {
                 // Поджигаем цель на 3 секунды (60 тиков)
                 target.setSecondsOnFire(3);
-                System.out.println("Fire effect applied to " + target.getName().getString() + " with chance " + fireChance + "%");
             }
         }
     }
