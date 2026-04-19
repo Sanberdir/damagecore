@@ -16,6 +16,8 @@ import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import org.slf4j.Logger;
+import ru.imaginaerum.damagecore.animation_attack.AnimationSetup;
+import ru.imaginaerum.damagecore.animation_attack.ModAnimations;
 import ru.imaginaerum.damagecore.api.ModNetwork;
 import ru.imaginaerum.damagecore.armor.DamageArmorModifier;
 import ru.imaginaerum.damagecore.datagen.DamageTypeProvider;
@@ -99,7 +101,8 @@ public class DamageCore {
         }
         @SubscribeEvent
         public static void onClientSetup(FMLClientSetupEvent event) {
-
+            AnimationSetup.register();  // регистрирует слой PlayerAnimator
+            ModAnimations.register();
         }
     }
 }
