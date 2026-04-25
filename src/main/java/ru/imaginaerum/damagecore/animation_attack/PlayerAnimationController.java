@@ -1,73 +1,75 @@
 package ru.imaginaerum.damagecore.animation_attack;
 
 import dev.kosmx.playerAnim.api.layered.IAnimation;
-import dev.kosmx.playerAnim.api.layered.KeyframeAnimationPlayer;
 import dev.kosmx.playerAnim.api.layered.ModifierLayer;
 import dev.kosmx.playerAnim.api.layered.modifier.AbstractFadeModifier;
 import dev.kosmx.playerAnim.core.util.Ease;
-import dev.kosmx.playerAnim.impl.IAnimatedPlayer;
 import dev.kosmx.playerAnim.minecraftApi.PlayerAnimationAccess;
 import dev.kosmx.playerAnim.minecraftApi.PlayerAnimationRegistry;
 import net.minecraft.client.player.AbstractClientPlayer;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.player.Player;
 
 public class PlayerAnimationController {
 
-    /**
-     * Запускает анимацию атаки для игрока.
-     * animId — ResourceLocation файла в assets/damagecore/player_animation/
-     */
     @SuppressWarnings("unchecked")
-    public static void playAttack(AbstractClientPlayer player, ResourceLocation animId) {
-        // Получаем слой этого игрока по ключу
+    private static ModifierLayer<IAnimation> getLayer(AbstractClientPlayer player) {
         var layerObj = PlayerAnimationAccess.getPlayerAssociatedData(player)
                 .get(AnimationSetup.ATTACK_LAYER_KEY);
 
-        if (!(layerObj instanceof ModifierLayer<?> rawLayer)) return;
+        if (!(layerObj instanceof ModifierLayer<?> raw)) return null;
+        return (ModifierLayer<IAnimation>) raw;
+    }
 
-        ModifierLayer<IAnimation> layer = (ModifierLayer<IAnimation>) rawLayer;
+    public static void playAttack(AbstractClientPlayer player, AttackAnimationData data) {
+        var layer = getLayer(player);
+        if (layer == null) return;
 
-        // Загружаем KeyframeAnimation из реестра (файл из player_animation/)
-        var keyframeAnim = PlayerAnimationRegistry.getAnimation(animId);
-        if (keyframeAnim == null) return;
+        var anim = PlayerAnimationRegistry.getAnimation(data.getAnimationId());
+        if (anim == null) return;
 
-        // Запускаем с fade-in в 2 тика для плавности
+        var built = anim.mutableCopy().build();
+
+        var playerAnim = new CustomAnimationPlayer(built, data.getTimeline());
+
         layer.replaceAnimationWithFade(
-                AbstractFadeModifier.standardFadeIn(2, Ease.LINEAR),
-                new KeyframeAnimationPlayer(keyframeAnim)
+                AbstractFadeModifier.standardFadeIn(3, Ease.INOUTSINE),
+                playerAnim
         );
     }
 
-    /**
-     * Останавливает анимацию с fade-out
-     */
-    @SuppressWarnings("unchecked")
-    public static void stopAttack(AbstractClientPlayer player) {
-        var layerObj = PlayerAnimationAccess.getPlayerAssociatedData(player)
-                .get(AnimationSetup.ATTACK_LAYER_KEY);
+    public static void tick(AbstractClientPlayer player) {
+        var layer = getLayer(player);
+        if (layer == null) return;
 
-        if (!(layerObj instanceof ModifierLayer<?> rawLayer)) return;
+        var anim = layer.getAnimation();
 
-        ModifierLayer<IAnimation> layer = (ModifierLayer<IAnimation>) rawLayer;
+        if (anim instanceof CustomAnimationPlayer custom) {
 
-        layer.replaceAnimationWithFade(
-                AbstractFadeModifier.standardFadeIn(3, Ease.LINEAR),
-                null // null = убрать анимацию
-        );
+            // 👉 ВАЖНО: событие удара
+            custom.handleEvents(0, () -> {
+                performHit(player);
+            });
+
+            if (!custom.isInfluencing(0)) {
+                layer.replaceAnimationWithFade(
+                        AbstractFadeModifier.standardFadeIn(3, Ease.INOUTSINE),
+                        null
+                );
+            }
+        }
     }
 
-    /**
-     * Проверяет, играет ли сейчас атак-анимация
-     */
-    @SuppressWarnings("unchecked")
+    private static void performHit(AbstractClientPlayer player) {
+        // 🔥 здесь ты можешь вызвать свою систему урона
+        System.out.println("HIT FRAME!");
+
+        // пример:
+        // player.attack(target);
+    }
+
     public static boolean isPlaying(AbstractClientPlayer player) {
-        var layerObj = PlayerAnimationAccess.getPlayerAssociatedData(player)
-                .get(AnimationSetup.ATTACK_LAYER_KEY);
+        var layer = getLayer(player);
+        if (layer == null) return false;
 
-        if (!(layerObj instanceof ModifierLayer<?> rawLayer)) return false;
-
-        ModifierLayer<IAnimation> layer = (ModifierLayer<IAnimation>) rawLayer;
-        return layer.getAnimation() != null && layer.isActive();
+        return layer.getAnimation() instanceof CustomAnimationPlayer;
     }
 }

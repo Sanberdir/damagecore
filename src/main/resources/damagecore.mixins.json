@@ -53,6 +53,7 @@
   "client": [
     "tree_mixins.shooting.ItemPropertiesMixin",
     "animation_attack.MixinLocalPlayer",
+    "animation_attack.MixinLivingEntitySwing",
     "animation_attack.MixinItemInHandRenderer"
   ],
   "injectors": {

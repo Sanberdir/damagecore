@@ -100,9 +100,9 @@ public class DamageCore {
             event.registerReloadListener(DamageCore.ARMOR_MODIFIER); // ✅ MOD bus — правильно
         }
         @SubscribeEvent
-        public static void onClientSetup(FMLClientSetupEvent event) {
-            AnimationSetup.register();  // регистрирует слой PlayerAnimator
+        public static void onClientSetup(FMLClientSetupEvent event) {// регистрирует слой PlayerAnimator
             ModAnimations.register();
+            AnimationSetup.register();
         }
     }
 }

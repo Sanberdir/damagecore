@@ -13,23 +13,17 @@ import ru.imaginaerum.damagecore.animation_attack.PlayerAnimationController;
 @Mixin(LocalPlayer.class)
 public class MixinLocalPlayer {
 
-    @Inject(
-            method = "swing",
-            at = @At("HEAD"),
-            cancellable = false
-    )
+    @Inject(method = "swing", at = @At("HEAD"), cancellable = true)
     private void onSwing(InteractionHand hand, CallbackInfo ci) {
-        LocalPlayer self = (LocalPlayer)(Object)this;
-
-        // Только главная рука
         if (hand != InteractionHand.MAIN_HAND) return;
 
+        LocalPlayer self = (LocalPlayer) (Object) this;
         ItemStack held = self.getItemInHand(hand);
 
-        AttackAnimationManager.getAnimation(held).ifPresent(animId -> {
-            // Запускаем только на клиенте
+        AttackAnimationManager.get(held).ifPresent(data -> {
             if (self.level().isClientSide()) {
-                PlayerAnimationController.playAttack(self, animId);
+                PlayerAnimationController.playAttack(self, data);
+                ci.cancel();
             }
         });
     }
