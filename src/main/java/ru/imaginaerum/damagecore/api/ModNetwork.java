@@ -106,6 +106,7 @@ public final class ModNetwork {
                 java.util.Optional.of(NetworkDirection.PLAY_TO_SERVER)
 
         );
+
         // ─── Сильная атака (СКМ) ───────────────────────────────────────────
         CHANNEL.registerMessage(id++,
                 StrongAttackPacket.class,

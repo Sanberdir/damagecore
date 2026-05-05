@@ -25,9 +25,6 @@
 
     "tree_mixins.shooting.BowItemServerMixin",
 
-
-
-
     "event_trees.BrewingStandMixin",
     "arrow_data.AbstractArrowMixin",
     "effects_mixins.LivingEntityMixin",
@@ -52,9 +49,8 @@
   ],
   "client": [
     "tree_mixins.shooting.ItemPropertiesMixin",
-    "animation_attack.MixinLocalPlayer",
-    "animation_attack.MixinLivingEntitySwing",
-    "animation_attack.MixinItemInHandRenderer"
+    "swing_animations_attack.MixinLivingEntity",
+    "swing_animations_attack.SeriousPlayerAnimationsMixin"
   ],
   "injectors": {
     "defaultRequire": 1

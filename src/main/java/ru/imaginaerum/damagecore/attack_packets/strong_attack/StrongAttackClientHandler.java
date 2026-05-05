@@ -7,6 +7,7 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import ru.imaginaerum.damagecore.DamageCore;
+import ru.imaginaerum.damagecore.animation_attack.IExampleAnimatedPlayer;
 import ru.imaginaerum.damagecore.api.ModNetwork;
 import ru.imaginaerum.damagecore.attack_packets.KeyBindings;
 import ru.imaginaerum.damagecore.hud.elements.StaminaManager;
@@ -34,6 +35,10 @@ public class StrongAttackClientHandler {
                 if (StaminaManager.isExhausted() || StaminaManager.getStamina() < 6.0f) return;
 
                 lastSwingTime = now;
+                if (mc.player instanceof IExampleAnimatedPlayer animated) {
+                    animated.requestStrongAttack();
+                }
+
                 mc.player.swing(InteractionHand.MAIN_HAND);
                 ModNetwork.CHANNEL.sendToServer(new StrongAttackPacket());
             }
