@@ -35,21 +35,7 @@ public abstract class SeriousPlayerAnimationsMixin extends Player
         super(level, pos, yRot, profile);
     }
 
-    @Unique
-    private final dev.kosmx.playerAnim.api.layered.modifier.AdjustmentModifier disableRightItem =
-            new dev.kosmx.playerAnim.api.layered.modifier.AdjustmentModifier(partName -> {
 
-                if (partName.equals("rightItem")) {
-                    return java.util.Optional.of(
-                            new dev.kosmx.playerAnim.api.layered.modifier.AdjustmentModifier.PartModifier(
-                                    new Vec3f(-1, 0, 0),
-                                    new Vec3f(0, 0, 0)
-                            )
-                    );
-                }
-
-                return java.util.Optional.empty();
-            });
 
     @Overwrite
     public boolean isSpectator() {
@@ -172,33 +158,25 @@ public abstract class SeriousPlayerAnimationsMixin extends Player
             PlayerAnimationAccess.getPlayerAnimLayer(self)
                     .addAnimLayer(10, swordSwingContainer);
 
-            swordSwingContainer.addModifierLast(disableRightItem);
 
             animationsInitialized = true;
         }
 
         // Strong attack
         if (consumeStrongAttackRequest() && strong_attack != null) {
-
+            swordSwingContainer.setAnimation(null); // ← добавь это
             swordSwingContainer.replaceAnimationWithFade(
-                    AbstractFadeModifier.standardFadeIn(
-                            0,
-                            INOUTSINE
-                    ),
+                    AbstractFadeModifier.standardFadeIn(0, INOUTSINE),
                     new KeyframeAnimationPlayer(strong_attack)
             );
-
             return;
         }
 
-        // Normal attack
+// Normal attack
         if (consumeSwordSwingRequest() && sword_swing != null) {
-
+            swordSwingContainer.setAnimation(null); // ← и это
             swordSwingContainer.replaceAnimationWithFade(
-                    AbstractFadeModifier.standardFadeIn(
-                            0,
-                            INOUTSINE
-                    ),
+                    AbstractFadeModifier.standardFadeIn(0, INOUTSINE),
                     new KeyframeAnimationPlayer(sword_swing)
             );
         }
