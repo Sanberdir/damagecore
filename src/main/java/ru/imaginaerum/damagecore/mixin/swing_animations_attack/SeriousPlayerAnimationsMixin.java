@@ -144,7 +144,7 @@ public abstract class SeriousPlayerAnimationsMixin extends Player
             sword_swing = PlayerAnimationRegistry.getAnimation(
                     new ResourceLocation(
                             "damagecore",
-                            "sword_swing"
+                            "fa_1"
                     )
             );
 
