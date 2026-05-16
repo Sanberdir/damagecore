@@ -21,6 +21,7 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import ru.imaginaerum.damagecore.animation_attack.HoldLastFramePlayer;
 import ru.imaginaerum.damagecore.animation_attack.IExampleAnimatedPlayer;
 import ru.imaginaerum.damagecore.animation_attack.torsoPosGetter;
 
@@ -50,11 +51,11 @@ public abstract class SeriousPlayerAnimationsMixin extends Player
     // ─────────────────────────────────────────────────────────────
     // Sword swing animation
     // ─────────────────────────────────────────────────────────────
-
     @Unique
     private final ModifierLayer<IAnimation> swordSwingContainer =
             new ModifierLayer<>();
-
+    @Unique
+    private HoldLastFramePlayer currentSwingPlayer = null;
     @Unique
     private KeyframeAnimation sword_swing = null;
 
@@ -64,7 +65,11 @@ public abstract class SeriousPlayerAnimationsMixin extends Player
     // ─────────────────────────────────────────────────────────────
     // Strong attack animation
     // ─────────────────────────────────────────────────────────────
+    @Unique
+    private int swordSwingTicks = 0;
 
+    @Unique
+    private boolean swordSwingPlaying = false;
 
 
     @Unique
@@ -77,6 +82,11 @@ public abstract class SeriousPlayerAnimationsMixin extends Player
     // Init
     // ─────────────────────────────────────────────────────────────
 
+    @Unique
+    private KeyframeAnimation[] swing_anims = null;
+
+    @Unique
+    private int swingIndex = 0;
     @Unique
     private boolean animationsInitialized = false;
 
@@ -141,23 +151,18 @@ public abstract class SeriousPlayerAnimationsMixin extends Player
 
         if (!animationsInitialized) {
 
-            sword_swing = PlayerAnimationRegistry.getAnimation(
-                    new ResourceLocation(
-                            "damagecore",
-                            "fa_1"
-                    )
-            );
+            swing_anims = new KeyframeAnimation[] {
+                    PlayerAnimationRegistry.getAnimation(new ResourceLocation("damagecore", "fa_1")),
+                    PlayerAnimationRegistry.getAnimation(new ResourceLocation("damagecore", "fa_2")),
+                    PlayerAnimationRegistry.getAnimation(new ResourceLocation("damagecore", "fa_3"))
+            };
 
             strong_attack = PlayerAnimationRegistry.getAnimation(
-                    new ResourceLocation(
-                            "damagecore",
-                            "strong_attack"
-                    )
+                    new ResourceLocation("damagecore", "strong_attack")
             );
 
             PlayerAnimationAccess.getPlayerAnimLayer(self)
                     .addAnimLayer(10, swordSwingContainer);
-
 
             animationsInitialized = true;
         }
@@ -173,12 +178,19 @@ public abstract class SeriousPlayerAnimationsMixin extends Player
         }
 
 // Normal attack
-        if (consumeSwordSwingRequest() && sword_swing != null) {
-            swordSwingContainer.setAnimation(null); // ← и это
-            swordSwingContainer.replaceAnimationWithFade(
-                    AbstractFadeModifier.standardFadeIn(0, INOUTSINE),
-                    new KeyframeAnimationPlayer(sword_swing)
-            );
+        if (consumeSwordSwingRequest() && swing_anims != null) {
+
+            KeyframeAnimation current = swing_anims[swingIndex];
+            swingIndex = (swingIndex + 1) % swing_anims.length; // 0→1→2→0→...
+
+            if (current != null) {
+                swordSwingContainer.setAnimation(null);
+                currentSwingPlayer = new HoldLastFramePlayer(current);
+                swordSwingContainer.replaceAnimationWithFade(
+                        AbstractFadeModifier.standardFadeIn(0, INOUTSINE),
+                        currentSwingPlayer
+                );
+            }
         }
     }
 

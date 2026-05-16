@@ -399,7 +399,6 @@
 			}
 		},
 		"fa_1": {
-			"loop": "hold_on_last_frame",
 			"animation_length": 0.2917,
 			"bones": {
 				"head": {
@@ -577,7 +576,6 @@
 			}
 		},
 		"fa_2": {
-			"loop": "hold_on_last_frame",
 			"animation_length": 0.2917,
 			"bones": {
 				"head": {
@@ -775,7 +773,6 @@
 			}
 		},
 		"fa_3": {
-			"loop": "hold_on_last_frame",
 			"animation_length": 0.2917,
 			"bones": {
 				"head": {
