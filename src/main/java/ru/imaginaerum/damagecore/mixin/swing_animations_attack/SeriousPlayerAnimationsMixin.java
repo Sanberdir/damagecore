@@ -181,11 +181,15 @@ public abstract class SeriousPlayerAnimationsMixin extends Player
         if (consumeSwordSwingRequest() && swing_anims != null) {
 
             KeyframeAnimation current = swing_anims[swingIndex];
-            swingIndex = (swingIndex + 1) % swing_anims.length; // 0→1→2→0→...
+            swingIndex = (swingIndex + 1) % swing_anims.length;
 
             if (current != null) {
                 swordSwingContainer.setAnimation(null);
                 currentSwingPlayer = new HoldLastFramePlayer(current);
+
+                // ↓ После 20 тиков заморозки — сброс на fa_1
+                currentSwingPlayer.setOnExpired(() -> swingIndex = 0);
+
                 swordSwingContainer.replaceAnimationWithFade(
                         AbstractFadeModifier.standardFadeIn(0, INOUTSINE),
                         currentSwingPlayer

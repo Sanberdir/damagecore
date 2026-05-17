@@ -5,11 +5,20 @@ import dev.kosmx.playerAnim.core.data.KeyframeAnimation;
 
 public class HoldLastFramePlayer extends KeyframeAnimationPlayer {
 
+    private static final int HOLD_TICKS = 15;
+
     private final int freezeAtTick;
+    private int frozenTicks = 0;
+    private boolean expired = false;
+    private Runnable onExpired; // <-- сюда вешаем "вернуть fa_1"
 
     public HoldLastFramePlayer(KeyframeAnimation animation) {
         super(animation);
         this.freezeAtTick = findLastKeyframeTick(animation);
+    }
+
+    public void setOnExpired(Runnable callback) {
+        this.onExpired = callback;
     }
 
     private int findLastKeyframeTick(KeyframeAnimation animation) {
@@ -34,11 +43,17 @@ public class HoldLastFramePlayer extends KeyframeAnimationPlayer {
     public void tick() {
         if (getCurrentTick() < freezeAtTick) {
             super.tick();
+        } else if (!expired) {
+            frozenTicks++;
+            if (frozenTicks >= HOLD_TICKS) {
+                expired = true;
+                if (onExpired != null) onExpired.run(); // сброс на fa_1
+            }
         }
     }
 
     @Override
     public boolean isActive() {
-        return true;
+        return !expired;
     }
 }
