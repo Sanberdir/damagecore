@@ -30,33 +30,46 @@ public abstract class ItemMixin {
         if (stack.getItem() instanceof IDamageCoreWeapon weapon) {
             Map<DamageType, Double> map = weapon.damagecore$getDamageMap();
 
-            // Показываем типы урона
-            for (Map.Entry<DamageType, Double> e : map.entrySet()) {
-                ChatFormatting color;
-                switch (e.getKey()) {
-                    case PIERCING -> color = ChatFormatting.DARK_GREEN;
-                    case SLASHING -> color = ChatFormatting.DARK_GREEN;
-                    case BLUDGEONING -> color = ChatFormatting.DARK_GREEN;
-                    case FIRE -> color = ChatFormatting.DARK_RED;
-                    default -> color = ChatFormatting.WHITE;
-                }
+            if (!map.isEmpty()) {
+                // Заголовок
                 tooltip.add(
-                        Component.translatable(
-                                "damagecore.damage." + e.getKey().getDamageName(),
-                                String.format("%.1f", e.getValue())
-                        ).withStyle(color)
+                        Component.translatable("damagecore.possible_damage")
+                                .withStyle(ChatFormatting.GRAY)
                 );
+
+                // Типы урона с отступом
+                for (Map.Entry<DamageType, Double> e : map.entrySet()) {
+                    ChatFormatting color = switch (e.getKey()) {
+                        case PIERCING, SLASHING, BLUDGEONING -> ChatFormatting.GREEN;
+                        case FIRE                            -> ChatFormatting.RED;
+                        case COLD                            -> ChatFormatting.AQUA;
+                        case LIGHTNING                       -> ChatFormatting.YELLOW;
+                        case NECROTIC                        -> ChatFormatting.DARK_PURPLE;
+                        case POISON                          -> ChatFormatting.DARK_GREEN;
+                        case LUMINOUS_RADIANT                -> ChatFormatting.WHITE;
+                        case PSY                             -> ChatFormatting.LIGHT_PURPLE;
+                        case SOUNDER                         -> ChatFormatting.BLUE;
+                    };
+
+                    tooltip.add(
+                            Component.literal(" ").append(
+                                    Component.translatable(
+                                            "damagecore.damage." + e.getKey().getDamageName(),
+                                            String.format("%.1f", e.getValue())
+                                    ).withStyle(color)
+                            )
+                    );
+                }
             }
 
-            // Показываем скорость атаки (абсолютное значение)
+            // Скорость атаки
             Item item = stack.getItem();
             WeaponDamageData data = DamageCore.WEAPON_DAMAGE_MANAGER.getDamageData(item);
             if (data != null && data.hasAttackSpeed()) {
-                double attackSpeed = data.getAttackSpeed();
                 tooltip.add(
                         Component.translatable(
                                 "damagecore.attack_speed",
-                                String.format("%.1f", attackSpeed)
+                                String.format("%.1f", data.getAttackSpeed())
                         ).withStyle(ChatFormatting.BLUE)
                 );
             }

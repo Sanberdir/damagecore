@@ -92,24 +92,20 @@ public abstract class DiggerItemMixin implements IDamageCoreWeapon {
 
     @Unique
     private void damagecore$initializeData(DiggerItem tool, Item item) {
-        System.out.println("=== INITIALIZING tool: " + item);
 
         // Проверяем кастомные данные
         WeaponDamageData customData = DamageCore.WEAPON_DAMAGE_MANAGER.getDamageData(item);
 
         if (customData != null && !customData.isEmpty()) {
             // Используем кастомные данные из JSON
-            System.out.println("Using CUSTOM damage data for tool: " + customData.getDamageMap());
             damagecore$customDamage = new HashMap<>(customData.getDamageMap());
             damagecore$hasCustom = true;
 
             if (customData.hasAttackSpeed()) {
                 damagecore$cachedAttackSpeed = customData.getAttackSpeed();
-                System.out.println("Using CUSTOM attack speed for tool: " + damagecore$cachedAttackSpeed);
             }
         } else {
             // Стандартное распределение
-            System.out.println("Using DEFAULT damage distribution for tool");
             damagecore$hasCustom = false;
             double baseDamage = tool.getAttackDamage();
 
@@ -144,7 +140,6 @@ public abstract class DiggerItemMixin implements IDamageCoreWeapon {
             if (piercing > 0) damagecore$damageMap.put(DamageType.PIERCING, piercing);
 
             damagecore$cachedAttackSpeed = getDefaultAttackSpeed(tool);
-            System.out.println("Using DEFAULT attack speed for tool: " + damagecore$cachedAttackSpeed);
         }
     }
 

@@ -10,6 +10,8 @@
   "damage_type.slashing": "Режущий урон",
   "damage_type.fire": "Огненный урон",
 
+  "damagecore.possible_damage": "Возможный урон: ",
+
   "armor_stat.armor": "Броня",
   "armor_stat.enchant": "Чары",
   "armor_stat.food": "Еда",

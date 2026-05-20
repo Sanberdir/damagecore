@@ -5,6 +5,8 @@
   "damagecore.attack_speed": "Attack speed: %s",
   "damagecore.damage.fire": "Fire damage: %s",
 
+  "damagecore.possible_damage": "Possible Damage: ",
+
   "damage_type.bludgeoning": "Bludgeoning damage",
   "damage_type.piercing": "Piercing damage",
   "damage_type.slashing": "Slashing damage",
