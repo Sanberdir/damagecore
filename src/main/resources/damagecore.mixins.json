@@ -45,9 +45,10 @@
     "damage_fire_mixins.FireDamageFireBlockMixin",
     "LightningBoltMixin",
     "LivingEntityMixin",
-    "ItemMixin",
     "swing_animations_attack.PlayerAttackMixin",
-    "swing_animations_attack.PlayerComboMixin"
+    "swing_animations_attack.PlayerAttackTypeMixin",
+    "swing_animations_attack.MultiPlayerGameModeMixin",
+    "ItemMixin"
   ],
   "client": [
     "tree_mixins.shooting.ItemPropertiesMixin",

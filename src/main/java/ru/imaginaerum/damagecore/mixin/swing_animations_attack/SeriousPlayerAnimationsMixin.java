@@ -9,167 +9,149 @@ import dev.kosmx.playerAnim.core.data.KeyframeAnimation;
 import dev.kosmx.playerAnim.core.util.Vec3f;
 import dev.kosmx.playerAnim.minecraftApi.PlayerAnimationAccess;
 import dev.kosmx.playerAnim.minecraftApi.PlayerAnimationRegistry;
-import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Overwrite;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import ru.imaginaerum.damagecore.animation_attack.HoldLastFramePlayer;
+import ru.imaginaerum.damagecore.animation_attack.ICurrentAttackType;
 import ru.imaginaerum.damagecore.animation_attack.IExampleAnimatedPlayer;
 import ru.imaginaerum.damagecore.animation_attack.torsoPosGetter;
+import ru.imaginaerum.damagecore.api.ModNetwork;
+import ru.imaginaerum.damagecore.library_damage.DamageType;
+import ru.imaginaerum.damagecore.library_damage.PacketSyncAttackType;
+
+import com.mojang.authlib.GameProfile;
 
 import static dev.kosmx.playerAnim.core.util.Ease.INOUTSINE;
 
 @Mixin(AbstractClientPlayer.class)
 public abstract class SeriousPlayerAnimationsMixin extends Player
-        implements IExampleAnimatedPlayer, torsoPosGetter {
+        implements IExampleAnimatedPlayer, torsoPosGetter, ICurrentAttackType {
 
-    public SeriousPlayerAnimationsMixin(Level level, BlockPos pos,
-                                        float yRot, GameProfile profile) {
+    public SeriousPlayerAnimationsMixin(Level level, BlockPos pos, float yRot, GameProfile profile) {
         super(level, pos, yRot, profile);
     }
 
+    @Unique
+    private DamageType currentAttackType = DamageType.SLASHING;
 
-
-    @Overwrite
-    public boolean isSpectator() {
-        return false;
+    @Override
+    public void damagecore$setCurrentAttackType(DamageType type) {
+        this.currentAttackType = type;
     }
 
-    @Overwrite
-    public boolean isCreative() {
-        return false;
+    @Override
+    public DamageType damagecore$getCurrentAttackType() {
+        return this.currentAttackType;
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // Sword swing animation
-    // ─────────────────────────────────────────────────────────────
     @Unique
-    private final ModifierLayer<IAnimation> swordSwingContainer =
-            new ModifierLayer<>();
+    private int pendingSwingIndex = 0;
+
     @Unique
-    private HoldLastFramePlayer currentSwingPlayer = null;
+    private final ModifierLayer<IAnimation> swordSwingContainer = new ModifierLayer<>();
+
     @Unique
-    private KeyframeAnimation sword_swing = null;
+    private KeyframeAnimation[] swing_anims;
+
+    @Unique
+    private KeyframeAnimation strong_attack;
+
+    @Unique
+    private HoldLastFramePlayer currentSwingPlayer;
+
+    @Unique
+    private int swingIndex = 0;
+
+    @Unique
+    private boolean initialized = false;
 
     @Unique
     private boolean swordSwingRequested = false;
 
-    // ─────────────────────────────────────────────────────────────
-    // Strong attack animation
-    // ─────────────────────────────────────────────────────────────
-    @Unique
-    private int swordSwingTicks = 0;
-
-    @Unique
-    private boolean swordSwingPlaying = false;
-
-
-    @Unique
-    private KeyframeAnimation strong_attack = null;
-
     @Unique
     private boolean strongAttackRequested = false;
 
-    // ─────────────────────────────────────────────────────────────
-    // Init
-    // ─────────────────────────────────────────────────────────────
+    @Unique
+    private boolean preventNextSwing = false;
 
     @Unique
-    private KeyframeAnimation[] swing_anims = null;
-
-    @Unique
-    private int swingIndex = 0;
-    @Unique
-    private boolean animationsInitialized = false;
-
-    // Блокирует обычный swing после strong attack
-    @Unique
-    private boolean preventNextSwordSwing = false;
-
-    // ─────────────────────────────────────────────────────────────
-    // Sword swing request
-    // ─────────────────────────────────────────────────────────────
+    private DamageType damagecore$getAttackTypeForIndex(int index) {
+        return switch (index) {
+            case 1 -> DamageType.PIERCING; // fa_2
+            default -> DamageType.SLASHING; // fa_1 и fa_3
+        };
+    }
 
     @Override
     public void requestSwordSwing() {
+        if (preventNextSwing) { preventNextSwing = false; return; }
 
-        if (this.preventNextSwordSwing) {
-            this.preventNextSwordSwing = false;
-            return;
-        }
+        pendingSwingIndex = swingIndex;
+        DamageType type = damagecore$getAttackTypeForIndex(pendingSwingIndex);
 
-        this.swordSwingRequested = true;
+        // ❌ убрать: ModNetwork.CHANNEL.sendToServer(new PacketSyncAttackType(type));
+
+        // Сохраняем тип локально (для чтения в LocalPlayerAttackMixin)
+        this.currentAttackType = type;
+
+        swordSwingRequested = true;
     }
 
     @Override
     public boolean consumeSwordSwingRequest() {
-        if (this.swordSwingRequested) {
-            this.swordSwingRequested = false;
+        if (swordSwingRequested) {
+            swordSwingRequested = false;
             return true;
         }
-
         return false;
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // Strong attack request
-    // ─────────────────────────────────────────────────────────────
-
     @Override
     public void requestStrongAttack() {
-        this.preventNextSwordSwing = true;
-        this.strongAttackRequested = true;
+        preventNextSwing = true;
+        strongAttackRequested = true;
     }
 
     @Override
     public boolean consumeStrongAttackRequest() {
-        if (this.strongAttackRequested) {
-            this.strongAttackRequested = false;
+        if (strongAttackRequested) {
+            strongAttackRequested = false;
             return true;
         }
-
         return false;
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // Tick
-    // ─────────────────────────────────────────────────────────────
-
     @Inject(method = "tick", at = @At("HEAD"))
-    private void damagecore$onTick(CallbackInfo ci) {
+    private void damagecore$tick(CallbackInfo ci) {
+        AbstractClientPlayer self = (AbstractClientPlayer) (Object) this;
 
-        AbstractClientPlayer self =
-                (AbstractClientPlayer) (Object) this;
-
-        if (!animationsInitialized) {
-
+        if (!initialized) {
             swing_anims = new KeyframeAnimation[] {
                     PlayerAnimationRegistry.getAnimation(new ResourceLocation("damagecore", "fa_1")),
                     PlayerAnimationRegistry.getAnimation(new ResourceLocation("damagecore", "fa_2")),
                     PlayerAnimationRegistry.getAnimation(new ResourceLocation("damagecore", "fa_3"))
             };
 
-            strong_attack = PlayerAnimationRegistry.getAnimation(
-                    new ResourceLocation("damagecore", "strong_attack")
-            );
+            strong_attack =
+                    PlayerAnimationRegistry.getAnimation(new ResourceLocation("damagecore", "strong_attack"));
 
             PlayerAnimationAccess.getPlayerAnimLayer(self)
                     .addAnimLayer(10, swordSwingContainer);
 
-            animationsInitialized = true;
+            initialized = true;
         }
 
-        // Strong attack
+        // STRONG ATTACK
         if (consumeStrongAttackRequest() && strong_attack != null) {
-            swordSwingContainer.setAnimation(null); // ← добавь это
+            swordSwingContainer.setAnimation(null);
             swordSwingContainer.replaceAnimationWithFade(
                     AbstractFadeModifier.standardFadeIn(0, INOUTSINE),
                     new KeyframeAnimationPlayer(strong_attack)
@@ -177,18 +159,24 @@ public abstract class SeriousPlayerAnimationsMixin extends Player
             return;
         }
 
-// Normal attack
+        // NORMAL SWING
         if (consumeSwordSwingRequest() && swing_anims != null) {
+            int idx = pendingSwingIndex;
+            System.out.println("[TICK] играем idx=" + idx + ", swingIndex=" + swingIndex);
 
-            KeyframeAnimation current = swing_anims[swingIndex];
-            swingIndex = (swingIndex + 1) % swing_anims.length;
+            KeyframeAnimation anim = swing_anims[idx];
 
-            if (current != null) {
+            // следующий удар по кругу: 0 -> 1 -> 2 -> 0
+            swingIndex = (idx + 1) % swing_anims.length;
+
+            if (anim != null) {
                 swordSwingContainer.setAnimation(null);
-                currentSwingPlayer = new HoldLastFramePlayer(current);
+                currentSwingPlayer = new HoldLastFramePlayer(anim);
 
-                // ↓ После 20 тиков заморозки — сброс на fa_1
-                currentSwingPlayer.setOnExpired(() -> swingIndex = 0);
+                // Сброс комбо только после ПОСЛЕДНЕЙ анимации
+                if (idx == swing_anims.length - 1) {
+                    currentSwingPlayer.setOnExpired(() -> swingIndex = 0);
+                }
 
                 swordSwingContainer.replaceAnimationWithFade(
                         AbstractFadeModifier.standardFadeIn(0, INOUTSINE),
@@ -198,49 +186,17 @@ public abstract class SeriousPlayerAnimationsMixin extends Player
         }
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // Interface stubs
-    // ─────────────────────────────────────────────────────────────
+    @Override public ModifierLayer<IAnimation> seriousplayeranimations_getModAnimation() { return null; }
+    @Override public Vec3f getTorsoPos() { return null; }
+    @Override public Vec3f getTorsoRotation() { return null; }
 
-    @Override
-    public ModifierLayer<IAnimation> seriousplayeranimations_getModAnimation() {
-        return null;
-    }
-
-    @Override
-    public Vec3f getTorsoPos() {
-        return null;
-    }
-
-    @Override
-    public Vec3f getTorsoRotation() {
-        return null;
-    }
-
-    @Override
-    public void disableArms(boolean b) {}
-
-    @Override
-    public void disableLeftArmB(boolean b) {}
-
-    @Override
-    public void disableRightArmB(boolean b) {}
-
-    @Override
-    public void disableMainArmB(boolean b) {}
-
-    @Override
-    public void disableOffArmB(boolean b) {}
-
-    @Override
-    public void disableAnimationB(boolean b) {}
-
-    @Override
-    public void disableOverlayB(boolean b) {}
-
-    @Override
-    public void armPosMain(HumanoidModel.ArmPose pos) {}
-
-    @Override
-    public void armPosOff(HumanoidModel.ArmPose pos) {}
+    @Override public void disableArms(boolean b) {}
+    @Override public void disableLeftArmB(boolean b) {}
+    @Override public void disableRightArmB(boolean b) {}
+    @Override public void disableMainArmB(boolean b) {}
+    @Override public void disableOffArmB(boolean b) {}
+    @Override public void disableAnimationB(boolean b) {}
+    @Override public void disableOverlayB(boolean b) {}
+    @Override public void armPosMain(net.minecraft.client.model.HumanoidModel.ArmPose pos) {}
+    @Override public void armPosOff(net.minecraft.client.model.HumanoidModel.ArmPose pos) {}
 }

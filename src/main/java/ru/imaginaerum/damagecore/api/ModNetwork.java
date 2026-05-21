@@ -17,6 +17,8 @@ import ru.imaginaerum.damagecore.events_tree.SyncTreeXpPacket;
 import ru.imaginaerum.damagecore.hud.elements.DrainStaminaPacket;
 import ru.imaginaerum.damagecore.hud.elements.NormalAttackPacket;
 import ru.imaginaerum.damagecore.hud.net.ThirstDamagePacket;
+import ru.imaginaerum.damagecore.library_damage.PacketSyncAttackType;
+import ru.imaginaerum.damagecore.library_damage.PacketTypedAttack;
 
 import java.util.Optional;
 
@@ -47,12 +49,6 @@ public final class ModNetwork {
                 SyncNodeLevelsPacket::decode,
                 SyncNodeLevelsPacket::handle,
                 Optional.of(NetworkDirection.PLAY_TO_CLIENT));
-        CHANNEL.registerMessage(id++, SyncNodeVariantsPacket.class,
-                SyncNodeVariantsPacket::encode,
-                SyncNodeVariantsPacket::decode,
-                SyncNodeVariantsPacket::handle,
-                Optional.of(NetworkDirection.PLAY_TO_CLIENT)
-        );
         CHANNEL.registerMessage(
                 id++,
                 HundredArmedSyncPacket.class,
@@ -106,7 +102,20 @@ public final class ModNetwork {
                 java.util.Optional.of(NetworkDirection.PLAY_TO_SERVER)
 
         );
-
+        CHANNEL.registerMessage(
+                id++,
+                PacketSyncAttackType.class,
+                PacketSyncAttackType::encode,
+                PacketSyncAttackType::new,       // decode: конструктор из FriendlyByteBuf
+                PacketSyncAttackType::handle
+        );
+        CHANNEL.registerMessage(
+                /* следующий свободный id */ 2,
+                PacketTypedAttack.class,
+                PacketTypedAttack::encode,
+                PacketTypedAttack::new,
+                PacketTypedAttack::handle
+        );
         // ─── Сильная атака (СКМ) ───────────────────────────────────────────
         CHANNEL.registerMessage(id++,
                 StrongAttackPacket.class,
