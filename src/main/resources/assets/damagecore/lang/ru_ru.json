@@ -12,6 +12,13 @@
 
   "damagecore.possible_damage": "Возможный урон: ",
 
+  "damagecore.stat.live_forge": "Сила жизни",
+  "damagecore.stat.endurance": "Выносливость",
+  "damagecore.stat.mind": "Разум",
+  "damagecore.stat.strength": "Сила",
+  "damagecore.stat.dexterity": "Ловкость",
+  "damagecore.stat.wisdom": "Мудрость",
+
   "armor_stat.armor": "Броня",
   "armor_stat.enchant": "Чары",
   "armor_stat.food": "Еда",

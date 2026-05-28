@@ -181,12 +181,12 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
 
 // ---- 6 строк плюсиков со scissor-обрезкой по Y6..Y60 ----
         Component[] rowLabels = {
+                Component.translatable("damagecore.stat.live_forge"),
+                Component.translatable("damagecore.stat.endurance"),
+                Component.translatable("damagecore.stat.mind"),
                 Component.translatable("damagecore.stat.strength"),
-                Component.translatable("damagecore.stat.agility"),
-                Component.translatable("damagecore.stat.vitality"),
-                Component.translatable("damagecore.stat.defense"),
-                Component.translatable("damagecore.stat.magic"),
-                Component.translatable("damagecore.stat.speed")
+                Component.translatable("damagecore.stat.dexterity"),
+                Component.translatable("damagecore.stat.wisdom")
         };
         int scrollPx = STRIP_DRAG_RANGE > 0
                 ? (damagecore$stripOffsetY * SCROLL_MAX_PX) / STRIP_DRAG_RANGE
@@ -216,18 +216,23 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
             );
 
             // Текст (без изменений)
-            int areaX   = leftPos + 97;
-            int areaW   = 54;
-            int areaTop = topPos + 6 + i * PLUS_STEP - scrollPx;
-            int textY   = areaTop + (11 - Minecraft.getInstance().font.lineHeight) / 2;
-            int centerX = areaX + areaW / 2;
+            float scale = 1f / 1.5f;
+            int textX = leftPos + 99;  // левый край области + 2px отступ
+            int textY = topPos + 6 + i * PLUS_STEP - scrollPx + 1; // верх строки + 1px
 
-            gui.drawCenteredString(
+            gui.pose().pushPose();
+            gui.pose().translate(textX, textY, 0);
+            gui.pose().scale(scale, scale, 1f);
+            int textColor = hovered ? 0xFFFFAA : 0xFFFFFF;
+
+            gui.drawString(
                     Minecraft.getInstance().font,
                     rowLabels[i],
-                    centerX, textY,
-                    0xFFFFFF
+                    0, 0,
+                    textColor,
+                    true
             );
+            gui.pose().popPose();
         }
         gui.disableScissor();
         // Рендер модели игрока — те же координаты и масштаб, что и в ванилле

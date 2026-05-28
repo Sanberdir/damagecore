@@ -12,12 +12,12 @@
   "damage_type.slashing": "Slashing damage",
   "damage_type.fire": "Fire damage",
 
+  "damagecore.stat.live_forge": "Live Force",
+  "damagecore.stat.endurance": "Endurance",
+  "damagecore.stat.mind": "Mind",
   "damagecore.stat.strength": "Strength",
-  "damagecore.stat.agility": "Agility",
-  "damagecore.stat.vitality": "Vitality",
-  "damagecore.stat.defense": "Defense",
-  "damagecore.stat.magic": "Magic",
-  "damagecore.stat.speed": "Speed",
+  "damagecore.stat.dexterity": "Dexterity",
+  "damagecore.stat.wisdom": "Wisdom",
 
   "armor_stat.armor": "Armor",
   "armor_stat.enchant": "Enchant",
