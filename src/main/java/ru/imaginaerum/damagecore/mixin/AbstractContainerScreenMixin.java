@@ -12,6 +12,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import ru.imaginaerum.damagecore.api.damage_book_protection.ISkillTreeAccessor;
 import ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeRenderer;
 import ru.imaginaerum.damagecore.api.damage_book_protection.stats_field.ArmorStatsHoverHandler;
 
@@ -52,6 +53,7 @@ public abstract class AbstractContainerScreenMixin<T extends Container> extends 
             }
         }
     }
+
     @Inject(method = "mouseDragged", at = @At("HEAD"), cancellable = true)
     private void skillTree$mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY, CallbackInfoReturnable<Boolean> cir) {
         int guiLeft = ((AbstractContainerScreenAccessor)this).getLeftPos();
