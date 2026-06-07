@@ -19,6 +19,8 @@ import ru.imaginaerum.damagecore.hud.elements.NormalAttackPacket;
 import ru.imaginaerum.damagecore.hud.net.ThirstDamagePacket;
 import ru.imaginaerum.damagecore.library_damage.PacketSyncAttackType;
 import ru.imaginaerum.damagecore.library_damage.PacketTypedAttack;
+import ru.imaginaerum.damagecore.library_stats.StatChangePacket;
+import ru.imaginaerum.damagecore.library_stats.SyncStatsPacket;
 
 import java.util.Optional;
 
@@ -116,6 +118,20 @@ public final class ModNetwork {
                 PacketTypedAttack::new,
                 PacketTypedAttack::handle
         );
+        CHANNEL.registerMessage(id++,
+                StatChangePacket.class,
+                StatChangePacket::encode,
+                StatChangePacket::decode,
+                StatChangePacket::handle,
+                Optional.of(NetworkDirection.PLAY_TO_SERVER));
+
+        CHANNEL.registerMessage(id++,
+                SyncStatsPacket.class,
+                SyncStatsPacket::encode,
+                SyncStatsPacket::decode,
+                SyncStatsPacket::handle,
+                Optional.of(NetworkDirection.PLAY_TO_CLIENT));
+
         // ─── Сильная атака (СКМ) ───────────────────────────────────────────
         CHANNEL.registerMessage(id++,
                 StrongAttackPacket.class,

@@ -56,7 +56,7 @@ public class HealthBarElement {
         // Суммарное максимальное значение для растяжки полоски
         float totalMax = hasAbsorption ? maxHealth + absorption : maxHealth;
 
-        float widthScale = Math.min(totalMax / baseHealth, 2f);
+        float widthScale = totalMax / baseHealth;
         int scaledBarW   = Math.round(BAR_W * widthScale);
         long now = System.currentTimeMillis();
         if (lastHealth < 0f) lastHealth = currentHp;

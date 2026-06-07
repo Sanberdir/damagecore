@@ -3,11 +3,14 @@ package ru.imaginaerum.damagecore.api.damage_book_protection;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.network.NetworkEvent;
+import net.minecraftforge.network.PacketDistributor;
+import ru.imaginaerum.damagecore.api.ModNetwork;
 import ru.imaginaerum.damagecore.events_tree.SkillTreeXpManager;
+import ru.imaginaerum.damagecore.library_stats.PlayerStatsCapability;
+import ru.imaginaerum.damagecore.library_stats.SyncStatsPacket;
 
 import java.util.function.Supplier;
 
-// пакет пустой, просто запрос синхронизации
 public class RequestFullSyncPacket {
     public RequestFullSyncPacket() {}
 
@@ -23,11 +26,16 @@ public class RequestFullSyncPacket {
             ServerPlayer player = ctx.getSender();
             if (player == null) return;
 
-            // Загружаем и отправляем XP
             SkillTreeXpManager.loadFromPersistentData(player);
-
-            // Отправляем изученные узлы и варианты
             SkillTreeServerHandler.sendFullSyncToPlayer(player);
+
+            // ✅ Синхронизируем статы и XP при первом открытии
+            PlayerStatsCapability.get(player).ifPresent(stats ->
+                    ModNetwork.CHANNEL.send(
+                            PacketDistributor.PLAYER.with(() -> player),
+                            new SyncStatsPacket(stats, player.totalExperience)
+                    )
+            );
         });
         ctx.setPacketHandled(true);
     }

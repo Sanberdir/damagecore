@@ -21,8 +21,14 @@ import ru.imaginaerum.damagecore.api.ModNetwork;
 import ru.imaginaerum.damagecore.api.damage_book_protection.*;
 import ru.imaginaerum.damagecore.api.damage_book_protection.skill_tree_renderer.Render;
 import ru.imaginaerum.damagecore.api.damage_book_protection.stats_field.ArmorStatsFieldRenderer;
+import ru.imaginaerum.damagecore.library_stats.IPlayerStats;
+import ru.imaginaerum.damagecore.library_stats.PlayerStatsCapability;
+import ru.imaginaerum.damagecore.library_stats.StatChangePacket;
+import ru.imaginaerum.damagecore.library_stats.StatsType;
 import ru.imaginaerum.damagecore.mixin.AbstractContainerScreenAccessor;
 import ru.imaginaerum.damagecore.mixin.ScreenInvoker;
+
+import java.util.Arrays;
 
 @Mixin(InventoryScreen.class)
 public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
@@ -63,19 +69,9 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
     @Unique private int recipeButtonOffsetY = 0;
     @Unique private int selectedSmall = 0;
 
-
-    // UV исходной текстуры плюсика (195..203 × 225..233 = 8×8 px)
-    @Unique private static final int PLUS_U = 195;
-    @Unique private static final int PLUS_V = 225;
-    @Unique private static final int PLUS_W = 8;
-    @Unique private static final int PLUS_H = 8;
-
-    // Позиция первого плюсика относительно leftPos/topPos
-    @Unique private static final int PLUS_X = 154;
-    @Unique private static final int PLUS_Y = 8;
-
-    // Шаг между плюсиками = высота иконки + 4px зазор
-    @Unique private static final int PLUS_STEP = PLUS_H + 6;
+    // Шаг между строками
+    @Unique private static final int ROW_H    = 8;
+    @Unique private static final int ROW_STEP = ROW_H + 5;
 
     // UV вертикальной полоски (176..181 × 225..240 = 5×15 px)
     @Unique private static final int STRIP_U = 176;
@@ -83,38 +79,88 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
     @Unique private static final int STRIP_W = 5;
     @Unique private static final int STRIP_H = 15;
 
-    // Позиция относительно leftPos/topPos
+    // Позиция полоски относительно leftPos/topPos
     @Unique private static final int STRIP_X = 165;
-    @Unique private static final int STRIP_Y = 6;
+    @Unique private static final int STRIP_Y = 8;
 
-
-    // ---- Скроллируемый список плюсиков ----
-    @Unique private static final int PLUS_ROWS_TOTAL   = 6;
-    @Unique private static final int PLUS_ROWS_VISIBLE = 4;
+    // ---- Скроллируемый список строк ----
+    @Unique private static final int ROWS_TOTAL   = StatsType.values().length;
+    @Unique private static final int ROWS_VISIBLE = Math.min(4, ROWS_TOTAL);
     // Пиксельный диапазон скролла = 2 скрытые строки × шаг
-    @Unique private static final int SCROLL_MAX_PX    = (PLUS_ROWS_TOTAL - PLUS_ROWS_VISIBLE) * PLUS_STEP; // 28
-    // UV плюсика при наведении (X187..X195 × Y225..Y233 = 8×8 px)
-    @Unique private static final int PLUS_HOVER_U = 187;
-    @Unique private static final int PLUS_HOVER_V = 225;
+    @Unique private static final int SCROLL_MAX_PX = (ROWS_TOTAL - ROWS_VISIBLE) * ROW_STEP;// 28
 
-    // Диапазон перетаскивания полоски: верх от Y6 до Y(60-STRIP_H)=Y45
-    @Unique private static final int STRIP_Y_MIN_OFF  = STRIP_Y;            // 6
-    @Unique private static final int STRIP_Y_MAX_OFF  = 60 - STRIP_H;       // 45
-    @Unique private static final int STRIP_DRAG_RANGE = STRIP_Y_MAX_OFF - STRIP_Y_MIN_OFF; // 39
+    // Диапазон перетаскивания полоски: верх от Y8 до Y(60-STRIP_H)=Y45
+    @Unique private static final int STRIP_Y_MIN_OFF  = STRIP_Y;        // 8
+    @Unique private static final int STRIP_Y_MAX_OFF  = 60 - STRIP_H;   // 45
+    @Unique private static final int STRIP_DRAG_RANGE = STRIP_Y_MAX_OFF - STRIP_Y_MIN_OFF; // 37
 
+    // ---- Кнопка минус ----
+    // UV обычного состояния (182..193 × 225..232 = 11×7 px)
+    @Unique private static final int MINUS_U      = 182;
+    @Unique private static final int MINUS_V      = 225;
+    // UV при наведении (182..193 × 233..240 = 11×7 px)
+    @Unique private static final int MINUS_HOVER_U = 182;
+    @Unique private static final int MINUS_HOVER_V = 233;
+    @Unique private static final int MINUS_W      = 11;
+    @Unique private static final int MINUS_H      = 7;
+    // Позиция первой кнопки относительно leftPos/topPos
+    @Unique private static final int MINUS_X      = 99;
+    @Unique private static final int MINUS_Y      = 13;
+    // Вертикальный шаг между кнопками
+    @Unique private static final int MINUS_STEP   = ROW_STEP;
+    // ---- Кнопка плюс ----
+// UV обычного состояния (194..205 × 225..232 = 11×7 px)
+    @Unique private static final int PLUS_U       = 194;
+    @Unique private static final int PLUS_V       = 225;
+    // UV при наведении (194..205 × 233..240 = 11×7 px)
+    @Unique private static final int PLUS_HOVER_U = 194;
+    @Unique private static final int PLUS_HOVER_V = 233;
+    @Unique private static final int PLUS_W       = 11;
+    @Unique private static final int PLUS_H       = 7;
+    // Позиция первой кнопки относительно leftPos/topPos
+    @Unique private static final int PLUS_X       = 111;
+    @Unique private static final int PLUS_Y       = 13;
+    // Вертикальный шаг между кнопками
+    @Unique private static final int PLUS_STEP    = ROW_STEP;
     // Состояние перетаскивания
     @Unique private int     damagecore$stripOffsetY  = 0;
     @Unique private boolean damagecore$draggingStrip = false;
     @Unique private double  damagecore$dragMouseY0   = 0;
     @Unique private int     damagecore$dragStripY0   = 0;
+    @Unique
+    private static int damagecore$getClientXp(net.minecraft.world.entity.player.Player player) {
+        int level = player.experienceLevel;
+        float progress = player.experienceProgress;
 
+        // Сколько XP нужно для перехода с текущего уровня на следующий
+        int xpToNext;
+        if (level >= 30) {
+            xpToNext = 112 + (level - 30) * 9;
+        } else if (level >= 15) {
+            xpToNext = 37 + (level - 15) * 5;
+        } else {
+            xpToNext = 7 + level * 2;
+        }
+
+        // Сколько XP накоплено до текущего уровня
+        int totalForLevel;
+        if (level >= 32) {
+            totalForLevel = (int)(4.5 * level * level - 162.5 * level + 2220);
+        } else if (level >= 17) {
+            totalForLevel = (int)(2.5 * level * level - 40.5 * level + 360);
+        } else {
+            totalForLevel = level * level + 6 * level;
+        }
+
+        return totalForLevel + (int)(progress * xpToNext);
+    }
     @Unique
     @Override
     public void damagecore$scrollList(double delta) {
-        int step = PLUS_STEP;
         damagecore$stripOffsetY = Math.max(0,
-                Math.min(STRIP_DRAG_RANGE, damagecore$stripOffsetY - (int)(delta * step)));
+                Math.min(STRIP_DRAG_RANGE, damagecore$stripOffsetY - (int)(delta * ROW_STEP)));
     }
+
     // -------------------------------------------------------------------------
     // Вспомогательный метод — предмет под курсором
     // -------------------------------------------------------------------------
@@ -137,9 +183,6 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
 
     // -------------------------------------------------------------------------
     // renderBg — ПОЛНАЯ ЗАМЕНА фона выживания + позиции кнопок
-    //
-    // TAIL-инджект (damagecore$updateButtonPosition) удалён, потому что после
-    // ci.cancel() он не вызывается. Логика обновления кнопок перенесена сюда.
     // -------------------------------------------------------------------------
     @Inject(method = "renderBg", at = @At("HEAD"), cancellable = true)
     private void damagecore$replaceVanillaInventoryBg(GuiGraphics gui, float partialTick,
@@ -169,7 +212,8 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
                 INV_BG_W, INV_BG_H,
                 ATLAS_SIZE, ATLAS_SIZE
         );
-// ---- Полоска (позиция зависит от drag-offset) ----
+
+        // ---- Полоска (позиция зависит от drag-offset) ----
         gui.blit(
                 DAMAGE_CORE_INTERFACE,
                 leftPos + STRIP_X,
@@ -179,63 +223,101 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
                 ATLAS_SIZE, ATLAS_SIZE
         );
 
-// ---- 6 строк плюсиков со scissor-обрезкой по Y6..Y60 ----
-        Component[] rowLabels = {
-                Component.translatable("damagecore.stat.live_forge"),
-                Component.translatable("damagecore.stat.endurance"),
-                Component.translatable("damagecore.stat.mind"),
-                Component.translatable("damagecore.stat.strength"),
-                Component.translatable("damagecore.stat.dexterity"),
-                Component.translatable("damagecore.stat.wisdom")
-        };
+        // ---- 6 строк текста + кнопка минус со scissor-обрезкой по Y8..Y60 ----
+        Component[] rowLabels = Arrays.stream(StatsType.values())
+                .map(s -> Component.translatable(s.getTranslationKey()))
+                .toArray(Component[]::new);
+
         int scrollPx = STRIP_DRAG_RANGE > 0
                 ? (damagecore$stripOffsetY * SCROLL_MAX_PX) / STRIP_DRAG_RANGE
                 : 0;
         gui.enableScissor(
-                leftPos + 97,  topPos + 6,
+                leftPos + 97,  topPos + 8,
                 leftPos + 163, topPos + 60
         );
-        for (int i = 0; i < PLUS_ROWS_TOTAL; i++) {
-            int plusScreenX = leftPos + PLUS_X;
-            int plusScreenY = topPos + PLUS_Y + i * PLUS_STEP - scrollPx;
+        for (int i = 0; i < ROWS_TOTAL; i++) {
+            int rowScreenY = topPos + 8 + i * ROW_STEP - scrollPx;
 
-            // Проверяем наведение на строку (вся область X97..X163, высота строки)
             boolean hovered = mouseX >= leftPos + 97 && mouseX < leftPos + 163
-                    && mouseY >= plusScreenY   && mouseY < plusScreenY + PLUS_H;
+                    && mouseY >= rowScreenY && mouseY < rowScreenY + ROW_H;
+            StatsType statType  = StatsType.values()[i];
+            int statValue       = PlayerStatsCapability.get(Minecraft.getInstance().player)
+                    .map(s -> s.getStat(statType)).orElse(0);
+            int pressCount      = PlayerStatsCapability.get(Minecraft.getInstance().player)
+                    .map(s -> s.getPressCount(statType)).orElse(0);
+            int nextCost        = PlayerStatsCapability.get(Minecraft.getInstance().player)
+                    .map(s -> s.getNextCost(statType)).orElse(IPlayerStats.BASE_COST);
+            int playerXp = Minecraft.getInstance().player != null
+                    ? damagecore$getClientXp(Minecraft.getInstance().player) : 0;
 
-            // Плюсик — обычный или hover
-            int plusU = hovered ? PLUS_HOVER_U : PLUS_U;
-            int plusV = hovered ? PLUS_HOVER_V : PLUS_V;
+            boolean isZero    = statValue == 0 && pressCount == 0;
+            boolean plusBlocked = pressCount >= IPlayerStats.MAX_LEVEL || playerXp < nextCost;
+// ---- Кнопка минус ----
+            int minusScreenX = leftPos + MINUS_X;
+            int minusScreenY = topPos  + MINUS_Y + i * MINUS_STEP - scrollPx;
 
+            boolean minusHovered = !isZero &&
+                    mouseX >= minusScreenX && mouseX < minusScreenX + MINUS_W / 1.2f
+                    && mouseY >= minusScreenY && mouseY < minusScreenY + MINUS_H / 1.2f;
+
+            int minusU = isZero ? 182 : (minusHovered ? MINUS_HOVER_U : MINUS_U);
+            int minusV = isZero ? 241 : (minusHovered ? MINUS_HOVER_V : MINUS_V);
+            gui.pose().pushPose();
+            gui.pose().translate(minusScreenX, minusScreenY, 0);
+            gui.pose().scale(1f / 1.2f, 1f / 1.2f, 1f);
             gui.blit(
                     DAMAGE_CORE_INTERFACE,
-                    plusScreenX, plusScreenY,
+                    0, 0,
+                    minusU, minusV,
+                    MINUS_W, MINUS_H,
+                    ATLAS_SIZE, ATLAS_SIZE
+            );
+            gui.pose().popPose();
+
+            // ---- Кнопка плюс ----
+            int plusScreenX = leftPos + PLUS_X;
+            int plusScreenY = topPos  + PLUS_Y + i * PLUS_STEP - scrollPx;
+            boolean plusHovered = !plusBlocked
+                    && mouseX >= plusScreenX && mouseX < plusScreenX + PLUS_W / 1.2f
+                    && mouseY >= plusScreenY && mouseY < plusScreenY + PLUS_H / 1.2f;
+
+            int plusU = plusBlocked ? 194 : (plusHovered ? PLUS_HOVER_U : PLUS_U);
+            int plusV = plusBlocked ? 241 : (plusHovered ? PLUS_HOVER_V : PLUS_V);
+            gui.pose().pushPose();
+            gui.pose().translate(plusScreenX, plusScreenY, 0);
+            gui.pose().scale(1f / 1.2f, 1f / 1.2f, 1f);
+            gui.blit(
+                    DAMAGE_CORE_INTERFACE,
+                    0, 0,
                     plusU, plusV,
                     PLUS_W, PLUS_H,
                     ATLAS_SIZE, ATLAS_SIZE
             );
+            gui.pose().popPose();
+            // ---- Число ----
+            int numX = leftPos + PLUS_X + PLUS_W + 3;
+            int numY = plusScreenY;
 
-            // Текст (без изменений)
-            float scale = 1f / 1.5f;
-            int textX = leftPos + 99;  // левый край области + 2px отступ
-            int textY = topPos + 6 + i * PLUS_STEP - scrollPx + 1; // верх строки + 1px
+            gui.pose().pushPose();
+            gui.pose().translate(numX, numY, 0);
+            gui.pose().scale(1f / 1.4f, 1f / 1.4f, 1f);
+            gui.drawString(Minecraft.getInstance().font, Component.literal(String.valueOf(statValue)), 0, 0, 0xFFFFFF, true);
+            gui.pose().popPose();
+            // ---- Текст ----
+            float scale     = 1f / 2f;
+            int   textX     = leftPos + 99;
+            int   textY     = rowScreenY;
+            int   textColor = 0xFFFFFF;
 
             gui.pose().pushPose();
             gui.pose().translate(textX, textY, 0);
             gui.pose().scale(scale, scale, 1f);
-            int textColor = hovered ? 0xFFFFAA : 0xFFFFFF;
-
-            gui.drawString(
-                    Minecraft.getInstance().font,
-                    rowLabels[i],
-                    0, 0,
-                    textColor,
-                    true
-            );
+            gui.drawString(Minecraft.getInstance().font, rowLabels[i], 0, 0, textColor, true);
             gui.pose().popPose();
         }
         gui.disableScissor();
-        // Рендер модели игрока — те же координаты и масштаб, что и в ванилле
+
+        // Рендер модели игрока
         if (Minecraft.getInstance().player != null) {
             InventoryScreen.renderEntityInInventoryFollowsMouse(
                     gui,
@@ -249,7 +331,51 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
 
         ci.cancel();
     }
+    @Inject(method = "mouseClicked", at = @At("TAIL"), cancellable = true)
+    private void damagecore$statsButtonsClick(double mouseX, double mouseY, int button,
+                                              CallbackInfoReturnable<Boolean> cir) {
+        if (!this.skillTreeVisible || button != 0) return;
+        if (Minecraft.getInstance().player == null) return;
 
+        InventoryScreen screen = (InventoryScreen)(Object)this;
+        int leftPos = ((AbstractContainerScreenAccessor)screen).getLeftPos();
+        int topPos  = ((AbstractContainerScreenAccessor)screen).getTopPos();
+
+        int scrollPx = STRIP_DRAG_RANGE > 0
+                ? (damagecore$stripOffsetY * SCROLL_MAX_PX) / STRIP_DRAG_RANGE : 0;
+
+        for (int i = 0; i < ROWS_TOTAL; i++) {
+            StatsType statType = StatsType.values()[i];
+
+            int minusScreenX = leftPos + MINUS_X;
+            int minusScreenY = topPos  + MINUS_Y + i * MINUS_STEP - scrollPx;
+            int plusScreenX  = leftPos + PLUS_X;
+            int plusScreenY  = topPos  + PLUS_Y  + i * PLUS_STEP  - scrollPx;
+
+            // ---- Плюс ----
+            if (mouseX >= plusScreenX && mouseX < plusScreenX + PLUS_W / 1.2f
+                    && mouseY >= plusScreenY && mouseY < plusScreenY + PLUS_H / 1.2f) {
+
+                // ❌ Убрать: player.giveExperiencePoints(-cost)
+                // ❌ Убрать: s.setStat(...)
+                // ❌ Убрать: s.setPressCount(...)
+
+                // ✅ Только пакет — сервер проверит, применит и синхронизирует обратно
+                ModNetwork.CHANNEL.sendToServer(new StatChangePacket(statType, true));
+                cir.setReturnValue(true);
+                return;
+            }
+
+            // ---- Минус ----
+            if (mouseX >= minusScreenX && mouseX < minusScreenX + MINUS_W / 1.2f
+                    && mouseY >= minusScreenY && mouseY < minusScreenY + MINUS_H / 1.2f) {
+
+                ModNetwork.CHANNEL.sendToServer(new StatChangePacket(statType, false));
+                cir.setReturnValue(true);
+                return;
+            }
+        }
+    }
     // ---- Начало перетаскивания полоски ----
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     private void damagecore$stripMouseClicked(double mouseX, double mouseY, int button,
@@ -264,14 +390,12 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
 
         if (mouseX >= sx && mouseX < sx + STRIP_W &&
                 mouseY >= sy && mouseY < sy + STRIP_H) {
-            damagecore$draggingStrip  = true;
-            damagecore$dragMouseY0    = mouseY;
-            damagecore$dragStripY0    = damagecore$stripOffsetY;
+            damagecore$draggingStrip = true;
+            damagecore$dragMouseY0   = mouseY;
+            damagecore$dragStripY0   = damagecore$stripOffsetY;
             cir.setReturnValue(true);
         }
     }
-
-
 
     // ---- Конец перетаскивания полоски ----
     @Inject(method = "mouseReleased", at = @At("HEAD"))
@@ -281,6 +405,7 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
             damagecore$draggingStrip = false;
         }
     }
+
     // -------------------------------------------------------------------------
     // renderLabels — убираем заголовок "Создание"
     // -------------------------------------------------------------------------
@@ -308,6 +433,7 @@ public abstract class InventoryScreenMixin implements ISkillTreeAccessor {
             damagecore$stripOffsetY = Math.max(0,
                     Math.min(STRIP_DRAG_RANGE, damagecore$dragStripY0 + delta));
         }
+
         // 1) Skill tree панель
         if (this.skillTreeVisible) {
             int tabX = guiLeft + imageWidth;

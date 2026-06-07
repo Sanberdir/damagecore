@@ -17,11 +17,21 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import ru.imaginaerum.damagecore.Config;
 import ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeServerHandler;
+import ru.imaginaerum.damagecore.library_stats.PlayerStatsCapability;
+import ru.imaginaerum.damagecore.library_stats.StatsType;
 
 @Mod.EventBusSubscriber(value = Dist.CLIENT)
 public class StaminaManager {
 
-    public static final float MAX_STAMINA = 40f;
+    public static final float BASE_STAMINA = 40f;
+
+    public static float getMaxStamina() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) return BASE_STAMINA;
+        return PlayerStatsCapability.get(mc.player)
+                .map(stats -> BASE_STAMINA + stats.getStat(StatsType.ENDURANCE) * 0.5f)
+                .orElse(BASE_STAMINA);
+    }
 
     private static final float DRAIN_SPRINT              = 0.2f;
     private static final float DRAIN_SHIELD_HOLD         = 0.02f;  // пассивный дрейн пока держишь щит
@@ -43,7 +53,7 @@ public class StaminaManager {
     private static final double ORIGINAL_BOAT_MAX_SPEED          = 1.2;
     public static boolean isExhausted() { return exhausted; }
     // --- Состояние ---
-    private static float stamina       = MAX_STAMINA;
+    private static float stamina       = getMaxStamina();
     private static boolean exhausted   = false;
     private static int exhaustionTimer = 0;
     private static double originalSpeed = -1;
@@ -104,7 +114,7 @@ public class StaminaManager {
         if (!(event.getEntity() instanceof Player player)) return;
         if (!Config.showStaminaHud) return;
         if (player.isCreative() || player.isSpectator()) {
-            stamina   = MAX_STAMINA;
+            stamina   = getMaxStamina();
             exhausted = false;
             return;
         }
@@ -155,7 +165,7 @@ public class StaminaManager {
                 stamina -= DRAIN_BOAT;
                 if (stamina <= 0f) stamina = 0f;
             } else {
-                stamina = Math.min(stamina + REGEN_STAND, MAX_STAMINA);
+                stamina = Math.min(stamina + REGEN_STAND, getMaxStamina());
             }
         } else if (sprinting) {
             // Бег
@@ -173,9 +183,9 @@ public class StaminaManager {
                 triggerExhaustion(player);
             }
         } else if (moving) {
-            stamina = Math.min(stamina + REGEN_WALK, MAX_STAMINA);
+            stamina = Math.min(stamina + REGEN_WALK, getMaxStamina());
         } else {
-            stamina = Math.min(stamina + REGEN_STAND, MAX_STAMINA);
+            stamina = Math.min(stamina + REGEN_STAND, getMaxStamina());
         }
     }
 
