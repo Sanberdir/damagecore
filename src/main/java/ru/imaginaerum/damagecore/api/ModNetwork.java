@@ -21,6 +21,7 @@ import ru.imaginaerum.damagecore.library_damage.PacketSyncAttackType;
 import ru.imaginaerum.damagecore.library_damage.PacketTypedAttack;
 import ru.imaginaerum.damagecore.library_stats.StatChangePacket;
 import ru.imaginaerum.damagecore.library_stats.SyncStatsPacket;
+import ru.imaginaerum.damagecore.libraty_effects.FoodProtectionSyncPacket;
 
 import java.util.Optional;
 
@@ -111,6 +112,12 @@ public final class ModNetwork {
                 PacketSyncAttackType::new,       // decode: конструктор из FriendlyByteBuf
                 PacketSyncAttackType::handle
         );
+        CHANNEL.registerMessage(id++,
+                FoodProtectionSyncPacket.class,
+                FoodProtectionSyncPacket::encode,
+                FoodProtectionSyncPacket::decode,
+                FoodProtectionSyncPacket::handle,
+                Optional.of(NetworkDirection.PLAY_TO_CLIENT));
         CHANNEL.registerMessage(
                 /* следующий свободный id */ 2,
                 PacketTypedAttack.class,

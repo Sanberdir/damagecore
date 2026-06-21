@@ -121,8 +121,8 @@ public class StatChangePacket {
                     player.totalExperience = getServerXp(player);
                 }
 
-                if (packet.type == StatsType.LIVE_FORGE) {
-                    AttributeApplier.applyLiveForge(player, stats.getStat(StatsType.LIVE_FORGE));
+                if (packet.type == StatsType.LIVE_FORCE) {
+                    AttributeApplier.applyLiveForge(player, stats.getStat(StatsType.LIVE_FORCE));
 
                     float newMax = (float) player.getAttributeValue(Attributes.MAX_HEALTH);
                     if (player.getHealth() > newMax) {

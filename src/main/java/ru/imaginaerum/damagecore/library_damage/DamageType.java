@@ -5,6 +5,10 @@ public enum DamageType {
     SLASHING("slashing"),
     FIRE("fire"),
     COLD("cold"),
+    // Удушье
+    SUFFOCATION("suffocation"),
+    // Кровотечение
+    BLEEDING("bleeding"),
     // Лучистый
     LUMINOUS_RADIANT("luminous_radiant"),
     NECROTIC("necrotic"),

@@ -41,7 +41,7 @@ public abstract class ItemMixin {
                 for (Map.Entry<DamageType, Double> e : map.entrySet()) {
                     ChatFormatting color = switch (e.getKey()) {
                         case PIERCING, SLASHING, BLUDGEONING -> ChatFormatting.GREEN;
-                        case FIRE                            -> ChatFormatting.RED;
+                        case FIRE, BLEEDING                            -> ChatFormatting.RED;
                         case COLD                            -> ChatFormatting.AQUA;
                         case LIGHTNING                       -> ChatFormatting.YELLOW;
                         case NECROTIC                        -> ChatFormatting.DARK_PURPLE;
@@ -49,6 +49,7 @@ public abstract class ItemMixin {
                         case LUMINOUS_RADIANT                -> ChatFormatting.WHITE;
                         case PSY                             -> ChatFormatting.LIGHT_PURPLE;
                         case SOUNDER                         -> ChatFormatting.BLUE;
+                        case SUFFOCATION                     -> ChatFormatting.DARK_GRAY;
                     };
 
                     tooltip.add(

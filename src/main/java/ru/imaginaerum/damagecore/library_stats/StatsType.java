@@ -1,7 +1,7 @@
 package ru.imaginaerum.damagecore.library_stats;
 public enum StatsType {
 
-    LIVE_FORGE("live_forge", 0),
+    LIVE_FORCE("live_forge", 0),
     ENDURANCE("endurance",   0),
     MIND("mind",             0),
     STRENGTH("strength",     0),

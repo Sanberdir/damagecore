@@ -7,7 +7,6 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import ru.imaginaerum.damagecore.library_stats.PlayerStatsCapability;
 import ru.imaginaerum.damagecore.library_stats.StatsType;
-import ru.imaginaerum.damagecore.library_stats.attributes.AttributeApplier;
 
 @Mod.EventBusSubscriber(modid = "damagecore")
 public class PlayerEventHandler {
@@ -24,7 +23,7 @@ public class PlayerEventHandler {
 
     private static void applyStats(Player player) {
         PlayerStatsCapability.get(player).ifPresent(stats -> {
-            int liveForgeLevel = stats.getStat(StatsType.LIVE_FORGE);
+            int liveForgeLevel = stats.getStat(StatsType.LIVE_FORCE);
             AttributeApplier.applyLiveForge(player, liveForgeLevel);
 
             // Обрезаем текущее HP если оно выше нового максимума

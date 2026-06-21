@@ -1,6 +1,7 @@
 package ru.imaginaerum.damagecore.hud.elements;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.world.phys.HitResult;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.InputEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -18,6 +19,11 @@ public class NormalAttackClientHandler {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
         if (mc.player.isCreative() || mc.player.isSpectator()) return;
+
+        // Не тратим стамину при копании блока
+        if (mc.hitResult != null && mc.hitResult.getType() == HitResult.Type.BLOCK) {
+            return;
+        }
 
         // Блокируем удар при истощении
         if (StaminaManager.isExhausted() || StaminaManager.getStamina() < 4.0f) {

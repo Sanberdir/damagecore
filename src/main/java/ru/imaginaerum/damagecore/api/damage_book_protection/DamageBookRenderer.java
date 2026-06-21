@@ -73,7 +73,22 @@ public final class DamageBookRenderer {
         TREE_XP.clear();
         TREE_LEVEL.clear();
     }
+    public static void renderRightInterfaceNoTabs(
+            GuiGraphics gui,
+            InventoryScreen screen,
+            int x, int y,
+            int mouseX,
+            int mouseY
+    ) {
+        int PANEL_W = 289;
+        int PANEL_H = 166;
 
+        int panelLeft = x + 2;
+        int panelTop  = y;
+
+        // Только фон панели, без вкладок и без дерева
+        gui.blit(DAMAGE_CORE_INTERFACE, panelLeft, panelTop, 179, 0, PANEL_W, PANEL_H, 512, 512);
+    }
     public static void setXp(int treeId, int xp) {
         TREE_XP.put(treeId, xp);
     }
@@ -166,7 +181,8 @@ public final class DamageBookRenderer {
             InventoryScreen screen,
             int x, int y,
             int mouseX,
-            int mouseY
+            int mouseY,
+            boolean sideTabActive
     ) {
         int PANEL_W = 289;
         int PANEL_H = 166;
@@ -180,23 +196,18 @@ public final class DamageBookRenderer {
         int TAB_Y = panelTop + 163;
         int TOP_Y = panelTop - 25;
 
-        // Отрисовываем вкладки, но теперь с учётом страницы
-        // ===== НИЖНИЙ РЯД =====
         drawSideTab(gui, panelLeft, TAB_Y, TAB_W, globalIdForSlot(bottomLeft()), true, 0, 0, mouseX, mouseY);
         drawMiddleRow(gui, panelLeft, PANEL_W, TAB_Y, TAB_W, true, mouseX, mouseY);
         drawSideTab(gui, panelLeft + PANEL_W - TAB_W, TAB_Y, TAB_W, globalIdForSlot(bottomRight()), true, 56, 1, mouseX, mouseY);
 
-        // ===== ВЕРХНИЙ РЯД =====
         drawSideTab(gui, panelLeft, TOP_Y, TAB_W, globalIdForSlot(topLeft()), false, 89, 1, mouseX, mouseY);
         drawMiddleRow(gui, panelLeft, PANEL_W, TOP_Y, TAB_W, false, mouseX, mouseY);
         drawSideTab(gui, panelLeft + PANEL_W - TAB_W, TOP_Y, TAB_W, globalIdForSlot(topRight()), false, 145, 1, mouseX, mouseY);
 
-        // стрелочки и индикатор страниц (если нужно)
         int totalTrees = SkillTreeRenderer.getTotalTrees();
         int pageCount = Math.max(1, (totalTrees + PAGE_SIZE - 1) / PAGE_SIZE);
 
         if (totalTrees > PAGE_SIZE) {
-            // размеры и координаты стрелок в текстуре
             final int ARROW_U_RIGHT = 180;
             final int ARROW_U_LEFT = 194;
             final int ARROW_V = 176;
@@ -204,38 +215,33 @@ public final class DamageBookRenderer {
             final int ARROW_W = 12;
             final int ARROW_H = 18;
 
-            // левее левой вкладки (нижней) на 2 пикселя: вычисляем x
             int leftArrowX = panelLeft - 2 - ARROW_W;
-            int leftArrowY = TAB_Y + 3; // небольшая вертикальная центровка
-
-            // правее правой вкладки (нижней) на 2 пикселя
+            int leftArrowY = TAB_Y + 3;
             int rightArrowX = panelLeft + PANEL_W + 2;
             int rightArrowY = TAB_Y + 3;
 
             boolean hoverLeft = inside(mouseX, mouseY, leftArrowX, leftArrowY, ARROW_W, ARROW_H);
             boolean hoverRight = inside(mouseX, mouseY, rightArrowX, rightArrowY, ARROW_W, ARROW_H);
 
-            // draw left arrow (only if previous page exists)
             if (currentPage > 0) {
                 int v = hoverLeft ? ARROW_HOVER_V : ARROW_V;
                 gui.blit(DAMAGE_CORE_INTERFACE, leftArrowX, leftArrowY, ARROW_U_LEFT, v, ARROW_W, ARROW_H, 512, 512);
             }
 
-            // draw right arrow (only if next page exists)
             if (currentPage < pageCount - 1) {
                 int v = hoverRight ? ARROW_HOVER_V : ARROW_V;
                 gui.blit(DAMAGE_CORE_INTERFACE, rightArrowX, rightArrowY, ARROW_U_RIGHT, v, ARROW_W, ARROW_H, 512, 512);
             }
 
-            // draw page text
             String pageText = String.format("Page %d/%d", currentPage + 1, pageCount);
             int textX = panelLeft + (PANEL_W / 2) - (Minecraft.getInstance().font.width(pageText) / 2);
             int textY = panelTop + PANEL_H - 6;
             gui.drawString(Minecraft.getInstance().font, pageText, textX, textY, 0xFFCCCCCC, false);
         }
 
-        // рисуем дерево (внутри SkillTreeRenderer учтёт global selectedBottomTab)
-        Render.render(gui, screen, panelLeft, panelTop, mouseX, mouseY);
+        if (!sideTabActive) {
+            Render.render(gui, screen, panelLeft, panelTop, mouseX, mouseY);
+        }
     }
 
     private static void drawMiddleRow(GuiGraphics gui, int panelLeft, int panelW, int y, int tabW, boolean bottom, int mouseX, int mouseY) {
