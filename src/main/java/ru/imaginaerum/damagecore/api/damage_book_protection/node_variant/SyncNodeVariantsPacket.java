@@ -1,10 +1,9 @@
 package ru.imaginaerum.damagecore.api.damage_book_protection.node_variant;
 
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.network.NetworkEvent;
-import ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeClientSync;
-import ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeNode;
-import ru.imaginaerum.damagecore.api.damage_book_protection.SkillTreeServerHandler;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -12,7 +11,6 @@ import java.util.function.Supplier;
 
 public record SyncNodeVariantsPacket(int treeId, Map<String, Integer> variants) {
 
-    // Сериализация
     public static void encode(SyncNodeVariantsPacket pkt, FriendlyByteBuf buf) {
         buf.writeInt(pkt.treeId);
         buf.writeInt(pkt.variants.size());
@@ -22,25 +20,24 @@ public record SyncNodeVariantsPacket(int treeId, Map<String, Integer> variants) 
         }
     }
 
-    // Десериализация
     public static SyncNodeVariantsPacket decode(FriendlyByteBuf buf) {
         int treeId = buf.readInt();
         int size = buf.readInt();
         Map<String, Integer> variants = new HashMap<>();
         for (int i = 0; i < size; i++) {
-            String id = buf.readUtf();
-            int sel = buf.readInt();
-            variants.put(id, sel);
+            variants.put(buf.readUtf(), buf.readInt());
         }
         return new SyncNodeVariantsPacket(treeId, variants);
     }
 
-    // Обработка на клиенте
     public static void handle(SyncNodeVariantsPacket pkt, Supplier<NetworkEvent.Context> ctx) {
-        System.out.println("Received variants packet on client for tree " + pkt.treeId()); // ДОБАВИТЬ
-        ctx.get().enqueueWork(() -> {
-            SkillTreeClientSync.applyVariants(pkt.treeId(), pkt.variants());
-        });
+        ctx.get().enqueueWork(() ->
+                // ИСПРАВЛЕНО: вместо прямого вызова SkillTreeClientSync используем прокси,
+                // чтобы JVM не загружала клиентский класс на выделенном сервере.
+                DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () ->
+                        SyncNodeVariantsClientProxy.apply(pkt.treeId(), pkt.variants())
+                )
+        );
         ctx.get().setPacketHandled(true);
     }
 }

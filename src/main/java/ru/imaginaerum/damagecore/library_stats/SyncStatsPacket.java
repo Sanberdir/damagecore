@@ -1,16 +1,17 @@
 package ru.imaginaerum.damagecore.library_stats;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.network.NetworkEvent;
 
 import java.util.function.Supplier;
 
 public class SyncStatsPacket {
 
-    private final int[] statValues;
-    private final int[] pressCounts;
-    private final int   totalXp;
+    final int[] statValues;
+    final int[] pressCounts;
+    final int   totalXp;
 
     public SyncStatsPacket(IPlayerStats stats, int totalXp) {
         StatsType[] types = StatsType.values();
@@ -47,18 +48,11 @@ public class SyncStatsPacket {
     }
 
     public static void handle(SyncStatsPacket packet, Supplier<NetworkEvent.Context> ctx) {
-        ctx.get().enqueueWork(() -> {
-            var player = Minecraft.getInstance().player;
-            if (player == null) return;
-
-            PlayerStatsCapability.get(player).ifPresent(stats -> {
-                StatsType[] types = StatsType.values();
-                for (int i = 0; i < types.length && i < packet.statValues.length; i++) {
-                    stats.setStat(types[i], packet.statValues[i]);
-                    stats.setPressCount(types[i], packet.pressCounts[i]);
-                }
-            });
-        });
+        ctx.get().enqueueWork(() ->
+                DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () ->
+                        SyncStatsClientProxy.apply(packet)
+                )
+        );
         ctx.get().setPacketHandled(true);
     }
 }

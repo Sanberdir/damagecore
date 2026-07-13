@@ -135,5 +135,13 @@
   "item.damagecore.scarlet_stapler_ring": "Кольцо Алого Сшивателя",
 
   "key.damagecore.strong_attack": "Сильная атака",
-  "key.category.damagecore": "Damagecore"
+  "key.category.damagecore": "Damagecore",
+
+  "weapon.type.sword":    "Меч",
+  "weapon.type.axe":      "Топор",
+  "weapon.type.trident":  "Трезубец",
+  "weapon.type.spear":    "Копьё",
+  "weapon.type.blunt":    "Дробящее оружие",
+  "weapon.type.bow":      "Лук",
+  "weapon.type.crossbow": "Арбалет"
 }

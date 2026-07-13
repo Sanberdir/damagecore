@@ -138,6 +138,16 @@
   "item.damagecore.scarlet_stapler_ring": "Scarlet Stapler Ring",
 
   "key.damagecore.strong_attack": "Strong Attack",
+  "key.damagecore.combat_mode": "Combat mode",
 
-  "key.category.damagecore": "Damagecore"
+  "key.categories.damagecore": "Damagecore",
+
+
+  "weapon.type.sword":    "Sword",
+  "weapon.type.axe":      "Axe",
+  "weapon.type.trident":  "Trident",
+  "weapon.type.spear":    "Spear",
+  "weapon.type.blunt":    "Blunt Weapon",
+  "weapon.type.bow":      "Bow",
+  "weapon.type.crossbow": "Crossbow"
 }

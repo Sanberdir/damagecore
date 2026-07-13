@@ -1,14 +1,15 @@
 package ru.imaginaerum.damagecore.api.damage_book_protection;
 
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.network.NetworkEvent;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.LocalPlayer;
+// Убраны импорты Minecraft и LocalPlayer!
 
 public class SyncNodeLevelsPacket {
     public final int treeId;
@@ -33,19 +34,17 @@ public class SyncNodeLevelsPacket {
         int size = buf.readInt();
         Map<String, Integer> map = new HashMap<>(size);
         for (int i = 0; i < size; i++) {
-            String id = buf.readUtf(32767);
-            int lvl = buf.readInt();
-            map.put(id, lvl);
+            map.put(buf.readUtf(32767), buf.readInt());
         }
         return new SyncNodeLevelsPacket(treeId, map);
     }
 
     public static void handle(SyncNodeLevelsPacket pkt, Supplier<NetworkEvent.Context> ctxSupplier) {
-        NetworkEvent.Context ctx = ctxSupplier.get();
-        ctx.enqueueWork(() -> {
-            System.out.println("[Client] SyncNodeLevels tree=" + pkt.treeId + " " + pkt.levels);
-            SkillTreeClientSync.applyNodeLevels(pkt.treeId, pkt.levels);
-        });
-        ctx.setPacketHandled(true);
+        ctxSupplier.get().enqueueWork(() ->
+                DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () ->
+                        SyncNodeLevelsClientProxy.apply(pkt.treeId, pkt.levels)
+                )
+        );
+        ctxSupplier.get().setPacketHandled(true);
     }
 }

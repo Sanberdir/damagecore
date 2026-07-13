@@ -4,6 +4,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.network.NetworkEvent;
+import ru.imaginaerum.damagecore.hud.DrainStaminaClientProxy;
 
 import java.util.function.Supplier;
 
@@ -25,8 +26,11 @@ public class DrainStaminaPacket {
 
     public static void handle(DrainStaminaPacket packet, Supplier<NetworkEvent.Context> ctx) {
         ctx.get().enqueueWork(() ->
+                // ИСПРАВЛЕНО: вместо прямой ссылки на StaminaManager используем прокси-класс.
+                // DistExecutor гарантирует, что DrainStaminaClientProxy (и через него
+                // StaminaManager с Minecraft.getInstance()) загрузится ТОЛЬКО на клиенте.
                 DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () ->
-                        StaminaManager.drainFromServer(packet.amount)
+                        DrainStaminaClientProxy.drain(packet.amount)
                 )
         );
         ctx.get().setPacketHandled(true);

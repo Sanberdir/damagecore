@@ -9,15 +9,13 @@ import java.util.function.Supplier;
 public class ThirstDamagePacket {
 
     public ThirstDamagePacket() {}
-
     public ThirstDamagePacket(FriendlyByteBuf buf) {}
-
     public void toBytes(FriendlyByteBuf buf) {}
 
     public void handle(Supplier<NetworkEvent.Context> ctx) {
         ctx.get().enqueueWork(() -> {
             ServerPlayer player = ctx.get().getSender();
-            if (player != null) {
+            if (player != null && player.level().getDifficulty() != net.minecraft.world.Difficulty.PEACEFUL) {
                 player.hurt(player.damageSources().starve(), 1f);
             }
         });

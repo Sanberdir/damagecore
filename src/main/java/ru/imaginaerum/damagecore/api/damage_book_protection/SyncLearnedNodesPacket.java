@@ -1,14 +1,15 @@
 package ru.imaginaerum.damagecore.api.damage_book_protection;
 
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.network.NetworkEvent;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.LocalPlayer;
+// Убраны импорты Minecraft и LocalPlayer!
 
 public class SyncLearnedNodesPacket {
     public final int treeId;
@@ -35,13 +36,11 @@ public class SyncLearnedNodesPacket {
 
     public static void handle(SyncLearnedNodesPacket pkt, Supplier<NetworkEvent.Context> ctxSupplier) {
         NetworkEvent.Context ctx = ctxSupplier.get();
-        ctx.enqueueWork(() -> {
-            // client thread
-            LocalPlayer player = Minecraft.getInstance().player;
-            if (player == null) return;
-
-            SkillTreeClientSync.applyLearnedNodes(pkt.treeId, pkt.learnedIds);
-        });
+        ctx.enqueueWork(() ->
+                DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () ->
+                        SyncLearnedNodesClientProxy.apply(pkt.treeId, pkt.learnedIds)
+                )
+        );
         ctx.setPacketHandled(true);
     }
 }

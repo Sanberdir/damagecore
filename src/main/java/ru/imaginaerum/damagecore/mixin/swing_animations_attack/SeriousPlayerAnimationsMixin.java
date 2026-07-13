@@ -23,11 +23,7 @@ import ru.imaginaerum.damagecore.animation_attack.HoldLastFramePlayer;
 import ru.imaginaerum.damagecore.animation_attack.ICurrentAttackType;
 import ru.imaginaerum.damagecore.animation_attack.IExampleAnimatedPlayer;
 import ru.imaginaerum.damagecore.animation_attack.torsoPosGetter;
-import ru.imaginaerum.damagecore.api.ModNetwork;
 import ru.imaginaerum.damagecore.library_damage.DamageType;
-import ru.imaginaerum.damagecore.library_damage.PacketSyncAttackType;
-
-import com.mojang.authlib.GameProfile;
 
 import static dev.kosmx.playerAnim.core.util.Ease.INOUTSINE;
 
@@ -39,79 +35,38 @@ public abstract class SeriousPlayerAnimationsMixin extends Player
         super(level, pos, yRot, profile);
     }
 
-    @Unique
-    private DamageType currentAttackType = DamageType.SLASHING;
+    @Unique private DamageType currentAttackType = DamageType.SLASHING;
+    @Unique private int pendingSwingIndex = 0, swingIndex = 0;
+    @Unique private final ModifierLayer<IAnimation> swordSwingContainer = new ModifierLayer<>();
+    @Unique private KeyframeAnimation[] swing_anims;
+    @Unique private KeyframeAnimation strong_attack;
+    @Unique private HoldLastFramePlayer currentSwingPlayer;
+    @Unique private boolean initialized = false, swordSwingRequested = false, strongAttackRequested = false, preventNextSwing = false;
 
-    @Override
-    public void damagecore$setCurrentAttackType(DamageType type) {
-        this.currentAttackType = type;
-    }
-
-    @Override
-    public DamageType damagecore$getCurrentAttackType() {
-        return this.currentAttackType;
-    }
-
-    @Unique
-    private int pendingSwingIndex = 0;
-
-    @Unique
-    private final ModifierLayer<IAnimation> swordSwingContainer = new ModifierLayer<>();
-
-    @Unique
-    private KeyframeAnimation[] swing_anims;
-
-    @Unique
-    private KeyframeAnimation strong_attack;
-
-    @Unique
-    private HoldLastFramePlayer currentSwingPlayer;
-
-    @Unique
-    private int swingIndex = 0;
-
-    @Unique
-    private boolean initialized = false;
-
-    @Unique
-    private boolean swordSwingRequested = false;
-
-    @Unique
-    private boolean strongAttackRequested = false;
-
-    @Unique
-    private boolean preventNextSwing = false;
+    @Override public void damagecore$setCurrentAttackType(DamageType type) { currentAttackType = type; }
+    @Override public DamageType damagecore$getCurrentAttackType() { return currentAttackType; }
 
     @Unique
     private DamageType damagecore$getAttackTypeForIndex(int index) {
         return switch (index) {
-            case 1 -> DamageType.PIERCING; // fa_2
-            default -> DamageType.SLASHING; // fa_1 и fa_3
+            case 1 -> DamageType.PIERCING;
+            default -> DamageType.SLASHING;
         };
     }
 
     @Override
     public void requestSwordSwing() {
         if (preventNextSwing) { preventNextSwing = false; return; }
-
         pendingSwingIndex = swingIndex;
-        DamageType type = damagecore$getAttackTypeForIndex(pendingSwingIndex);
-
-        // ❌ убрать: ModNetwork.CHANNEL.sendToServer(new PacketSyncAttackType(type));
-
-        // Сохраняем тип локально (для чтения в LocalPlayerAttackMixin)
-        this.currentAttackType = type;
-
+        currentAttackType = damagecore$getAttackTypeForIndex(pendingSwingIndex);
         swordSwingRequested = true;
     }
 
     @Override
     public boolean consumeSwordSwingRequest() {
-        if (swordSwingRequested) {
-            swordSwingRequested = false;
-            return true;
-        }
-        return false;
+        if (!swordSwingRequested) return false;
+        swordSwingRequested = false;
+        return true;
     }
 
     @Override
@@ -122,34 +77,29 @@ public abstract class SeriousPlayerAnimationsMixin extends Player
 
     @Override
     public boolean consumeStrongAttackRequest() {
-        if (strongAttackRequested) {
-            strongAttackRequested = false;
-            return true;
-        }
-        return false;
+        if (!strongAttackRequested) return false;
+        strongAttackRequested = false;
+        return true;
     }
 
     @Inject(method = "tick", at = @At("HEAD"))
     private void damagecore$tick(CallbackInfo ci) {
-        AbstractClientPlayer self = (AbstractClientPlayer) (Object) this;
+        AbstractClientPlayer self = (AbstractClientPlayer)(Object)this;
 
         if (!initialized) {
-            swing_anims = new KeyframeAnimation[] {
+            swing_anims = new KeyframeAnimation[]{
                     PlayerAnimationRegistry.getAnimation(new ResourceLocation("damagecore", "fa_1")),
                     PlayerAnimationRegistry.getAnimation(new ResourceLocation("damagecore", "fa_2")),
-                    PlayerAnimationRegistry.getAnimation(new ResourceLocation("damagecore", "fa_3"))
+                    PlayerAnimationRegistry.getAnimation(new ResourceLocation("damagecore", "fa_3")),
+                    PlayerAnimationRegistry.getAnimation(new ResourceLocation("damagecore", "fa_4")),
+                    PlayerAnimationRegistry.getAnimation(new ResourceLocation("damagecore", "fa_5"))
             };
 
-            strong_attack =
-                    PlayerAnimationRegistry.getAnimation(new ResourceLocation("damagecore", "strong_attack"));
-
-            PlayerAnimationAccess.getPlayerAnimLayer(self)
-                    .addAnimLayer(10, swordSwingContainer);
-
+            strong_attack = PlayerAnimationRegistry.getAnimation(new ResourceLocation("damagecore", "strong_attack"));
+            PlayerAnimationAccess.getPlayerAnimLayer(self).addAnimLayer(10, swordSwingContainer);
             initialized = true;
         }
 
-        // STRONG ATTACK
         if (consumeStrongAttackRequest() && strong_attack != null) {
             swordSwingContainer.setAnimation(null);
             swordSwingContainer.replaceAnimationWithFade(
@@ -159,24 +109,16 @@ public abstract class SeriousPlayerAnimationsMixin extends Player
             return;
         }
 
-        // NORMAL SWING
         if (consumeSwordSwingRequest() && swing_anims != null) {
             int idx = pendingSwingIndex;
             System.out.println("[TICK] играем idx=" + idx + ", swingIndex=" + swingIndex);
 
             KeyframeAnimation anim = swing_anims[idx];
-
-            // следующий удар по кругу: 0 -> 1 -> 2 -> 0
             swingIndex = (idx + 1) % swing_anims.length;
 
             if (anim != null) {
                 swordSwingContainer.setAnimation(null);
                 currentSwingPlayer = new HoldLastFramePlayer(anim);
-
-                // Сброс комбо только после ПОСЛЕДНЕЙ анимации
-                if (idx == swing_anims.length - 1) {
-                    currentSwingPlayer.setOnExpired(() -> swingIndex = 0);
-                }
 
                 swordSwingContainer.replaceAnimationWithFade(
                         AbstractFadeModifier.standardFadeIn(0, INOUTSINE),
@@ -186,7 +128,8 @@ public abstract class SeriousPlayerAnimationsMixin extends Player
         }
     }
 
-    @Override public ModifierLayer<IAnimation> seriousplayeranimations_getModAnimation() { return null; }
+    @Override public ModifierLayer<IAnimation> seriousplayeranimations_getModAnimation() { return swordSwingContainer; }
+
     @Override public Vec3f getTorsoPos() { return null; }
     @Override public Vec3f getTorsoRotation() { return null; }
 

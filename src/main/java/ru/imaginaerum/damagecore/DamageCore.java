@@ -1,6 +1,8 @@
 package ru.imaginaerum.damagecore;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.logging.LogUtils;
+import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.api.distmarker.Dist;
@@ -28,6 +30,7 @@ import ru.imaginaerum.damagecore.effect.DCEffects;
 import ru.imaginaerum.damagecore.item.DCItems;
 import ru.imaginaerum.damagecore.library_damage.WeaponDamageManager;
 import ru.imaginaerum.damagecore.library_damage.arrow_data.ArrowDamageManager;
+import ru.imaginaerum.damagecore.library_weapon_types.WeaponTypeManager;
 import ru.imaginaerum.damagecore.particle.DCParticles;
 import ru.imaginaerum.damagecore.sounds.CustomSoundEvents;
 
@@ -63,6 +66,7 @@ public class DamageCore {
         DCItems.ITEMS.register(modEventBus);
         DCEffects.MOB_EFFECTS.register(modEventBus);
         DCParticles.PARTICLE_TYPES.register(modEventBus);
+
         // Register the commonSetup method for modloading
         CustomSoundEvents.SOUND_EVENTS.register(modEventBus);
         modEventBus.addListener(this::commonSetup);
@@ -83,11 +87,24 @@ public class DamageCore {
         event.addListener(WEAPON_DAMAGE_MANAGER);
         event.addListener(ARROW_DAMAGE_MANAGER);
         event.addListener(ARMOR_MODIFIER); // добавь это
+
+        event.addListener(WeaponTypeManager.INSTANCE); // ← добавить
     }
     private void commonSetup(final FMLCommonSetupEvent event) {
         event.enqueueWork(() -> {
             ModNetwork.init();
+
+            net.minecraftforge.fml.DistExecutor.unsafeRunWhenOn(
+                    net.minecraftforge.api.distmarker.Dist.CLIENT,
+                    () -> DamageCore::clientOnlySetup
+            );
         });
+    }
+
+    private static void clientOnlySetup() {
+        Minecraft mc = Minecraft.getInstance();
+        mc.options.keySwapOffhand.setKey(InputConstants.UNKNOWN);
+        mc.options.save();
     }
 
     // Add the example block item to the building blocks tab

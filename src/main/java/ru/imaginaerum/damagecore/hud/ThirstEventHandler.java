@@ -27,9 +27,7 @@ public class ThirstEventHandler {
         var mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) return;
 
-        boolean rmb = mc.options.keyUse.isDown();
-        boolean emptyHands = mc.player.getMainHandItem().isEmpty();
-        boolean lookingAtWater = isLookingAtWater(mc);
+        boolean rmb = mc.options.keyUse.isDown(), emptyHands = mc.player.getMainHandItem().isEmpty(), lookingAtWater = isLookingAtWater(mc);
 
         if (rmb && emptyHands && lookingAtWater) {
             drinkTicks++;
@@ -39,20 +37,20 @@ public class ThirstEventHandler {
             if (drinkTicks >= DRINK_DURATION) {
                 drinkTicks = 0;
                 ThirstBarElement.drink(4f);
-                mc.level.playSound(mc.player, mc.player.blockPosition(),
-                        SoundEvents.GENERIC_DRINK, SoundSource.PLAYERS, 1f, 1f);
+                mc.level.playSound(mc.player, mc.player.blockPosition(), SoundEvents.GENERIC_DRINK, SoundSource.PLAYERS, 1f, 1f);
             }
         } else {
             drinkTicks = 0;
         }
     }
+
     private static boolean isLookingAtWater(Minecraft mc) {
         if (mc.player == null || mc.level == null) return false;
 
         double reach = mc.player.getBlockReach();
         var start = mc.player.getEyePosition();
-        var look  = mc.player.getViewVector(1.0f);
-        var end   = start.add(look.x * reach, look.y * reach, look.z * reach);
+        var look = mc.player.getViewVector(1.0f);
+        var end = start.add(look.x * reach, look.y * reach, look.z * reach);
 
         var hit = mc.level.clip(new net.minecraft.world.level.ClipContext(
                 start, end,
@@ -63,9 +61,9 @@ public class ThirstEventHandler {
 
         if (hit.getType() != net.minecraft.world.phys.HitResult.Type.BLOCK) return false;
 
-        return mc.level.getFluidState(hit.getBlockPos())
-                .is(net.minecraft.tags.FluidTags.WATER);
+        return mc.level.getFluidState(hit.getBlockPos()).is(net.minecraft.tags.FluidTags.WATER);
     }
+
     // Окончание использования предмета (бутылка воды, зелья)
     @SubscribeEvent
     public static void onItemUseFinish(LivingEntityUseItemEvent.Finish event) {
@@ -79,9 +77,7 @@ public class ThirstEventHandler {
                 ThirstBarElement.drink(6f);
                 return;
             }
-
-            // Любое зелье считается питьём (меньше воды)
-            ThirstBarElement.drink(3f);
+            ThirstBarElement.drink(3f); // любое зелье считается питьём (меньше воды)
             return;
         }
 

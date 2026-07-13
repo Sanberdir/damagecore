@@ -38,8 +38,12 @@
     "enchanted.LivingEntityMagicAbsorbMixin",
     "enchanted.LivingEntityProjectileMagicAbsorbMixin",
     "event_trees.BrewingStandMixin",
-    "inventoty_screen.AbstractContainerScreenMixin",
-    "inventoty_screen.InventoryScreenMixin",
+    "inventory_screen.AbstractContainerMenuInvoker",
+
+    "inventory_screen.InventoryHotbarLockMixin",
+    "inventory_screen.InventoryMenuMixin",
+
+    "inventory_screen.PlayerMainHandMixin",
     "suffocation_mixins.LivingEntitySuffocationMixin",
     "suffocation_mixins.PlayerSuffocationMixin",
     "swing_animations_attack.MultiPlayerGameModeMixin",
@@ -51,8 +55,17 @@
     "tree_mixins.shooting.BowItemServerMixin"
   ],
   "client": [
+    "inventory_screen.AbstractContainerScreenMixin",
+    "inventory_screen.InventoryScreenMixin",
     "damage_bleeding_mixins.LivingEntityBleedingAnimationMixin",
+    "inventory_screen.GuiOffhandAlwaysVisibleMixin",
+    "inventory_screen.ItemInHandLayerMixin",
+    "inventory_screen.ItemInHandRendererMixin",
+    "inventory_screen.key_mixins.AccessorKeyEntry",
+    "inventory_screen.key_mixins.HideOffhandKeyMixin",
+    "inventory_screen.key_mixins.KeyboardCancelOffhandMixin",
     "swing_animations_attack.MixinLivingEntity",
+    "swing_animations_attack.PlayerModelSmoothMixin",
     "swing_animations_attack.SeriousPlayerAnimationsMixin",
     "tree_mixins.shooting.ItemPropertiesMixin"
   ],

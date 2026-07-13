@@ -1,0 +1,15 @@
+package ru.imaginaerum.damagecore.lybrary_extra_slots;
+
+import net.minecraftforge.common.capabilities.Capability;
+import net.minecraftforge.common.capabilities.CapabilityManager;
+import net.minecraftforge.common.capabilities.CapabilityToken;
+import net.minecraftforge.common.capabilities.RegisterCapabilitiesEvent;
+
+public class ExtraSlotCapability {
+    public static final Capability<IExtraSlot> INSTANCE =
+            CapabilityManager.get(new CapabilityToken<>() {});
+
+    public static void register(RegisterCapabilitiesEvent event) {
+        event.register(IExtraSlot.class);
+    }
+}

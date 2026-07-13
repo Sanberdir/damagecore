@@ -34,12 +34,15 @@ public class StaminaManager {
     }
 
     private static final float DRAIN_SPRINT              = 0.2f;
-    private static final float DRAIN_SHIELD_HOLD         = 0.02f;  // пассивный дрейн пока держишь щит
-    private static final float DRAIN_SHIELD_HIT          = 6.0f;   // разовый дрейн при получении удара в щит
+    private static final float DRAIN_SHIELD_HOLD         = 0.02f;
+    private static final float DRAIN_SHIELD_HIT          = 6.0f;
     private static final float REGEN_WALK                = 0.2f;
     private static final float REGEN_STAND               = 0.45f;
+    private static final float DRAIN_MINING              = 0.03f; // трата стамины при добыче
 
     private static final int EXHAUSTION_COOLDOWN         = 40;
+    private static final int MINING_REGEN_DELAY          = 30; // тиков задержки реген после добычи
+    private static int miningRegenDelayTimer = 0; // счётчик задержки реген после добычи
 
     private static final float STAMINA_CRITICAL          = 4.0f;
     private static final float STAMINA_LOW               = 10.0f;
@@ -47,54 +50,65 @@ public class StaminaManager {
     private static final float SPEED_MULTIPLIER_CRITICAL = 0.3f;
     private static final float SPEED_MULTIPLIER_LOW      = 0.6f;
 
-    private static final float DRAIN_BOAT                        = DRAIN_SPRINT / 4f;
-    private static final float BOAT_SPEED_MULTIPLIER_CRITICAL    = 0.2f;
-    private static final float BOAT_SPEED_MULTIPLIER_LOW         = 0.4f;
-    private static final double ORIGINAL_BOAT_MAX_SPEED          = 1.2;
-    public static boolean isExhausted() { return exhausted; }
+    private static final float DRAIN_BOAT                     = DRAIN_SPRINT / 4f;
+    private static final float BOAT_SPEED_MULTIPLIER_CRITICAL = 0.2f;
+    private static final float BOAT_SPEED_MULTIPLIER_LOW      = 0.4f;
+    private static final double ORIGINAL_BOAT_MAX_SPEED       = 1.2;
+
     // --- Состояние ---
-    private static float stamina       = getMaxStamina();
+    // ИСПРАВЛЕНО: -1 вместо вызова getMaxStamina() — он зовёт Minecraft.getInstance(),
+    // что недопустимо во время статической инициализации класса (краш на сервере).
+    private static float stamina       = -1f;
     private static boolean exhausted   = false;
     private static int exhaustionTimer = 0;
     private static double originalSpeed = -1;
+
+    public static boolean isExhausted() { return exhausted; }
+
+    public static float getStamina() {
+        // Ленивая инициализация: первый вызов на клиенте заполнит реальным значением
+        if (stamina < 0f) stamina = getMaxStamina();
+        return stamina;
+    }
+
     private static float getShieldStaminaMultiplier(Player player) {
         if (player instanceof ServerPlayer serverPlayer) {
             if (SkillTreeServerHandler.isNodeLearned(serverPlayer, "shield_bearer")) {
-                return 0.5f; // в 2 раза меньше расход
+                return 0.5f;
             }
         }
         return 1.0f;
     }
-    public static float getStamina()    { return stamina; }
+
     @SubscribeEvent
     public static void onAttack(AttackEntityEvent event) {
         if (!(event.getEntity() instanceof LocalPlayer player)) return;
         if (!Config.showStaminaHud) return;
         if (player.isCreative() || player.isSpectator()) return;
 
-        // Только блокируем удар при истощении — дренаж идёт через сервер
         if (exhausted) {
             event.setCanceled(true);
         }
     }
+
+    // Вызывается из DrainStaminaClientProxy — только на клиенте
     public static void drainFromServer(float amount) {
         if (exhausted) return;
+        if (stamina < 0f) stamina = getMaxStamina();
         stamina -= amount;
         if (stamina <= 0f) {
             stamina = 0f;
-            // triggerExhaustion требует Player — берём из Minecraft
             Minecraft mc = Minecraft.getInstance();
             if (mc.player != null) triggerExhaustion(mc.player);
         }
     }
-    // --- Удар в щит: разовый дрейн, при нуле стамины — щит сносится ---
+
     @SubscribeEvent
     public static void onShieldBlock(ShieldBlockEvent event) {
         if (!(event.getEntity() instanceof Player player)) return;
         if (player.isCreative() || player.isSpectator()) return;
         if (!Config.showStaminaHud) return;
         if (stamina <= 0f || exhausted) {
-            // стамины нет — щит пробивается, урон проходит
             event.setCanceled(true);
             triggerExhaustion(player);
             return;
@@ -108,7 +122,6 @@ public class StaminaManager {
         }
     }
 
-    // --- Тик: скорость и лодка ---
     @SubscribeEvent
     public static void onPlayerTick(LivingEvent.LivingTickEvent event) {
         if (!(event.getEntity() instanceof Player player)) return;
@@ -134,23 +147,25 @@ public class StaminaManager {
         handleBoatSlowdown(player);
     }
 
-    // --- Тик: трата/восстановление стамины ---
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
         if (!Config.showStaminaHud) return;
-        Minecraft mc     = Minecraft.getInstance();
+        Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         if (player == null || mc.isPaused()) return;
 
-        boolean sprinting   = player.isSprinting();
-        boolean moving      = player.getDeltaMovement().horizontalDistanceSqr() > 1e-6;
-        boolean inBoat      = player.getVehicle() instanceof Boat;
+        // Ленивая инициализация при первом тике
+        if (stamina < 0f) stamina = getMaxStamina();
+
+        boolean sprinting      = player.isSprinting();
+        boolean moving         = player.getDeltaMovement().horizontalDistanceSqr() > 1e-6;
+        boolean inBoat         = player.getVehicle() instanceof Boat;
         boolean blockingShield = isHoldingShield(player) && player.isBlocking();
+        boolean mining         = mc.gameMode != null && mc.gameMode.isDestroying();
 
         if (exhausted) {
-            if (sprinting)      player.setSprinting(false);
-            // Щит опускается — имитируем disable как от топора
+            if (sprinting) player.setSprinting(false);
             if (blockingShield) player.getCooldowns().addCooldown(
                     player.getUseItem().getItem(), 100
             );
@@ -159,8 +174,24 @@ public class StaminaManager {
             return;
         }
 
+        if (mining) {
+            // Активная добыча — тратим стамину, реген заблокирован
+            stamina -= DRAIN_MINING;
+            if (stamina <= 0f) {
+                stamina = 0f;
+                triggerExhaustion(player);
+            }
+            miningRegenDelayTimer = MINING_REGEN_DELAY;
+            return;
+        }
+
+        if (miningRegenDelayTimer > 0) {
+            // Только что закончили добычу — реген ещё не восстановился
+            miningRegenDelayTimer--;
+            return;
+        }
+
         if (inBoat) {
-            // Лодка
             if (moving) {
                 stamina -= DRAIN_BOAT;
                 if (stamina <= 0f) stamina = 0f;
@@ -168,14 +199,12 @@ public class StaminaManager {
                 stamina = Math.min(stamina + REGEN_STAND, getMaxStamina());
             }
         } else if (sprinting) {
-            // Бег
             stamina -= DRAIN_SPRINT;
             if (stamina <= 0f) {
                 stamina = 0f;
                 triggerExhaustion(player);
             }
         } else if (blockingShield) {
-            // Держим щит — пассивный дрейн, регена нет
             float mult = getShieldStaminaMultiplier(player);
             stamina -= DRAIN_SHIELD_HOLD * mult;
             if (stamina <= 0f) {
@@ -188,8 +217,6 @@ public class StaminaManager {
             stamina = Math.min(stamina + REGEN_STAND, getMaxStamina());
         }
     }
-
-    // --- Вспомогательные ---
 
     private static boolean isHoldingShield(LocalPlayer player) {
         return player.getMainHandItem().getItem() instanceof ShieldItem
@@ -205,13 +232,13 @@ public class StaminaManager {
     private static void handleBoatSlowdown(Player player) {
         if (!(player.getVehicle() instanceof Boat boat)) return;
 
-        Vec3 vel    = boat.getDeltaMovement();
+        Vec3 vel = boat.getDeltaMovement();
         double hSpeed = Math.sqrt(vel.x * vel.x + vel.z * vel.z);
 
         float multiplier;
-        if (stamina < STAMINA_CRITICAL)  multiplier = BOAT_SPEED_MULTIPLIER_CRITICAL;
-        else if (stamina < STAMINA_LOW)  multiplier = BOAT_SPEED_MULTIPLIER_LOW;
-        else                             return;
+        if (stamina < STAMINA_CRITICAL)     multiplier = BOAT_SPEED_MULTIPLIER_CRITICAL;
+        else if (stamina < STAMINA_LOW)     multiplier = BOAT_SPEED_MULTIPLIER_LOW;
+        else                                return;
 
         if (hSpeed > 0.01) {
             double maxAllowed = ORIGINAL_BOAT_MAX_SPEED * multiplier;

@@ -12,6 +12,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import ru.imaginaerum.damagecore.DamageCore;
+import ru.imaginaerum.damagecore.api.damage_book_protection.skill_tree_renderer.DurationBarTooltip;
 import ru.imaginaerum.damagecore.api.damage_book_protection.skill_tree_renderer.PotionEffectEntry;
 import ru.imaginaerum.damagecore.api.damage_book_protection.skill_tree_renderer.PotionTrackingClient;
 import ru.imaginaerum.damagecore.libraty_effects.FoodProtectionCapability;
@@ -30,9 +31,29 @@ public final class PotionTabRenderer {
      *  визуально "вылезает" за границы 16x16 рамки и при GAP=2 накладывается на следующий ряд. */
     private static final int ROW_GAP       = 6;
 
-    /** Статичная иконка для всех эффектов, наложенных мобом (атака/зелье моба) — без привязки к конкретному типу моба. */
-    private static final ResourceLocation MOB_SOURCE_ICON =
-            new ResourceLocation(DamageCore.MODID, "textures/gui/icons/mob.png");
+    /** Спрайт-лист, из которого вырезаются статичные иконки (моб-источник, еда-категория, зелья-категория). */
+    private static final ResourceLocation STATUS_ICONS_SHEET =
+            new ResourceLocation(DamageCore.MODID, "textures/gui/icons/status_effect_icons.png");
+
+    /** Полный размер текстуры status_effect_icons.png (нужен для корректного маппинга UV).
+     *  Если реальный размер файла другой — поправьте эти два значения. */
+    private static final int ICONS_TEX_W = 256;
+    private static final int ICONS_TEX_H = 256;
+
+    /** Координаты вырезки иконки моба-источника: X51,Y4 — X61,Y14 (10x10 пикселей). */
+    private static final int MOB_ICON_U      = 51;
+    private static final int MOB_ICON_V      = 4;
+    private static final int MOB_ICON_REGION = 10;
+
+    /** Координаты вырезки общей иконки категории "Еда": X3,Y4 — X13,Y14 (10x10 пикселей). */
+    private static final int FOOD_ICON_U      = 3;
+    private static final int FOOD_ICON_V      = 4;
+    private static final int FOOD_ICON_REGION = 10;
+
+    /** Координаты вырезки общей иконки категории "Зелья": X83,Y4 — X93,Y14 (10x10 пикселей). */
+    private static final int POTION_ICON_U      = 83;
+    private static final int POTION_ICON_V      = 4;
+    private static final int POTION_ICON_REGION = 10;
 
     private PotionTabRenderer() {}
 
@@ -40,7 +61,7 @@ public final class PotionTabRenderer {
      * Считаем источник "игроком" (т.е. показываем иконку зелья, а не иконку моба),
      * если sourceEntityType не задан вовсе (DRINK — игрок выпил сам) или
      * явно равен EntityType.PLAYER (игрок бросил splash/lingering зелье).
-     * Любой другой EntityType — это моб, для него рисуем общую иконку mob.png.
+     * Любой другой EntityType — это моб, для него рисуем вырезку из status_effect_icons.png.
      */
     private static boolean isPlayerSource(EntityType<?> sourceEntityType) {
         return sourceEntityType == null || sourceEntityType == EntityType.PLAYER;
@@ -111,7 +132,8 @@ public final class PotionTabRenderer {
             for (var entry : byItem.entrySet()) {
                 Item item = entry.getKey();
 
-                gui.renderItem(new ItemStack(item), iconX, y);
+                // Все предметы еды отображаются одним общим значком из спрайт-листа.
+                renderFoodSourceIcon(gui, iconX, y);
 
                 if (mouseX >= iconX && mouseX < iconX + ICON_SIZE
                         && mouseY >= y && mouseY < y + ICON_SIZE) {
@@ -133,8 +155,8 @@ public final class PotionTabRenderer {
         // SPLIT PLAYER EFFECTS INTO 3 BUCKETS
         // =========================
 
-        // 1) зелья, выпитые/брошенные ИГРОКОМ (или DRINK без источника) -> иконка зелья
-        // 2) эффекты, наложенные НЕ игроком (моб бросил зелье ИЛИ ударил/выстрелил) -> общая иконка mob.png,
+        // 1) зелья, выпитые/брошенные ИГРОКОМ (или DRINK без источника) -> общая иконка категории "Зелья"
+        // 2) эффекты, наложенные НЕ игроком (моб бросил зелье ИЛИ ударил/выстрелил) -> вырезка status_effect_icons.png,
         //    сгруппированные по EntityType источника, чтобы один моб = одна иконка
         // 3) совсем неизвестные эффекты (нет записи в трекере) -> идут вместе с зельями игрока
         Map<PotionEffectEntry, List<MobEffectInstance>> byPotion = new LinkedHashMap<>();
@@ -186,7 +208,9 @@ public final class PotionTabRenderer {
                 PotionEffectEntry source = entry.getKey();
                 ItemStack stack = source.getPotionStack();
 
-                gui.renderItem(stack, iconX, potionRowY);
+                // Все зелья игрока отображаются одним общим значком из спрайт-листа,
+                // вместо реальной иконки конкретного зелья (stack используется только для тултипа).
+                renderPotionSourceIcon(gui, iconX, potionRowY);
 
                 if (mouseX >= iconX && mouseX < iconX + ICON_SIZE
                         && mouseY >= potionRowY && mouseY < potionRowY + ICON_SIZE) {
@@ -266,12 +290,18 @@ public final class PotionTabRenderer {
                             hoveredUnknown.getEffect().getDescriptionId())
                     .withStyle(s -> s.withColor(0xFFFF55)));
 
-            lines.add(Component.literal(
-                    toRoman(hoveredUnknown.getAmplifier() + 1)
-                            + " §7(" + formatTicks(hoveredUnknown.getDuration()) + ")§r"
-            ));
+            lines.add(Component.literal(toRoman(hoveredUnknown.getAmplifier() + 1)));
 
-            gui.renderTooltip(mc.font, lines, Optional.empty(), mouseX, mouseY);
+            float progress = PotionTrackingClient.getRemainingFraction(
+                    hoveredUnknown.getEffect(), hoveredUnknown.getDuration());
+
+            // FIX: use hoveredUnknown here, not a non-existent `longest`
+            Component effectName = Component.translatable(hoveredUnknown.getEffect().getDescriptionId());
+            int amplifier = hoveredUnknown.getAmplifier() + 1;
+
+            gui.renderTooltip(mc.font, lines,
+                    Optional.of(new DurationBarTooltip(progress, effectName, amplifier)),
+                    mouseX, mouseY);
         }
 
         if (hoveredMobType != null && hoveredMobEffects != null) {
@@ -280,15 +310,31 @@ public final class PotionTabRenderer {
     }
 
     // =========================
-    // RENDER: SOURCE MOB ICON (статичная иконка для всех мобов)
+    // RENDER: STATIC SPRITE ICONS (вырезки из status_effect_icons.png, растянутые до ICON_SIZE)
     // =========================
 
     private static void renderMobSourceIcon(GuiGraphics gui, int x, int y) {
-        gui.blit(MOB_SOURCE_ICON, x, y, 0, 0, ICON_SIZE, ICON_SIZE, ICON_SIZE, ICON_SIZE);
+        renderStatusIcon(gui, x, y, MOB_ICON_U, MOB_ICON_V, MOB_ICON_REGION);
+    }
+
+    private static void renderFoodSourceIcon(GuiGraphics gui, int x, int y) {
+        renderStatusIcon(gui, x, y, FOOD_ICON_U, FOOD_ICON_V, FOOD_ICON_REGION);
+    }
+
+    private static void renderPotionSourceIcon(GuiGraphics gui, int x, int y) {
+        renderStatusIcon(gui, x, y, POTION_ICON_U, POTION_ICON_V, POTION_ICON_REGION);
+    }
+
+    private static void renderStatusIcon(GuiGraphics gui, int x, int y, int u, int v, int region) {
+        gui.blit(STATUS_ICONS_SHEET,
+                x, y, ICON_SIZE, ICON_SIZE,
+                u, v,
+                region, region,
+                ICONS_TEX_W, ICONS_TEX_H);
     }
 
     // =========================
-    // TOOLTIP: FOOD
+    // TOOLTIP: FOOD (без изменений — своя структура: % защиты + время по каждому DamageType)
     // =========================
 
     private static void renderFoodTooltip(GuiGraphics gui,
@@ -372,13 +418,24 @@ public final class PotionTabRenderer {
         lines.add(stack.getHoverName()
                 .copy().withStyle(s -> s.withColor(0xFFFF55)));
 
-        int max = effects.stream()
-                .mapToInt(MobEffectInstance::getDuration)
-                .max().orElse(0);
+        // Полоска показывает оставшееся время самого долгого из наложенных этим зельем эффектов
+        // (раньше тут был текст "§7(Xs)§r" с тем же значением).
+        MobEffectInstance longest = effects.stream()
+                .max(Comparator.comparingInt(MobEffectInstance::getDuration))
+                .orElse(null);
 
-        lines.add(Component.literal("§7" + formatTicks(max) + "§r"));
+        float progress = longest != null
+                ? PotionTrackingClient.getRemainingFraction(longest.getEffect(), longest.getDuration())
+                : 1f;
 
-        gui.renderTooltip(mc.font, lines, Optional.empty(), mouseX, mouseY);
+        Component effectName = longest != null
+                ? Component.translatable(longest.getEffect().getDescriptionId())
+                : Component.empty();
+        int amplifier = longest != null ? longest.getAmplifier() + 1 : 1;
+
+        gui.renderTooltip(mc.font, lines,
+                Optional.of(new DurationBarTooltip(progress, effectName, amplifier)),
+                mouseX, mouseY);
     }
 
     // =========================
@@ -402,13 +459,27 @@ public final class PotionTabRenderer {
 
         for (MobEffectInstance inst : effects) {
             lines.add(Component.translatable(inst.getEffect().getDescriptionId())
-                    .append(Component.literal(
-                            " " + toRoman(inst.getAmplifier() + 1)
-                                    + " §7(" + formatTicks(inst.getDuration()) + ")§r"
-                    )));
+                    .append(Component.literal(" " + toRoman(inst.getAmplifier() + 1))));
         }
 
-        gui.renderTooltip(mc.font, lines, Optional.empty(), mouseX, mouseY);
+        // Один моб может наложить сразу несколько эффектов с разной длительностью —
+        // gui.renderTooltip поддерживает только один доп.-компонент, поэтому полоска
+        // показывает остаток самого долгого из них (как и раньше "(Xs)" показывал max-длительность общим текстом).
+        MobEffectInstance longest = effects.stream()
+                .max(Comparator.comparingInt(MobEffectInstance::getDuration))
+                .orElse(null);
+
+        float progress = longest != null
+                ? PotionTrackingClient.getRemainingFraction(longest.getEffect(), longest.getDuration())
+                : 1f;
+
+        Component effectName = longest != null
+                ? Component.translatable(longest.getEffect().getDescriptionId())
+                : Component.empty();
+        int amplifier = longest != null ? longest.getAmplifier() + 1 : 1;
+        gui.renderTooltip(mc.font, lines,
+                Optional.of(new DurationBarTooltip(progress, effectName, amplifier)),
+                mouseX, mouseY);
     }
 
     // =========================

@@ -1,4 +1,4 @@
-package ru.imaginaerum.damagecore.mixin.inventoty_screen;
+package ru.imaginaerum.damagecore.mixin.inventory_screen;
 
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;

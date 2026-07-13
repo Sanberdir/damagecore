@@ -7,6 +7,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.lwjgl.glfw.GLFW;
 import ru.imaginaerum.damagecore.DamageCore;
+import ru.imaginaerum.damagecore.lybrary_extra_slots.ModKeyMappings;
 
 @Mod.EventBusSubscriber(modid = DamageCore.MODID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
 public class KeyBindings {
@@ -18,7 +19,7 @@ public class KeyBindings {
         STRONG_ATTACK_KEY = new KeyMapping(
                 "key.damagecore.strong_attack",  // ключ локализации
                 GLFW.GLFW_KEY_LEFT_ALT,   // ALT left
-                "key.category.damagecore"         // категория в Управлении
+                ModKeyMappings.CATEGORY        // категория в Управлении
         );
         event.register(STRONG_ATTACK_KEY);
     }

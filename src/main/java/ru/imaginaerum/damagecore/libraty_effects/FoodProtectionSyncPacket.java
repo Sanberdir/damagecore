@@ -1,11 +1,14 @@
 package ru.imaginaerum.damagecore.libraty_effects;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.network.NetworkEvent;
 
 import java.util.function.Supplier;
+
+// Убран импорт Minecraft!
 
 public class FoodProtectionSyncPacket {
 
@@ -24,12 +27,11 @@ public class FoodProtectionSyncPacket {
     }
 
     public static void handle(FoodProtectionSyncPacket pkt, Supplier<NetworkEvent.Context> ctx) {
-        ctx.get().enqueueWork(() -> {
-            var player = Minecraft.getInstance().player;
-            if (player == null) return;
-            player.getCapability(FoodProtectionCapability.FOOD_PROTECTION)
-                    .ifPresent(manager -> manager.load(pkt.data));
-        });
+        ctx.get().enqueueWork(() ->
+                DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () ->
+                        FoodProtectionClientProxy.apply(pkt.data)
+                )
+        );
         ctx.get().setPacketHandled(true);
     }
 }
