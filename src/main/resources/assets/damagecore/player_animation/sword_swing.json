@@ -110,7 +110,7 @@
 				}
 			}
 		},
-		"strong_attack": {
+		"sword_sa": {
 			"animation_length": 0.75,
 			"bones": {
 				"body": {
@@ -398,7 +398,7 @@
 				}
 			}
 		},
-		"fa_1": {
+		"sword_fa_1": {
 			"animation_length": 0.2917,
 			"bones": {
 				"head": {
@@ -575,7 +575,7 @@
 				}
 			}
 		},
-		"fa_2": {
+		"sword_fa_2": {
 			"animation_length": 0.2917,
 			"bones": {
 				"head": {
@@ -772,7 +772,7 @@
 				}
 			}
 		},
-		"fa_3": {
+		"sword_fa_3": {
 			"animation_length": 0.2917,
 			"bones": {
 				"head": {
@@ -981,7 +981,7 @@
 				}
 			}
 		},
-		"fa_4": {
+		"sword_fa_4": {
 			"animation_length": 0.2917,
 			"bones": {
 				"body": {
@@ -1204,7 +1204,7 @@
 				}
 			}
 		},
-		"fa_5": {
+		"sword_fa_5": {
 			"animation_length": 0.3333,
 			"bones": {
 				"body": {

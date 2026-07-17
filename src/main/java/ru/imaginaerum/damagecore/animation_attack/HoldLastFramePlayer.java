@@ -10,11 +10,21 @@ public class HoldLastFramePlayer extends KeyframeAnimationPlayer {
     private final int freezeAtTick;
     private int frozenTicks = 0;
     private boolean expired = false;
-    private Runnable onExpired; // сюда вешаем "вернуть fa_1"
+    private boolean animationDoneFired = false;
+    private Runnable onExpired;
+    private Runnable onAnimationDone;
 
     public HoldLastFramePlayer(KeyframeAnimation animation) {
         super(animation);
         freezeAtTick = findLastKeyframeTick(animation);
+    }
+
+    public void setOnExpired(Runnable onExpired) {
+        this.onExpired = onExpired;
+    }
+
+    public void setOnAnimationDone(Runnable onAnimationDone) {
+        this.onAnimationDone = onAnimationDone;
     }
 
     private int findLastKeyframeTick(KeyframeAnimation animation) {
@@ -37,15 +47,17 @@ public class HoldLastFramePlayer extends KeyframeAnimationPlayer {
 
     @Override
     public void tick() {
-        if (getCurrentTick() < freezeAtTick) super.tick();
-        else if (!expired && ++frozenTicks >= HOLD_TICKS) {
-            expired = true;
-            if (onExpired != null) onExpired.run();
+        if (getCurrentTick() < freezeAtTick) {
+            super.tick();
+        } else {
+            if (!animationDoneFired) {
+                animationDoneFired = true;
+                if (onAnimationDone != null) onAnimationDone.run();
+            }
+            if (!expired && ++frozenTicks >= HOLD_TICKS) {
+                expired = true;
+                if (onExpired != null) onExpired.run();
+            }
         }
-    }
-
-    @Override
-    public boolean isActive() {
-        return !expired;
     }
 }

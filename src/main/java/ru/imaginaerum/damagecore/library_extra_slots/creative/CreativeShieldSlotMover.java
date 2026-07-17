@@ -1,4 +1,4 @@
-package ru.imaginaerum.damagecore.lybrary_extra_slots.creative;
+package ru.imaginaerum.damagecore.library_extra_slots.creative;
 
 import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
 import net.minecraft.world.inventory.Slot;

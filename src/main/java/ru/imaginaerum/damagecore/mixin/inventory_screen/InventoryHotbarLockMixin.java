@@ -7,8 +7,8 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import ru.imaginaerum.damagecore.lybrary_extra_slots.ExtraSlotCapability;
-import ru.imaginaerum.damagecore.lybrary_extra_slots.IExtraSlot;
+import ru.imaginaerum.damagecore.library_extra_slots.ExtraSlotCapability;
+import ru.imaginaerum.damagecore.library_extra_slots.IExtraSlot;
 
 @Mixin(Inventory.class)
 public class InventoryHotbarLockMixin {

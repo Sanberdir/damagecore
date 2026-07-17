@@ -6,8 +6,8 @@ import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
-import ru.imaginaerum.damagecore.lybrary_extra_slots.ExtraSlotCapability;
-import ru.imaginaerum.damagecore.lybrary_extra_slots.IExtraSlot;
+import ru.imaginaerum.damagecore.library_extra_slots.ExtraSlotCapability;
+import ru.imaginaerum.damagecore.library_extra_slots.IExtraSlot;
 
 @Mixin(ItemInHandRenderer.class)
 public abstract class ItemInHandRendererMixin {

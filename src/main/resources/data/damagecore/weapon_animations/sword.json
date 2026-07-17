@@ -1,0 +1,11 @@
+{
+  "type": "SWORD",
+  "swing_animations": [
+    { "animation": "damagecore:sword_fa_1", "damage_type": "SLASHING", "head_look_at_camera": true },
+    { "animation": "damagecore:sword_fa_2", "damage_type": "PIERCING", "head_look_at_camera": true },
+    { "animation": "damagecore:sword_fa_3", "damage_type": "SLASHING", "head_look_at_camera": true },
+    { "animation": "damagecore:sword_fa_4", "damage_type": "PIERCING", "head_look_at_camera": true },
+    { "animation": "damagecore:sword_fa_5", "damage_type": "SLASHING" }
+  ],
+  "strong_attack": "damagecore:sword_sa"
+}

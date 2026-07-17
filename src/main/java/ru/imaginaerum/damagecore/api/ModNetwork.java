@@ -24,9 +24,9 @@ import ru.imaginaerum.damagecore.library_damage.PacketTypedAttack;
 import ru.imaginaerum.damagecore.library_stats.StatChangePacket;
 import ru.imaginaerum.damagecore.library_stats.SyncStatsPacket;
 import ru.imaginaerum.damagecore.libraty_effects.FoodProtectionSyncPacket;
-import ru.imaginaerum.damagecore.lybrary_extra_slots.CombatModeSyncPacket;
-import ru.imaginaerum.damagecore.lybrary_extra_slots.CombatModeTogglePacket;
-import ru.imaginaerum.damagecore.lybrary_extra_slots.SwapExtraSlotsPacket;
+import ru.imaginaerum.damagecore.library_extra_slots.CombatModeSyncPacket;
+import ru.imaginaerum.damagecore.library_extra_slots.CombatModeTogglePacket;
+import ru.imaginaerum.damagecore.library_extra_slots.SwapExtraSlotsPacket;
 
 import java.util.Optional;
 

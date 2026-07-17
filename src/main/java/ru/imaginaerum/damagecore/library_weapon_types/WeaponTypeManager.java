@@ -71,7 +71,6 @@ public class WeaponTypeManager implements net.minecraft.server.packs.resources.P
         }, prepExecutor).thenCompose(barrier::wait).thenAcceptAsync(loaded -> {
             weaponTypes.clear();
             weaponTypes.putAll(loaded);
-            System.out.println("[WeaponTypes] Loaded " + weaponTypes.size() + " entries.");
         }, applyExecutor);
     }
 }

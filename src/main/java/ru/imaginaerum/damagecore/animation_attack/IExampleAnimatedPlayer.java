@@ -19,6 +19,8 @@ public interface IExampleAnimatedPlayer {
     void disableOffArmB(boolean b);
     void disableAnimationB(boolean b);
     void disableOverlayB(boolean b);
+    boolean damagecore$isHeadLookAtCameraActive(); // новое
+
 
     void armPosMain(HumanoidModel.ArmPose pos);
     void armPosOff(HumanoidModel.ArmPose pos);

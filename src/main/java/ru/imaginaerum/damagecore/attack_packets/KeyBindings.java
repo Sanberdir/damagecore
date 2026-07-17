@@ -7,7 +7,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.lwjgl.glfw.GLFW;
 import ru.imaginaerum.damagecore.DamageCore;
-import ru.imaginaerum.damagecore.lybrary_extra_slots.ModKeyMappings;
+import ru.imaginaerum.damagecore.library_extra_slots.ModKeyMappings;
 
 @Mod.EventBusSubscriber(modid = DamageCore.MODID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
 public class KeyBindings {

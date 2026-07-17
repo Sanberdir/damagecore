@@ -9,6 +9,7 @@ import dev.kosmx.playerAnim.core.data.KeyframeAnimation;
 import dev.kosmx.playerAnim.core.util.Vec3f;
 import dev.kosmx.playerAnim.minecraftApi.PlayerAnimationAccess;
 import dev.kosmx.playerAnim.minecraftApi.PlayerAnimationRegistry;
+import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
@@ -23,7 +24,12 @@ import ru.imaginaerum.damagecore.animation_attack.HoldLastFramePlayer;
 import ru.imaginaerum.damagecore.animation_attack.ICurrentAttackType;
 import ru.imaginaerum.damagecore.animation_attack.IExampleAnimatedPlayer;
 import ru.imaginaerum.damagecore.animation_attack.torsoPosGetter;
+import ru.imaginaerum.damagecore.animation_attack.types.SwingAnimationEntry;
+import ru.imaginaerum.damagecore.animation_attack.types.WeaponAnimationManager;
+import ru.imaginaerum.damagecore.animation_attack.types.WeaponAnimationSet;
 import ru.imaginaerum.damagecore.library_damage.DamageType;
+import ru.imaginaerum.damagecore.library_weapon_types.WeaponType;
+import ru.imaginaerum.damagecore.library_weapon_types.WeaponTypeManager;
 
 import static dev.kosmx.playerAnim.core.util.Ease.INOUTSINE;
 
@@ -38,24 +44,60 @@ public abstract class SeriousPlayerAnimationsMixin extends Player
     @Unique private DamageType currentAttackType = DamageType.SLASHING;
     @Unique private int pendingSwingIndex = 0, swingIndex = 0;
     @Unique private final ModifierLayer<IAnimation> swordSwingContainer = new ModifierLayer<>();
-    @Unique private KeyframeAnimation[] swing_anims;
-    @Unique private KeyframeAnimation strong_attack;
     @Unique private HoldLastFramePlayer currentSwingPlayer;
     @Unique private boolean initialized = false, swordSwingRequested = false, strongAttackRequested = false, preventNextSwing = false;
-
+    @Unique private boolean pendingReturnToIdle = false;
     @Override public void damagecore$setCurrentAttackType(DamageType type) { currentAttackType = type; }
     @Override public DamageType damagecore$getCurrentAttackType() { return currentAttackType; }
+    @Unique private boolean attackInProgress = false;
+    @Unique private WeaponType damagecore$currentWeaponType = null;
+    @Unique private SwingAnimationEntry[] damagecore$swingEntries = new SwingAnimationEntry[0];
+    @Unique private KeyframeAnimation[] swing_anims = new KeyframeAnimation[0];
+    @Unique private KeyframeAnimation strong_attack;
+    @Unique private boolean headLookAtCameraActive = false;
 
+    @Override
+    public boolean damagecore$isHeadLookAtCameraActive() {
+        return headLookAtCameraActive;
+    }
+    @Unique
+    private void damagecore$refreshAnimationsIfNeeded(AbstractClientPlayer self) {
+        ResourceLocation itemId = net.minecraftforge.registries.ForgeRegistries.ITEMS
+                .getKey(self.getMainHandItem().getItem());
+        WeaponType type = itemId != null ? WeaponTypeManager.INSTANCE.getType(itemId) : null;
+
+        if (type == damagecore$currentWeaponType) return;
+        damagecore$currentWeaponType = type;
+
+        WeaponAnimationSet set = WeaponAnimationManager.INSTANCE.getAnimationSet(type);
+        if (set == null) {
+            damagecore$swingEntries = new SwingAnimationEntry[0];
+            swing_anims = new KeyframeAnimation[0];
+            strong_attack = null;
+            swingIndex = 0;
+            return;
+        }
+
+        damagecore$swingEntries = set.swingAnimations().toArray(new SwingAnimationEntry[0]);
+        swing_anims = new KeyframeAnimation[damagecore$swingEntries.length];
+        for (int i = 0; i < damagecore$swingEntries.length; i++) {
+            swing_anims[i] = PlayerAnimationRegistry.getAnimation(damagecore$swingEntries[i].animation());
+        }
+        strong_attack = set.strongAttack() != null
+                ? PlayerAnimationRegistry.getAnimation(set.strongAttack())
+                : null;
+
+        swingIndex = swing_anims.length > 0 ? swingIndex % swing_anims.length : 0;
+    }
     @Unique
     private DamageType damagecore$getAttackTypeForIndex(int index) {
-        return switch (index) {
-            case 1 -> DamageType.PIERCING;
-            default -> DamageType.SLASHING;
-        };
+        if (index < 0 || index >= damagecore$swingEntries.length) return DamageType.SLASHING;
+        return damagecore$swingEntries[index].damageType();
     }
 
     @Override
     public void requestSwordSwing() {
+        if (attackInProgress) return;
         if (preventNextSwing) { preventNextSwing = false; return; }
         pendingSwingIndex = swingIndex;
         currentAttackType = damagecore$getAttackTypeForIndex(pendingSwingIndex);
@@ -71,6 +113,7 @@ public abstract class SeriousPlayerAnimationsMixin extends Player
 
     @Override
     public void requestStrongAttack() {
+        if (attackInProgress) return;
         preventNextSwing = true;
         strongAttackRequested = true;
     }
@@ -86,22 +129,25 @@ public abstract class SeriousPlayerAnimationsMixin extends Player
     private void damagecore$tick(CallbackInfo ci) {
         AbstractClientPlayer self = (AbstractClientPlayer)(Object)this;
 
-        if (!initialized) {
-            swing_anims = new KeyframeAnimation[]{
-                    PlayerAnimationRegistry.getAnimation(new ResourceLocation("damagecore", "fa_1")),
-                    PlayerAnimationRegistry.getAnimation(new ResourceLocation("damagecore", "fa_2")),
-                    PlayerAnimationRegistry.getAnimation(new ResourceLocation("damagecore", "fa_3")),
-                    PlayerAnimationRegistry.getAnimation(new ResourceLocation("damagecore", "fa_4")),
-                    PlayerAnimationRegistry.getAnimation(new ResourceLocation("damagecore", "fa_5"))
-            };
+        if (pendingReturnToIdle) {
+            pendingReturnToIdle = false;
+            swingIndex = 0;
+            headLookAtCameraActive = false; // сброс
+            swordSwingContainer.replaceAnimationWithFade(
+                    AbstractFadeModifier.standardFadeIn(8, INOUTSINE),
+                    null
+            );
+        }
 
-            strong_attack = PlayerAnimationRegistry.getAnimation(new ResourceLocation("damagecore", "strong_attack"));
+        if (!initialized) {
             PlayerAnimationAccess.getPlayerAnimLayer(self).addAnimLayer(10, swordSwingContainer);
             initialized = true;
         }
 
+        damagecore$refreshAnimationsIfNeeded(self);
+
         if (consumeStrongAttackRequest() && strong_attack != null) {
-            swordSwingContainer.setAnimation(null);
+            headLookAtCameraActive = false; // сильная атака не смотрит в камеру
             swordSwingContainer.replaceAnimationWithFade(
                     AbstractFadeModifier.standardFadeIn(0, INOUTSINE),
                     new KeyframeAnimationPlayer(strong_attack)
@@ -109,16 +155,20 @@ public abstract class SeriousPlayerAnimationsMixin extends Player
             return;
         }
 
-        if (consumeSwordSwingRequest() && swing_anims != null) {
+        if (consumeSwordSwingRequest() && swing_anims.length > 0) {
             int idx = pendingSwingIndex;
-            System.out.println("[TICK] играем idx=" + idx + ", swingIndex=" + swingIndex);
+            if (idx >= swing_anims.length) idx = 0;
 
             KeyframeAnimation anim = swing_anims[idx];
             swingIndex = (idx + 1) % swing_anims.length;
 
+            headLookAtCameraActive = damagecore$swingEntries[idx].headLookAtCamera(); // новое
+
             if (anim != null) {
-                swordSwingContainer.setAnimation(null);
+                attackInProgress = true;
                 currentSwingPlayer = new HoldLastFramePlayer(anim);
+                currentSwingPlayer.setOnAnimationDone(() -> attackInProgress = false);
+                currentSwingPlayer.setOnExpired(() -> pendingReturnToIdle = true);
 
                 swordSwingContainer.replaceAnimationWithFade(
                         AbstractFadeModifier.standardFadeIn(0, INOUTSINE),
@@ -140,6 +190,6 @@ public abstract class SeriousPlayerAnimationsMixin extends Player
     @Override public void disableOffArmB(boolean b) {}
     @Override public void disableAnimationB(boolean b) {}
     @Override public void disableOverlayB(boolean b) {}
-    @Override public void armPosMain(net.minecraft.client.model.HumanoidModel.ArmPose pos) {}
-    @Override public void armPosOff(net.minecraft.client.model.HumanoidModel.ArmPose pos) {}
+    @Override public void armPosMain(HumanoidModel.ArmPose pos) {}
+    @Override public void armPosOff(HumanoidModel.ArmPose pos) {}
 }

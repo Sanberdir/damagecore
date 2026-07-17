@@ -1,10 +1,8 @@
-package ru.imaginaerum.damagecore.lybrary_extra_slots;
+package ru.imaginaerum.damagecore.library_extra_slots;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.network.NetworkEvent;
-import ru.imaginaerum.damagecore.lybrary_extra_slots.ExtraSlotCapability;
 
 import java.util.function.Supplier;
 

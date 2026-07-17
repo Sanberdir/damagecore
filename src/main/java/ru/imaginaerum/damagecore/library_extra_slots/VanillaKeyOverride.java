@@ -1,8 +1,7 @@
-package ru.imaginaerum.damagecore.lybrary_extra_slots;
+package ru.imaginaerum.damagecore.library_extra_slots;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
-import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;

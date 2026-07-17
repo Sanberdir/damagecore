@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import ru.imaginaerum.damagecore.lybrary_extra_slots.ExtraSlotCapability;
+import ru.imaginaerum.damagecore.library_extra_slots.ExtraSlotCapability;
 
 @Mixin(Player.class)
 public abstract class PlayerMainHandMixin {

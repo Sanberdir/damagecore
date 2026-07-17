@@ -1,4 +1,4 @@
-package ru.imaginaerum.damagecore.lybrary_extra_slots;
+package ru.imaginaerum.damagecore.library_extra_slots;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraftforge.event.entity.player.PlayerEvent;
